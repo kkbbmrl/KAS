@@ -1,0 +1,296 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 355 92% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 355 92% 45%;
+    --radius: 0.625rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Tajawal', 'Cairo', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  }
+  ::selection {
+    background: #e10600;
+    color: #fff;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f4f4f5;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(#e10600, #8f0400);
+    border-radius: 8px;
+  }
+}
+
+@layer utilities {
+  /* ===== Scroll reveal ===== */
+  .reveal {
+    opacity: 0;
+    transform: translateY(34px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-right {
+    transform: translateX(44px);
+  }
+  .reveal-right.is-visible {
+    transform: translateX(0);
+  }
+  .reveal-scale {
+    transform: scale(0.92);
+  }
+  .reveal-scale.is-visible {
+    transform: scale(1);
+  }
+
+  /* ===== Floating ===== */
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .animate-floaty { animation: floaty 5s ease-in-out infinite; }
+  .animate-floaty-slow { animation: floaty 7s ease-in-out infinite; }
+
+  /* ===== Slow spin for decorative gears ===== */
+  @keyframes spin-slow {
+    to { transform: rotate(360deg); }
+  }
+  .animate-spin-slow { animation: spin-slow 22s linear infinite; }
+  .animate-spin-slower { animation: spin-slow 40s linear infinite reverse; }
+
+  /* ===== Button shine sweep ===== */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.6s ease;
+    z-index: 1;
+  }
+  .btn-shine:hover::after {
+    transform: translateX(120%);
+  }
+
+  /* ===== Marquee (RTL friendly) ===== */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(50%); }
+  }
+  .marquee-track {
+    animation: marquee 30s linear infinite;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+
+  /* ===== Pulse ring (WhatsApp) ===== */
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+  .pulse-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: #22c55e;
+    animation: pulse-ring 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    z-index: -1;
+  }
+
+  /* ===== Cart badge bounce ===== */
+  @keyframes badge-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.55); }
+    100% { transform: scale(1); }
+  }
+  .badge-pop { animation: badge-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* ===== Toast ===== */
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .toast-in { animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* ===== Diagonal stripes texture ===== */
+  .stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.05) 0 14px,
+      transparent 14px 28px
+    );
+  }
+  .stripes-dark {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(230, 6, 0, 0.06) 0 14px,
+      transparent 14px 28px
+    );
+  }
+
+  /* ===== Underline slide for nav links ===== */
+  .nav-link {
+    position: relative;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    right: 0;
+    width: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: #e10600;
+    transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    width: 100%;
+  }
+
+  /* ===== Card hover glow ===== */
+  .card-glow {
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.45s;
+  }
+  .card-glow:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 24px 48px -16px rgba(230, 6, 0, 0.22), 0 8px 20px -8px rgba(0, 0, 0, 0.12);
+    border-color: rgba(230, 6, 0, 0.35);
+  }
+
+  /* ===== Image loading fade ===== */
+  @keyframes img-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .img-in { animation: img-in 0.6s ease; }
+
+  /* ===== Hero entrance ===== */
+  @keyframes hero-up {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero-up { animation: hero-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  /* ===== Modal ===== */
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(26px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal-in { animation: modal-in 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* ===== Drawer ===== */
+  @keyframes drawer-in {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+  .drawer-in { animation: drawer-in 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .fade-in { animation: fade-in 0.3s ease; }
+
+  /* ===== Gradient text ===== */
+  .text-gradient-red {
+    background: linear-gradient(120deg, #e10600 20%, #ff4d47 60%, #b00500 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ===== Dashed decorative line ===== */
+  .deco-line {
+    background-image: linear-gradient(90deg, #e10600 55%, transparent 45%);
+    background-size: 18px 3px;
+    background-repeat: repeat-x;
+    height: 3px;
+  }
+}

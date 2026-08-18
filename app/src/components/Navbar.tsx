@@ -1,0 +1,117 @@
+import { useEffect, useState } from 'react'
+import { Menu, Phone, ShoppingCart, X } from 'lucide-react'
+import Logo from './Logo'
+import { useShop } from '@/context/ShopContext'
+import { PHONE_DISPLAY } from '@/data/products'
+
+const LINKS = [
+  { href: '#home', label: 'الرئيسية' },
+  { href: '#products', label: 'المنتجات' },
+  { href: '#brands', label: 'العلامات التجارية' },
+  { href: '#offers', label: 'العروض' },
+  { href: '#about', label: 'من نحن' },
+  { href: '#contact', label: 'اتصل بنا' },
+]
+
+export default function Navbar() {
+  const { count, setCartOpen, lastAddedAt } = useShop()
+  const [scrolled, setScrolled] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [pop, setPop] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!lastAddedAt) return
+    setPop(true)
+    const t = setTimeout(() => setPop(false), 500)
+    return () => clearTimeout(t)
+  }, [lastAddedAt])
+
+  return (
+    <header
+      className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${
+        scrolled ? 'bg-white/90 shadow-lg shadow-zinc-900/5 backdrop-blur-xl' : 'bg-white/60 backdrop-blur-sm'
+      }`}
+    >
+      {/* top thin strip */}
+      <div className={`overflow-hidden bg-zinc-950 text-white transition-all duration-500 ${scrolled ? 'max-h-0' : 'max-h-10'}`}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs">
+          <p className="flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />
+            توصيل سريع لجميع الولايات — الدفع عند الاستلام
+          </p>
+          <a href="tel:+213555123456" dir="ltr" className="flex items-center gap-1.5 font-semibold transition-colors hover:text-brand-400">
+            <Phone className="h-3.5 w-3.5" /> {PHONE_DISPLAY}
+          </a>
+        </div>
+      </div>
+
+      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+        <Logo />
+
+        <ul className="hidden items-center gap-7 lg:flex">
+          {LINKS.map((l) => (
+            <li key={l.href}>
+              <a href={l.href} className="nav-link text-[15px] font-semibold text-zinc-700 transition-colors hover:text-brand-600">
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCartOpen(true)}
+            className="btn-shine relative grid h-11 w-11 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-800 shadow-sm transition-all hover:border-brand-300 hover:text-brand-600"
+            aria-label="سلة التسوق"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {count > 0 && (
+              <span
+                className={`absolute -left-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-[11px] font-bold text-white shadow-md shadow-brand-600/40 ${pop ? 'badge-pop' : ''}`}
+              >
+                {count}
+              </span>
+            )}
+          </button>
+          <a
+            href="#products"
+            className="btn-shine hidden rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/40 md:block"
+          >
+            تسوّق الآن
+          </a>
+          <button
+            onClick={() => setOpen(!open)}
+            className="grid h-11 w-11 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-800 lg:hidden"
+            aria-label="القائمة"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </nav>
+
+      {/* mobile menu */}
+      <div className={`overflow-hidden bg-white transition-all duration-500 lg:hidden ${open ? 'max-h-96 border-t border-zinc-100' : 'max-h-0'}`}>
+        <ul className="space-y-1 px-6 py-4">
+          {LINKS.map((l, i) => (
+            <li key={l.href} style={{ transitionDelay: `${i * 40}ms` }}>
+              <a
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </header>
+  )
+}

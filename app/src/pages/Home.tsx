@@ -1,5 +1,6 @@
 import Navbar from '@/components/Navbar'
 import Hero from '@/components/Hero'
+import WilayaBar from '@/components/WilayaBar'
 import SearchSection from '@/components/SearchSection'
 import ProductsSection from '@/components/ProductsSection'
 import Brands from '@/components/Brands'
@@ -18,6 +19,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <WilayaBar />
         <SearchSection />
         <ProductsSection />
         <Brands />

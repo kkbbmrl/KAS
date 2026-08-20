@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Building,
   CheckCircle2,
+  ChevronDown,
   MapPin,
   Minus,
   Phone,
@@ -15,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { formatPrice } from '@/data/products'
+import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import { useShop, type CheckoutDetails } from '@/context/ShopContext'
 
 const emptyForm: CheckoutDetails = { firstName: '', lastName: '', phone: '', address: '', city: '' }
@@ -227,24 +229,41 @@ export default function CartDrawer() {
                   required
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="العنوان السكني أو موقع العمل"
+                  placeholder="العنوان السكني أو موقع العمل (الشارع، الحي، البلدية)"
                   className={fieldCls}
                   aria-label="العنوان"
                 />
               </div>
 
-              {/* City */}
+              {/* 58 Wilayas of Algeria Selection */}
               <div className="relative">
-                <Building className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <input
+                <Building className="pointer-events-none absolute right-3.5 top-4 h-4 w-4 text-zinc-400" />
+                <select
                   required
                   value={form.city}
                   onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  placeholder="المدينة / الولاية"
-                  className={fieldCls}
-                  aria-label="المدينة"
-                />
+                  className={`${fieldCls} cursor-pointer appearance-none pe-10 font-cairo font-bold`}
+                  aria-label="الولاية"
+                >
+                  <option value="">-- اختر ولايتك من ولايات الجزائر (58 ولاية) --</option>
+                  {ALGERIA_WILAYAS.map((w) => (
+                    <option key={w.code} value={`${w.code} - ${w.nameAr} (${w.nameFr})`}>
+                      {w.code} - ولاية {w.nameAr} ({w.nameFr}) — التوصيل: {w.deliveryTime}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </div>
+
+              {/* Selected Wilaya Delivery Note */}
+              {form.city && (
+                <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>الولاية المحددة: {form.city}</span>
+                </div>
+              )}
 
               {error && (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-3 font-cairo text-xs font-black text-brand-700">

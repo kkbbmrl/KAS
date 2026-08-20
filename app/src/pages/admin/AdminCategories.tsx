@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react'
 import {
   Edit,
@@ -174,9 +175,8 @@ export default function AdminCategories() {
                       {emoji}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
-                        isAvail ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-500 border-zinc-200'
-                      }`}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${isAvail ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                        }`}
                     >
                       {isAvail ? 'متاح للعرض' : 'معطل مؤقتاً'}
                     </span>

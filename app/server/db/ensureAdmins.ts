@@ -1,19 +1,12 @@
-import { randomUUID } from 'node:crypto'
+import { randomUUID, randomBytes } from 'node:crypto'
 import { query } from './db.js'
 import { hashPassword } from '../lib/password.js'
 
-const MASTER_ADMIN = {
-  username: (process.env.ADMIN_USERNAME || 'admin').toLowerCase().trim(),
-  name: process.env.ADMIN_NAME || 'KAS Super Admin',
-  email: (process.env.ADMIN_EMAIL || 'admin@kas.dz').toLowerCase().trim(),
-  password: process.env.ADMIN_PASSWORD || 'KasAdmin2026!',
-  role: 'super_admin',
-}
-
 export async function ensureAdminAccounts() {
-  const cleanUsername = MASTER_ADMIN.username
-  const cleanEmail = MASTER_ADMIN.email
-  const hashedPassword = hashPassword(MASTER_ADMIN.password)
+  const cleanUsername = (process.env.ADMIN_USERNAME || 'admin').toLowerCase().trim()
+  const cleanEmail = (process.env.ADMIN_EMAIL || 'admin@kas.dz').toLowerCase().trim()
+  const adminName = process.env.ADMIN_NAME || 'KAS Administrator'
+  const envPassword = process.env.ADMIN_PASSWORD ? String(process.env.ADMIN_PASSWORD).trim() : null
 
   // Remove any legacy demo accounts
   const demoUsernames = ['khaled', 'manager', 'orders', 'inventory', 'marketing']
@@ -24,27 +17,48 @@ export async function ensureAdminAccounts() {
     }
   }
 
-  const byUsername = await query(`SELECT id FROM admin_users WHERE LOWER(username) = $1`, [cleanUsername])
-  if (byUsername.rows.length > 0) {
-    await query(
-      `UPDATE admin_users SET name = $1, role = $2, password_hash = $3, is_active = 1 WHERE id = $4`,
-      [MASTER_ADMIN.name, MASTER_ADMIN.role, hashedPassword, byUsername.rows[0].id]
-    )
+  // Check if admin already exists
+  const existing = await query(
+    `SELECT id, username, email, password_hash FROM admin_users WHERE LOWER(username) = $1 OR LOWER(email) = $2`,
+    [cleanUsername, cleanEmail]
+  )
+
+  if (existing.rows.length > 0) {
+    const adminUser = existing.rows[0]
+    // If an explicit ADMIN_PASSWORD is provided in private .env, sync the hash
+    if (envPassword) {
+      const hashedPassword = hashPassword(envPassword)
+      await query(
+        `UPDATE admin_users SET name = $1, username = $2, email = $3, role = 'super_admin', password_hash = $4, is_active = 1 WHERE id = $5`,
+        [adminName, cleanUsername, cleanEmail, hashedPassword, adminUser.id]
+      )
+    }
     return
   }
 
-  const byEmail = await query(`SELECT id FROM admin_users WHERE LOWER(email) = $1`, [cleanEmail])
-  if (byEmail.rows.length > 0) {
-    await query(
-      `UPDATE admin_users SET name = $1, username = $2, role = $3, password_hash = $4, is_active = 1 WHERE id = $5`,
-      [MASTER_ADMIN.name, cleanUsername, MASTER_ADMIN.role, hashedPassword, byEmail.rows[0].id]
-    )
-    return
+  // If no admin exists at all in the DB, create one:
+  let finalPassword = envPassword
+  let isGenerated = false
+
+  if (!finalPassword) {
+    // Generate a secure random password if none was configured in .env
+    finalPassword = randomBytes(10).toString('hex')
+    isGenerated = true
   }
 
+  const hashedPassword = hashPassword(finalPassword)
   await query(
     `INSERT INTO admin_users (id, name, username, email, password_hash, role, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, 1)`,
-    [randomUUID(), MASTER_ADMIN.name, cleanUsername, cleanEmail, hashedPassword, MASTER_ADMIN.role]
+     VALUES ($1, $2, $3, $4, $5, 'super_admin', 1)`,
+    [randomUUID(), adminName, cleanUsername, cleanEmail, hashedPassword]
   )
+
+  if (isGenerated) {
+    console.log(`\n======================================================`)
+    console.log(`🔒 [SECURITY NOTICE] Master Super Admin initialized:`)
+    console.log(`   Username: ${cleanUsername}`)
+    console.log(`   One-Time Password: ${finalPassword}`)
+    console.log(`   (Set ADMIN_PASSWORD in your private .env file to customize)`)
+    console.log(`======================================================\n`)
+  }
 }

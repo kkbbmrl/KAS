@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE_WITH_YOUR_RAILWAY_URL/api/:path*"
+      "destination": "https://railway.com/project/db84ffbd-c5ab-48a7-b979-7d23ccd2c238/service/ff517105-40d0-4496-ac4d-ed5af65e0d53?environmentId=eec6506c-201d-44c4-9d41-177cfc715507"
     },
     {
       "source": "/(.*)",

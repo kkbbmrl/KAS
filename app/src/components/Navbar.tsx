@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { Menu, Phone, ShoppingCart, X } from 'lucide-react'
 import Logo from './Logo'
 import { useShop } from '@/context/ShopContext'
@@ -59,9 +60,15 @@ export default function Navbar() {
         <ul className="hidden items-center gap-7 lg:flex">
           {LINKS.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="nav-link text-[15px] font-semibold text-zinc-700 transition-colors hover:text-brand-600">
-                {l.label}
-              </a>
+              {l.href.startsWith('/') ? (
+                <Link to={l.href} className="nav-link text-[15px] font-semibold text-zinc-700 transition-colors hover:text-brand-600">
+                  {l.label}
+                </Link>
+              ) : (
+                <a href={l.href} className="nav-link text-[15px] font-semibold text-zinc-700 transition-colors hover:text-brand-600">
+                  {l.label}
+                </a>
+              )}
             </li>
           ))}
         </ul>
@@ -81,12 +88,12 @@ export default function Navbar() {
               </span>
             )}
           </button>
-          <a
-            href="/themes"
+          <Link
+            to="/themes"
             className="btn-shine hidden rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/40 md:block"
           >
             تسوّق الآن
-          </a>
+          </Link>
           <button
             onClick={() => setOpen(!open)}
             className="grid h-11 w-11 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-800 lg:hidden"
@@ -102,13 +109,23 @@ export default function Navbar() {
         <ul className="space-y-1 px-6 py-4">
           {LINKS.map((l, i) => (
             <li key={l.href} style={{ transitionDelay: `${i * 40}ms` }}>
-              <a
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
-              >
-                {l.label}
-              </a>
+              {l.href.startsWith('/') ? (
+                <Link
+                  to={l.href}
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                >
+                  {l.label}
+                </Link>
+              ) : (
+                <a
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                >
+                  {l.label}
+                </a>
+              )}
             </li>
           ))}
         </ul>

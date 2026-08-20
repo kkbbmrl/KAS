@@ -1,4 +1,5 @@
 import { ArrowLeft, BadgeCheck, MessageCircle, ShieldCheck, Truck } from 'lucide-react'
+import { Link } from 'react-router'
 import { formatPrice, PRODUCTS } from '@/data/products'
 import { useShop } from '@/context/ShopContext'
 
@@ -40,13 +41,13 @@ export default function Hero() {
           </p>
 
           <div className="hero-up mt-8 flex flex-wrap items-center gap-4" style={{ animationDelay: '0.35s' }}>
-            <a
-              href="/themes"
+            <Link
+              to="/themes"
               className="btn-shine group inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-8 py-4 font-cairo text-base font-extrabold text-white shadow-xl shadow-brand-600/35 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-2xl hover:shadow-brand-600/45"
             >
               تصفح المنتجات
               <ArrowLeft className="h-5 w-5 transition-transform duration-300 group-hover:-translate-x-1.5" />
-            </a>
+            </Link>
             <a
               href="#contact"
               className="inline-flex items-center gap-2 rounded-2xl border-2 border-zinc-900 bg-white px-8 py-[14px] font-cairo text-base font-extrabold text-zinc-900 transition-all duration-300 hover:-translate-y-1 hover:border-brand-600 hover:text-brand-600 hover:shadow-lg"

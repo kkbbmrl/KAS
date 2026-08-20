@@ -1,4 +1,5 @@
 import { Clock3, Facebook, Instagram, Mail, MapPin, Music2, Phone } from 'lucide-react'
+import { Link } from 'react-router'
 import Logo from './Logo'
 import { ADDRESS, EMAIL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
@@ -52,10 +53,17 @@ export default function Footer() {
             <ul className="mt-5 space-y-2.5">
               {QUICK.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
-                    <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
-                    {l.label}
-                  </a>
+                  {l.href.startsWith('/') ? (
+                    <Link to={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                      <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
+                      {l.label}
+                    </Link>
+                  ) : (
+                    <a href={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                      <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
+                      {l.label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
@@ -67,10 +75,10 @@ export default function Footer() {
             <ul className="mt-5 grid grid-cols-1 gap-2.5">
               {CATS.map((c) => (
                 <li key={c}>
-                  <a href="/themes" className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                  <Link to="/themes" className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
                     <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
                     {c}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

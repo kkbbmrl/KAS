@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, BadgePercent, Package, Timer, Truck } from 'lucide-react'
+import { Link } from 'react-router'
 import SectionHeading from './SectionHeading'
 import { useReveal } from '@/hooks/useReveal'
 
@@ -90,14 +91,14 @@ export default function Offers() {
             </div>
 
             <div className="reveal mt-12 text-center" data-delay="160">
-              <a
-                href="/themes"
+              <Link
+                to="/themes"
                 className="group inline-flex items-center gap-3 rounded-2xl bg-white px-10 py-4 font-cairo text-lg font-black text-brand-700 shadow-2xl shadow-zinc-950/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-white/20"
               >
                 <Timer className="h-5 w-5 text-brand-600 transition-transform duration-500 group-hover:rotate-[360deg]" />
                 اكتشف العروض
                 <ArrowLeft className="h-5 w-5 transition-transform duration-300 group-hover:-translate-x-1.5" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

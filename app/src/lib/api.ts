@@ -2,7 +2,7 @@ import type { Product } from '@/data/products'
 import type { Wilaya } from '@/data/wilayas'
 import type { OfferProduct } from '@/data/offers'
 
-const API_BASE = '/api/v1'
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/v1`
 
 export async function fetchWilayas(): Promise<Wilaya[]> {
   try {

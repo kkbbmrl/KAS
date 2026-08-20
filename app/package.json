@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
     "db:seed": "tsx server/db/seed.ts"
   },
   "dependencies": {

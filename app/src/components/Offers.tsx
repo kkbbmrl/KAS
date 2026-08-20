@@ -91,7 +91,7 @@ export default function Offers() {
 
             <div className="reveal mt-12 text-center" data-delay="160">
               <a
-                href="#products"
+                href="/themes"
                 className="group inline-flex items-center gap-3 rounded-2xl bg-white px-10 py-4 font-cairo text-lg font-black text-brand-700 shadow-2xl shadow-zinc-950/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-white/20"
               >
                 <Timer className="h-5 w-5 text-brand-600 transition-transform duration-500 group-hover:rotate-[360deg]" />

@@ -31,7 +31,8 @@ export default function Hero() {
           <h1 className="hero-up mt-6 font-cairo text-4xl font-black leading-[1.25] text-zinc-900 sm:text-5xl lg:text-[3.4rem]" style={{ animationDelay: '0.15s' }}>
             قطع غيار أصلية.
             <br />
-            <span className="text-gradient-red">جودة تثق بها.</span>
+            
+            <span className="mt-2 inline-block pb-1 leading-[1.2] text-gradient-red">جودة تثق بها.</span>
           </h1>
 
           <p className="hero-up mt-5 max-w-lg text-lg leading-relaxed text-zinc-600" style={{ animationDelay: '0.25s' }}>
@@ -40,7 +41,7 @@ export default function Hero() {
 
           <div className="hero-up mt-8 flex flex-wrap items-center gap-4" style={{ animationDelay: '0.35s' }}>
             <a
-              href="#products"
+              href="/themes"
               className="btn-shine group inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-8 py-4 font-cairo text-base font-extrabold text-white shadow-xl shadow-brand-600/35 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-2xl hover:shadow-brand-600/45"
             >
               تصفح المنتجات
@@ -58,8 +59,8 @@ export default function Hero() {
           {/* mini stats */}
           <div className="hero-up mt-10 flex flex-wrap gap-8" style={{ animationDelay: '0.45s' }}>
             {[
-              { n: '+12 000', t: 'قطعة متوفرة' },
-              { n: '+9 000', t: 'عميل سعيد' },
+              { n: '000 12+', t: 'قطعة متوفرة' },
+              { n: '000 1+', t: 'عميل سعيد' },
               { n: '15', t: 'سنة خبرة' },
             ].map((s) => (
               <div key={s.t} className="border-r-2 border-brand-600 pr-4">

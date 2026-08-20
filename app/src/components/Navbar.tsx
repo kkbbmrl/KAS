@@ -7,7 +7,7 @@ import { PHONE_DISPLAY } from '@/data/products'
 const LINKS = [
   { href: '#home', label: 'الرئيسية' },
   { href: '#search', label: 'البحث' },
-  { href: '#products', label: 'المنتجات' },
+  { href: '/themes', label: 'المنتجات' },
   { href: '#brands', label: 'العلامات التجارية' },
   { href: '#offers', label: 'العروض' },
   { href: '#about', label: 'من نحن' },
@@ -82,7 +82,7 @@ export default function Navbar() {
             )}
           </button>
           <a
-            href="#products"
+            href="/themes"
             className="btn-shine hidden rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/40 md:block"
           >
             تسوّق الآن

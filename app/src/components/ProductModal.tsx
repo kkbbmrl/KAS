@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  AlertCircle,
   CheckCircle2,
+  ChevronDown,
   Minus,
   Plus,
   ShieldCheck,
@@ -11,7 +13,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react'
-import { formatPrice, PRODUCTS } from '@/data/products'
+import { formatPrice, PRODUCTS, type ProductVariant } from '@/data/products'
 import { useShop } from '@/context/ShopContext'
 
 const VIEWS = ['الواجهة', 'منظر جانبي', 'لقطة مقرّبة'] as const
@@ -22,11 +24,15 @@ export default function ProductModal() {
   const [view, setView] = useState(0)
   const [zooming, setZooming] = useState(false)
   const [origin, setOrigin] = useState('50% 50%')
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [variantOpen, setVariantOpen] = useState(false)
   const imgBox = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setQtyLocal(1)
     setView(0)
+    setSelectedVariant(null)
+    setVariantOpen(false)
   }, [selected])
 
   useEffect(() => {
@@ -37,15 +43,27 @@ export default function ProductModal() {
 
   useEffect(() => {
     document.body.style.overflow = selected ? 'hidden' : ''
-    return () => {
-      document.body.style.overflow = ''
-    }
+    return () => { document.body.style.overflow = '' }
   }, [selected])
 
   if (!selected) return null
   const p = selected
+
+  // Effective values — variant overrides base product
+  const effectivePrice = selectedVariant?.price ?? p.price
+  const effectiveOldPrice = selectedVariant?.oldPrice ?? p.oldPrice
+  const effectiveStock = selectedVariant?.stock ?? p.stock
+  const effectiveImage = selectedVariant?.image ?? p.image
+  const effectivePartNumber = selectedVariant?.partNumber ?? p.partNumber
+  const effectiveSpecs = [
+    ...p.specs,
+    ...(selectedVariant?.extraSpecs ?? []),
+  ]
+
+  const out = effectiveStock === 'غير متوفر'
+  const hasVariants = (p.variants ?? []).length > 0
+
   const similar = PRODUCTS.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 4)
-  const out = p.stock === 'غير متوفر'
 
   const onMove = (e: React.MouseEvent) => {
     const r = imgBox.current?.getBoundingClientRect()
@@ -60,6 +78,13 @@ export default function ProductModal() {
     setSelected(null)
     setCartOpen(true)
   }
+
+  const stockBadgeClass =
+    effectiveStock === 'متوفر'
+      ? 'bg-emerald-50 text-emerald-700'
+      : effectiveStock === 'كمية محدودة'
+        ? 'bg-amber-50 text-amber-700'
+        : 'bg-zinc-100 text-zinc-500'
 
   return (
     <div
@@ -92,7 +117,7 @@ export default function ProductModal() {
               className="relative cursor-zoom-in overflow-hidden rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 via-white to-red-50/40"
             >
               <img
-                src={p.image}
+                src={effectiveImage}
                 alt={p.name}
                 className="h-80 w-full object-contain p-8 transition-transform duration-300 sm:h-96"
                 style={{
@@ -113,13 +138,11 @@ export default function ProductModal() {
                   key={v}
                   onClick={() => setView(i)}
                   className={`overflow-hidden rounded-2xl border-2 bg-zinc-50 p-2 transition-all ${
-                    view === i
-                      ? 'border-brand-600 shadow-md shadow-brand-600/20'
-                      : 'border-zinc-200/80 hover:border-brand-200'
+                    view === i ? 'border-brand-600 shadow-md shadow-brand-600/20' : 'border-zinc-200/80 hover:border-brand-200'
                   }`}
                 >
                   <img
-                    src={p.image}
+                    src={effectiveImage}
                     alt={`${p.name} — ${v}`}
                     className={`h-16 w-full object-contain ${i === 1 ? '-scale-x-100' : ''} ${i === 2 ? 'scale-150' : ''}`}
                   />
@@ -142,7 +165,7 @@ export default function ProductModal() {
                 </span>
               )}
               <span className="text-xs font-bold text-zinc-400" dir="ltr">
-                PN: {p.partNumber}
+                PN: {effectivePartNumber}
               </span>
               <span className="flex items-center gap-1 text-xs font-bold text-amber-500">
                 <Star className="h-3.5 w-3.5 fill-amber-400" /> {p.rating}
@@ -153,15 +176,110 @@ export default function ProductModal() {
               {p.name}
             </h3>
 
+            {/* ─── VARIANT SELECTOR ─── */}
+            {hasVariants && (
+              <div className="mt-5 rounded-2xl border-2 border-zinc-100 bg-zinc-50/50 p-4">
+                <p className="mb-2 font-cairo text-xs font-black text-zinc-700 flex items-center gap-1.5">
+                  <ChevronDown className="h-4 w-4 text-brand-600" />
+                  اختر نوع المنتج المناسب لسيارتك:
+                </p>
+
+                {/* Trigger */}
+                <button
+                  onClick={() => setVariantOpen(!variantOpen)}
+                  className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-right transition-all ${
+                    selectedVariant
+                      ? 'border-brand-500 bg-brand-50 text-brand-800'
+                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-300'
+                  }`}
+                >
+                  <span className="font-cairo text-sm font-bold">
+                    {selectedVariant ? selectedVariant.label : '— اختر السيارة / الموديل —'}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 transition-transform ${variantOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {/* Dropdown options */}
+                {variantOpen && (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+                    {/* Reset option */}
+                    <button
+                      onClick={() => { setSelectedVariant(null); setVariantOpen(false) }}
+                      className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-2.5 text-right text-sm font-bold text-zinc-500 transition-colors hover:bg-zinc-50"
+                    >
+                      <XCircle className="h-4 w-4 text-zinc-400" />
+                      الإعداد الافتراضي (عام)
+                    </button>
+
+                    {(p.variants ?? []).map((v) => {
+                      const isOut = v.stock === 'غير متوفر'
+                      const isSelected = selectedVariant?.id === v.id
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => {
+                            if (!isOut) { setSelectedVariant(v); setVariantOpen(false) }
+                          }}
+                          disabled={isOut}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-right transition-colors ${
+                            isSelected
+                              ? 'bg-brand-50 text-brand-800'
+                              : isOut
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'text-zinc-800 hover:bg-zinc-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-600" />}
+                            <div className="text-right">
+                              <p className="font-cairo text-sm font-black">{v.label}</p>
+                              {v.partNumber && (
+                                <p className="text-[10px] font-bold text-zinc-400" dir="ltr">PN: {v.partNumber}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-0.5">
+                            <span className="font-cairo text-sm font-black text-brand-600">
+                              {formatPrice(v.price ?? p.price)}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                                v.stock === 'متوفر'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : v.stock === 'كمية محدودة'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-zinc-100 text-zinc-400'
+                              }`}
+                            >
+                              {v.stock}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {!selectedVariant && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    يُنصح باختيار سيارتك لضمان التوافق التام
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Price */}
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
-              <p className="font-cairo text-3xl font-black text-brand-600">{formatPrice(p.price)}</p>
-              {p.oldPrice && (
-                <p className="text-lg font-bold text-zinc-400 line-through">{formatPrice(p.oldPrice)}</p>
+              <p className="font-cairo text-3xl font-black text-brand-600">{formatPrice(effectivePrice)}</p>
+              {effectiveOldPrice && (
+                <p className="text-lg font-bold text-zinc-400 line-through">{formatPrice(effectiveOldPrice)}</p>
               )}
-              {p.oldPrice && (
+              {effectiveOldPrice && (
                 <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700">
-                  وفّر {formatPrice(p.oldPrice - p.price)}
+                  وفّر {formatPrice(effectiveOldPrice - effectivePrice)}
                 </span>
               )}
             </div>
@@ -173,9 +291,9 @@ export default function ProductModal() {
                   <XCircle className="h-4 w-4" /> غير متوفر حاليًا
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-black text-emerald-700">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" /> {p.stock} في المخزن — جاهز للتوصيل الفوري
+                <span className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-black ${stockBadgeClass}`}>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-current" />
+                  <CheckCircle2 className="h-4 w-4" /> {effectiveStock} — جاهز للتوصيل الفوري
                 </span>
               )}
             </div>
@@ -186,7 +304,7 @@ export default function ProductModal() {
             <div className="mt-5">
               <p className="font-cairo text-xs font-black text-zinc-800">السيارات المتوافقة:</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {p.compat.map((c) => (
+                {(selectedVariant?.compat ?? p.compat).map((c) => (
                   <span
                     key={c}
                     className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1 font-cairo text-xs font-bold text-zinc-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
@@ -247,9 +365,9 @@ export default function ProductModal() {
                 المواصفات والخصائص التقنية
               </p>
               <dl>
-                {p.specs.map((s, i) => (
+                {effectiveSpecs.map((s, i) => (
                   <div
-                    key={s.label}
+                    key={s.label + i}
                     className={`flex items-center justify-between px-5 py-2.5 text-xs ${i % 2 ? 'bg-zinc-50/70' : 'bg-white'}`}
                   >
                     <dt className="font-semibold text-zinc-500">{s.label}</dt>
@@ -288,4 +406,3 @@ export default function ProductModal() {
     </div>
   )
 }
-

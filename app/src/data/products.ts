@@ -1,5 +1,20 @@
 export type StockStatus = 'متوفر' | 'كمية محدودة' | 'غير متوفر'
 
+export interface ProductVariant {
+  id: string
+  /** e.g. "بيجو 208 — 1.6 HDI" */
+  label: string
+  /** Matching compat strings for this variant */
+  compat: string[]
+  price?: number
+  oldPrice?: number
+  stock: StockStatus
+  partNumber?: string
+  image?: string
+  /** Extra detail rows shown when this variant is selected */
+  extraSpecs?: { label: string; value: string }[]
+}
+
 export interface Product {
   id: number
   name: string
@@ -19,6 +34,7 @@ export interface Product {
   specs: { label: string; value: string }[]
   aliases?: string[]
   featuredHome?: boolean
+  variants?: ProductVariant[]
 }
 
 export interface FeaturedCategory {
@@ -196,6 +212,36 @@ export const PRODUCTS: Product[] = [
       { label: 'الضمان', value: '24 شهرًا' },
     ],
     featuredHome: true,
+    variants: [
+      {
+        id: 'rad-21-toyota',
+        label: 'تويوتا كورولا / ياريس',
+        compat: ['تويوتا كورولا', 'تويوتا ياريس'],
+        price: 16500,
+        oldPrice: 19000,
+        stock: 'متوفر',
+        partNumber: 'RAD-8800-TOY',
+        extraSpecs: [{ label: 'التوافق', value: 'تويوتا كورولا / ياريس 2009-2019' }],
+      },
+      {
+        id: 'rad-21-hyundai',
+        label: 'هيونداي إلنترا / أكسنت',
+        compat: ['هيونداي إلنترا', 'هيونداي أكسنت'],
+        price: 15800,
+        stock: 'متوفر',
+        partNumber: 'RAD-8800-HYN',
+        extraSpecs: [{ label: 'التوافق', value: 'هيونداي إلنترا / أكسنت 2010-2020' }],
+      },
+      {
+        id: 'rad-21-kia',
+        label: 'كيا سيراتو / ريو',
+        compat: ['كيا سيراتو', 'كيا ريو'],
+        price: 15500,
+        stock: 'كمية محدودة',
+        partNumber: 'RAD-8800-KIA',
+        extraSpecs: [{ label: 'التوافق', value: 'كيا سيراتو / ريو 2011-2021' }],
+      },
+    ],
   },
   {
     id: 26,
@@ -243,6 +289,45 @@ export const PRODUCTS: Product[] = [
       { label: 'الضمان', value: '12 شهرًا' },
     ],
     featuredHome: true,
+    variants: [
+      {
+        id: 'gl-17-peugeot208',
+        label: 'بيجو 208 (2012-2019) — يمين',
+        compat: ['بيجو 208'],
+        price: 3900,
+        oldPrice: 4800,
+        stock: 'متوفر',
+        partNumber: 'GL-3309-P208-R',
+        extraSpecs: [{ label: 'الجانب', value: 'أمامي يمين' }],
+      },
+      {
+        id: 'gl-17-peugeot208-l',
+        label: 'بيجو 208 (2012-2019) — يسار',
+        compat: ['بيجو 208'],
+        price: 3900,
+        stock: 'متوفر',
+        partNumber: 'GL-3309-P208-L',
+        extraSpecs: [{ label: 'الجانب', value: 'أمامي يسار' }],
+      },
+      {
+        id: 'gl-17-peugeot301',
+        label: 'بيجو 301 (2012-2021)',
+        compat: ['بيجو 301'],
+        price: 4100,
+        stock: 'متوفر',
+        partNumber: 'GL-3309-P301',
+        extraSpecs: [{ label: 'التوافق', value: 'بيجو 301 جميع الإصدارات' }],
+      },
+      {
+        id: 'gl-17-c3',
+        label: 'سيتروين C3 / C-Elysée',
+        compat: ['سيتروين C3', 'سيتروين C-Elysée'],
+        price: 3700,
+        stock: 'كمية محدودة',
+        partNumber: 'GL-3309-C3',
+        extraSpecs: [{ label: 'التوافق', value: 'سيتروين C3 / C-Elysée 2013-2022' }],
+      },
+    ],
   },
   {
     id: 27,
@@ -382,6 +467,45 @@ export const PRODUCTS: Product[] = [
       { label: 'الضمان', value: '24 شهرًا' },
     ],
     featuredHome: true,
+    variants: [
+      {
+        id: 'hl-15-golf7-r',
+        label: 'فولكسفاغن غولف 7 — يمين',
+        compat: ['فولكسفاغن غولف 7'],
+        price: 14500,
+        oldPrice: 16800,
+        stock: 'متوفر',
+        partNumber: 'HL-5501-G7-R',
+        extraSpecs: [{ label: 'الجانب', value: 'أمامي يمين' }, { label: 'السنوات', value: '2012-2020' }],
+      },
+      {
+        id: 'hl-15-golf7-l',
+        label: 'فولكسفاغن غولف 7 — يسار',
+        compat: ['فولكسفاغن غولف 7'],
+        price: 14500,
+        stock: 'متوفر',
+        partNumber: 'HL-5501-G7-L',
+        extraSpecs: [{ label: 'الجانب', value: 'أمامي يسار' }],
+      },
+      {
+        id: 'hl-15-polo-r',
+        label: 'فولكسفاغن بولو — يمين',
+        compat: ['فولكسفاغن بولو'],
+        price: 13200,
+        stock: 'متوفر',
+        partNumber: 'HL-5501-PO-R',
+        extraSpecs: [{ label: 'التوافق', value: 'بولو 2009-2017' }],
+      },
+      {
+        id: 'hl-15-seat',
+        label: 'سيات ليون / إبيزا',
+        compat: ['سيات ليون', 'سيات إبيزا'],
+        price: 12900,
+        stock: 'كمية محدودة',
+        partNumber: 'HL-5501-SE',
+        extraSpecs: [{ label: 'التوافق', value: 'سيات ليون 3 / إبيزا 4' }],
+      },
+    ],
   },
   {
     id: 30,
@@ -946,6 +1070,74 @@ export interface VehicleSearch {
   inStockOnly?: boolean
 }
 
+const VEHICLE_BRAND_ALIASES: Record<string, string[]> = {
+  peugeot: ['peugeot', 'بيجو'],
+  'بيجو': ['بيجو', 'peugeot'],
+  renault: ['renault', 'رينو'],
+  'رينو': ['رينو', 'renault'],
+  toyota: ['toyota', 'تويوتا'],
+  'تويوتا': ['تويوتا', 'toyota'],
+  hyundai: ['hyundai', 'هيونداي'],
+  'هيونداي': ['هيونداي', 'hyundai'],
+  kia: ['kia', 'كيا'],
+  'كيا': ['كيا', 'kia'],
+  volkswagen: ['volkswagen', 'فولكسفاغن'],
+  'فولكسفاغن': ['فولكسفاغن', 'volkswagen'],
+  dacia: ['dacia', 'داسيا'],
+  'داسيا': ['داسيا', 'dacia'],
+  citroen: ['citroen', 'سيتروين'],
+  'سيتروين': ['سيتروين', 'citroen'],
+  seat: ['seat', 'سيات'],
+  'سيات': ['سيات', 'seat'],
+  skoda: ['skoda', 'سكودا'],
+  'سكودا': ['سكودا', 'skoda'],
+  nissan: ['nissan', 'نيسان'],
+  'نيسان': ['نيسان', 'nissan'],
+  ford: ['ford', 'فورد'],
+  'فورد': ['فورد', 'ford'],
+  mercedes: ['mercedes', 'مرسيدس'],
+  'مرسيدس': ['مرسيدس', 'mercedes'],
+  bmw: ['bmw', 'بي أم دبليو'],
+  'بي أم دبليو': ['بي أم دبليو', 'bmw'],
+  audi: ['audi', 'أودي'],
+  'أودي': ['أودي', 'audi'],
+}
+
+export function normalizeSearchText(value: string): string {
+  if (!value) return ''
+
+  const arabicDigits: Record<string, string> = {
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+  }
+
+  return value
+    .replace(/[٠-٩]/g, (digit) => arabicDigits[digit] ?? digit)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0610-\u061F\u064B-\u065F\u0670]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+export function getVehicleAliases(value: string): string[] {
+  const raw = normalizeSearchText(value)
+  if (!raw) return []
+
+  const aliases = new Set<string>([raw])
+  const lower = raw.toLowerCase()
+
+  Object.entries(VEHICLE_BRAND_ALIASES).forEach(([key, variants]) => {
+    if (lower.includes(key) || variants.some((variant) => lower.includes(normalizeSearchText(variant)))) {
+      variants.forEach((variant) => aliases.add(normalizeSearchText(variant)))
+    }
+  })
+
+  return [...aliases].filter(Boolean)
+}
+
 export function productHaystack(p: Product): string {
   return [
     p.name,
@@ -956,24 +1148,27 @@ export function productHaystack(p: Product): string {
     ...(p.aliases ?? []),
     ...(p.compat ?? []),
   ]
+    .map((segment) => normalizeSearchText(segment))
     .join(' ')
-    .toLowerCase()
 }
 
 export function matchesVehicle(p: Product, brand: string, model: string): boolean {
   if (!brand) return true
-  const bLower = brand.toLowerCase()
-  return p.compat.some((c) => {
-    const cLower = c.toLowerCase()
-    if (!cLower.includes(bLower)) return false
+
+  const brandAliases = getVehicleAliases(brand)
+  const modelAliases = getVehicleAliases(model)
+
+  return p.compat.some((compatValue) => {
+    const compatText = normalizeSearchText(compatValue)
+    const brandMatches = brandAliases.length === 0 || brandAliases.some((alias) => compatText.includes(alias))
+    if (!brandMatches) return false
     if (!model) return true
-    const mLower = model.toLowerCase()
-    return cLower.includes(mLower)
+    return modelAliases.some((alias) => compatText.includes(alias))
   })
 }
 
 export function searchProducts(filter: VehicleSearch): Product[] {
-  const q = filter.query.trim().toLowerCase()
+  const q = normalizeSearchText(filter.query)
   return PRODUCTS.filter((p) => {
     const textOk = !q || productHaystack(p).includes(q)
     const vehicleOk = matchesVehicle(p, filter.brand, filter.model)
@@ -982,8 +1177,17 @@ export function searchProducts(filter: VehicleSearch): Product[] {
   })
 }
 
+/**
+ * Format a price in the European/French style used in Algeria:
+ * 12500 → "12 500 DA"
+ */
 export function formatPrice(n: number): string {
-  return n.toLocaleString('en-US').replace(/,/g, ' ') + ' د.ج'
+  // Always use Latin digits with space thousand-separators
+  return n.toLocaleString('fr-FR', {
+    useGrouping: true,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }) + ' DA'
 }
 
 export const PHONE_DISPLAY = '0555 12 34 56'

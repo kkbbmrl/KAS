@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Clock3, Mail, MapPin, MessageCircle, Phone, Send } from 'lucide-react'
+import { Clock3, Mail, MapPin, Phone, Send } from 'lucide-react'
 import SectionHeading from './SectionHeading'
 import { useReveal } from '@/hooks/useReveal'
-import { ADDRESS, EMAIL, PHONE_DISPLAY, WHATSAPP_NUMBER, WORK_HOURS } from '@/data/products'
+import { ADDRESS, EMAIL, PHONE_CALL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
 const INFO = [
-  { icon: Phone, t: 'الهاتف', v: PHONE_DISPLAY, href: `tel:+${WHATSAPP_NUMBER}`, dir: 'ltr' as const },
-  { icon: MessageCircle, t: 'واتساب', v: PHONE_DISPLAY, href: `https://wa.me/${WHATSAPP_NUMBER}`, dir: 'ltr' as const },
+  { icon: Phone, t: 'الهاتف', v: PHONE_DISPLAY, href: `tel:${PHONE_CALL}`, dir: 'ltr' as const },
   { icon: Mail, t: 'البريد الإلكتروني', v: EMAIL, href: `mailto:${EMAIL}`, dir: 'ltr' as const },
   { icon: MapPin, t: 'عنوان المحل', v: ADDRESS, href: 'https://maps.google.com/?q=Algiers', dir: 'rtl' as const },
   { icon: Clock3, t: 'ساعات العمل', v: WORK_HOURS, href: undefined, dir: 'rtl' as const },
@@ -23,11 +22,19 @@ export default function Contact() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.msg.trim()) return
-    const text = encodeURIComponent(`رسالة من الموقع:\nالاسم: ${form.name}\nالهاتف: ${form.phone}\nالرسالة: ${form.msg}`)
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`, '_blank')
+    try {
+      const raw = localStorage.getItem('kas-messages')
+      const prev = raw ? JSON.parse(raw) : []
+      localStorage.setItem(
+        'kas-messages',
+        JSON.stringify([{ ...form, createdAt: new Date().toISOString() }, ...prev])
+      )
+    } catch {
+      /* ignore */
+    }
     setSent(true)
     setForm({ name: '', phone: '', msg: '' })
-    setTimeout(() => setSent(false), 4000)
+    setTimeout(() => setSent(false), 5000)
   }
 
   return (
@@ -40,34 +47,46 @@ export default function Contact() {
         />
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* info + map */}
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               {INFO.map((i, idx) => {
                 const Inner = (
                   <>
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-600 transition-all duration-300 group-hover:bg-brand-600 group-hover:text-white">
-                      <i.icon className="h-5.5 w-5.5" />
+                      <i.icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-zinc-400">{i.t}</p>
-                      <p className="mt-1 truncate text-sm font-extrabold text-zinc-800" dir={i.dir}>{i.v}</p>
+                      <p className="mt-1 truncate text-sm font-extrabold text-zinc-800" dir={i.dir}>
+                        {i.v}
+                      </p>
                     </div>
                   </>
                 )
                 const cls =
                   'reveal card-glow group flex items-center gap-4 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm'
                 return i.href ? (
-                  <a key={i.t} href={i.href} target={i.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className={cls} data-delay={idx * 60}>
+                  <a
+                    key={i.t}
+                    href={i.href}
+                    target={i.href.startsWith('http') ? '_blank' : undefined}
+                    rel="noreferrer"
+                    className={cls}
+                    data-delay={idx * 60}
+                  >
                     {Inner}
                   </a>
                 ) : (
-                  <div key={i.t} className={cls} data-delay={idx * 60}>{Inner}</div>
+                  <div key={i.t} className={cls} data-delay={idx * 60}>
+                    {Inner}
+                  </div>
                 )
               })}
               <div className="reveal rounded-2xl bg-zinc-950 p-5 text-white" data-delay="320">
                 <p className="font-cairo text-sm font-extrabold">خدمة الطلب السريع</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">أرسل رقم القطعة أو صورتها على واتساب وسنرد عليك بالسعر والتوفر خلال دقائق.</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+                  أضف القطع إلى السلة وأتمم الطلب عبر النموذج، وسيتواصل معك فريقنا لتأكيد التوفر والتوصيل.
+                </p>
               </div>
             </div>
 
@@ -81,15 +100,28 @@ export default function Contact() {
             </div>
           </div>
 
-          {/* form */}
           <form onSubmit={submit} className="reveal rounded-[2rem] border border-zinc-100 bg-zinc-50/60 p-7 shadow-sm sm:p-9" data-delay="100">
             <h3 className="font-cairo text-xl font-black text-zinc-900">أرسل لنا رسالة</h3>
             <p className="mt-1.5 text-sm text-zinc-500">سنرد عليك في أقرب وقت ممكن خلال ساعات العمل</p>
 
             <div className="mt-6 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="الاسم الكامل" className={inputCls} aria-label="الاسم الكامل" />
-                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="رقم الهاتف" className={inputCls} dir="ltr" aria-label="رقم الهاتف" />
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="الاسم الكامل"
+                  className={inputCls}
+                  aria-label="الاسم الكامل"
+                />
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="رقم الهاتف"
+                  className={inputCls}
+                  dir="ltr"
+                  aria-label="رقم الهاتف"
+                />
               </div>
               <textarea
                 required
@@ -112,7 +144,7 @@ export default function Contact() {
 
             {sent && (
               <p className="toast-in mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-600">
-                تم فتح واتساب لإرسال رسالتك — شكرًا لتواصلك معنا!
+                تم استلام رسالتك بنجاح، وسيتواصل معك فريقنا قريبًا.
               </p>
             )}
           </form>

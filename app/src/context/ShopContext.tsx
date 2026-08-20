@@ -11,7 +11,23 @@ export interface SearchFilter {
   model: string
   year: string
   engine: string
-  partNumber: string
+  query: string
+  inStockOnly?: boolean
+}
+
+export interface CheckoutDetails {
+  firstName: string
+  lastName: string
+  phone: string
+  address: string
+  city: string
+}
+
+export interface PlacedOrder extends CheckoutDetails {
+  orderId: string
+  items: { id: number; name: string; qty: number; price: number }[]
+  total: number
+  createdAt: string
 }
 
 interface ShopState {
@@ -27,6 +43,10 @@ interface ShopState {
   setCartOpen: (open: boolean) => void
   setSelected: (p: Product | null) => void
   setSearchFilter: (f: SearchFilter | null) => void
+  placeOrder: (details: CheckoutDetails) => PlacedOrder
+  orderSuccess: boolean
+  lastOrder: PlacedOrder | null
+  dismissOrderSuccess: () => void
   total: number
   count: number
   lastAddedAt: number
@@ -48,6 +68,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<string | null>(null)
   const [searchFilter, setSearchFilter] = useState<SearchFilter | null>(null)
   const [lastAddedAt, setLastAddedAt] = useState(0)
+  const [orderSuccess, setOrderSuccess] = useState(false)
+  const [lastOrder, setLastOrder] = useState<PlacedOrder | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -89,6 +111,42 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setCart([]), [])
 
+  const placeOrder = useCallback(
+    (details: CheckoutDetails): PlacedOrder => {
+      const orderId = `KAS-${Math.floor(100000 + Math.random() * 900000)}`
+      const snapshot: PlacedOrder = {
+        ...details,
+        orderId,
+        items: cart.map((i) => ({
+          id: i.product.id,
+          name: i.product.name,
+          qty: i.qty,
+          price: i.product.price,
+        })),
+        total: cart.reduce((s, i) => s + i.product.price * i.qty, 0),
+        createdAt: new Date().toISOString(),
+      }
+      try {
+        const raw = localStorage.getItem('kas-orders')
+        const prev = raw ? JSON.parse(raw) : []
+        localStorage.setItem('kas-orders', JSON.stringify([snapshot, ...prev]))
+      } catch {
+        /* ignore */
+      }
+      setCart([])
+      setLastOrder(snapshot)
+      setOrderSuccess(true)
+      showToast('تم استلام طلبك بنجاح')
+      return snapshot
+    },
+    [cart, showToast]
+  )
+
+  const dismissOrderSuccess = useCallback(() => {
+    setOrderSuccess(false)
+    setLastOrder(null)
+  }, [])
+
   const total = useMemo(() => cart.reduce((s, i) => s + i.product.price * i.qty, 0), [cart])
   const count = useMemo(() => cart.reduce((s, i) => s + i.qty, 0), [cart])
 
@@ -105,6 +163,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     setCartOpen,
     setSelected,
     setSearchFilter,
+    placeOrder,
+    orderSuccess,
+    lastOrder,
+    dismissOrderSuccess,
     total,
     count,
     lastAddedAt,
@@ -118,3 +180,4 @@ export function useShop(): ShopState {
   if (!ctx) throw new Error('useShop must be used within ShopProvider')
   return ctx
 }
+

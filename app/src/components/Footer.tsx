@@ -1,6 +1,6 @@
-import { Clock3, Facebook, Instagram, Mail, MapPin, MessageCircle, Music2, Phone } from 'lucide-react'
+import { Clock3, Facebook, Instagram, Mail, MapPin, Music2, Phone } from 'lucide-react'
 import Logo from './Logo'
-import { ADDRESS, EMAIL, PHONE_DISPLAY, WHATSAPP_NUMBER, WORK_HOURS } from '@/data/products'
+import { ADDRESS, EMAIL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
 const QUICK = [
   { href: '#home', label: 'الرئيسية' },
@@ -11,7 +11,7 @@ const QUICK = [
   { href: '#contact', label: 'اتصل بنا' },
 ]
 
-const CATS = ['فلاتر الزيت', 'فلاتر الهواء', 'أقراص الفرامل', 'بطانات الفرامل', 'قطع المحرك', 'قطع التعليق', 'زيوت المحرك', 'قطع التبريد']
+const CATS = ['المشعاع', 'المصباح الأمامي', 'زجاج المصباح', 'الصدام', 'المروحة', 'غطاء الغبار', 'الغطاء الأمامي', 'ماسحة الزجاج']
 
 const SOCIALS = [
   { icon: Facebook, label: 'فيسبوك' },
@@ -81,7 +81,6 @@ export default function Footer() {
             <div className="mt-2 h-0.5 w-10 rounded bg-brand-600" />
             <ul className="mt-5 space-y-3.5 text-sm">
               <li className="flex items-center gap-3"><Phone className="h-4 w-4 shrink-0 text-brand-500" /><span dir="ltr">{PHONE_DISPLAY}</span></li>
-              <li className="flex items-center gap-3"><MessageCircle className="h-4 w-4 shrink-0 text-brand-500" /><span dir="ltr">+{WHATSAPP_NUMBER}</span></li>
               <li className="flex items-center gap-3"><Mail className="h-4 w-4 shrink-0 text-brand-500" /><span dir="ltr">{EMAIL}</span></li>
               <li className="flex items-start gap-3"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />{ADDRESS}</li>
               <li className="flex items-center gap-3"><Clock3 className="h-4 w-4 shrink-0 text-brand-500" />{WORK_HOURS}</li>

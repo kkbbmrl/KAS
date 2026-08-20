@@ -4,8 +4,8 @@ import { useShop } from '@/context/ShopContext'
 
 export default function Hero() {
   const { setSelected } = useShop()
-  const disc = PRODUCTS.find((p) => p.id === 6)!
-  const pads = PRODUCTS.find((p) => p.id === 8)!
+  const rad = PRODUCTS.find((p) => p.id === 21) ?? PRODUCTS[0]
+  const lamp = PRODUCTS.find((p) => p.id === 15) ?? PRODUCTS[1]
 
   return (
     <section id="home" className="relative overflow-hidden bg-white pt-36 pb-10 lg:pt-40">
@@ -87,25 +87,25 @@ export default function Hero() {
 
           {/* floating part chips */}
           <button
-            onClick={() => setSelected(disc)}
+            onClick={() => setSelected(rad)}
             className="animate-floaty group absolute -right-3 top-8 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:right-6"
           >
-            <img src={disc.image} alt={disc.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-contain p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
+            <img src={rad.image} alt={rad.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
             <span>
-              <span className="block text-xs font-bold text-zinc-800">{disc.brand} — {disc.category}</span>
-              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(disc.price)}</span>
+              <span className="block text-xs font-bold text-zinc-800">{rad.brand} — {rad.category}</span>
+              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(rad.price)}</span>
             </span>
           </button>
 
           <button
-            onClick={() => setSelected(pads)}
+            onClick={() => setSelected(lamp)}
             className="animate-floaty-slow group absolute -left-3 bottom-16 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:left-6"
             style={{ animationDelay: '1.2s' }}
           >
-            <img src={pads.image} alt={pads.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-contain p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
+            <img src={lamp.image} alt={lamp.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
             <span>
-              <span className="block text-xs font-bold text-zinc-800">{pads.brand} — بطانات سيراميك</span>
-              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(pads.price)}</span>
+              <span className="block text-xs font-bold text-zinc-800">{lamp.brand} — المصباح الأمامي</span>
+              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(lamp.price)}</span>
             </span>
           </button>
 

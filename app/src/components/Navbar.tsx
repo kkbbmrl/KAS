@@ -6,6 +6,7 @@ import { PHONE_DISPLAY } from '@/data/products'
 
 const LINKS = [
   { href: '#home', label: 'الرئيسية' },
+  { href: '#search', label: 'البحث' },
   { href: '#products', label: 'المنتجات' },
   { href: '#brands', label: 'العلامات التجارية' },
   { href: '#offers', label: 'العروض' },

@@ -23,6 +23,7 @@ import { formatPrice } from '@/data/products'
 import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import { OFFERS, getOfferBySlug } from '@/data/offers'
 import Logo from '@/components/Logo'
+import { submitOrder } from '@/lib/api'
 
 interface OrderForm {
   firstName: string
@@ -88,10 +89,27 @@ export default function OfferPage() {
     setError('')
     setLoading(true)
 
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1200))
+    // Submit order to database
+    const apiRes = await submitOrder({
+      source: 'landing_offer',
+      firstName: form.firstName,
+      lastName: form.lastName,
+      phone: form.phone,
+      commune: form.commune || form.wilaya,
+      address: form.commune ? `${form.commune} — ${form.wilaya}` : form.wilaya,
+      notes: form.note,
+      items: [
+        {
+          id: offer.productId,
+          name: offer.title,
+          partNumber: offer.partNumber,
+          price: offer.price,
+          qty: form.qty,
+        },
+      ],
+    })
 
-    const id = `KAS-${Math.floor(100000 + Math.random() * 900000)}`
+    const id = apiRes?.orderReference || apiRes?.orderId || `KAS-${Math.floor(100000 + Math.random() * 900000)}`
     setOrderId(id)
 
     // Store locally

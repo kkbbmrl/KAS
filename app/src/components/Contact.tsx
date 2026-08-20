@@ -3,6 +3,7 @@ import { Clock3, Mail, MapPin, Phone, Send } from 'lucide-react'
 import SectionHeading from './SectionHeading'
 import { useReveal } from '@/hooks/useReveal'
 import { ADDRESS, EMAIL, PHONE_CALL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
+import { submitContactMessage } from '@/lib/api'
 
 const INFO = [
   { icon: Phone, t: 'الهاتف', v: PHONE_DISPLAY, href: `tel:${PHONE_CALL}`, dir: 'ltr' as const },
@@ -22,6 +23,14 @@ export default function Contact() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.msg.trim()) return
+    
+    // Save to database
+    submitContactMessage({
+      name: form.name,
+      phone: form.phone,
+      msg: form.msg,
+    }).catch((err) => console.warn('Contact sync note:', err))
+
     try {
       const raw = localStorage.getItem('kas-messages')
       const prev = raw ? JSON.parse(raw) : []

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Product } from '@/data/products'
+import { submitOrder } from '@/lib/api'
 
 export interface CartItem {
   product: Product
@@ -126,6 +127,23 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         total: cart.reduce((s, i) => s + i.product.price * i.qty, 0),
         createdAt: new Date().toISOString(),
       }
+
+      // Submit to backend database
+      submitOrder({
+        source: 'cart_checkout',
+        firstName: details.firstName,
+        lastName: details.lastName,
+        phone: details.phone,
+        commune: details.city,
+        address: details.address,
+        items: cart.map((i) => ({
+          id: i.product.id,
+          name: i.product.name,
+          price: i.product.price,
+          qty: i.qty,
+        })),
+      }).catch((err) => console.warn('Order submission background sync:', err))
+
       try {
         const raw = localStorage.getItem('kas-orders')
         const prev = raw ? JSON.parse(raw) : []

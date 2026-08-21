@@ -28,7 +28,7 @@ import {
   fetchAdminBrands,
   uploadAdminImage,
 } from '@/lib/adminApi'
-import { formatPrice } from '@/data/products'
+import { formatPrice, CATEGORIES } from '@/data/products'
 
 interface SpecItem {
   label: string
@@ -51,12 +51,34 @@ interface ImageItem {
   isPrimary: boolean
 }
 
+const DEFAULT_BRANDS = [
+  'VALEO',
+  'BOSCH',
+  'HELLA',
+  'DENSO',
+  'NGK',
+  'BREMBO',
+  'NISSENS',
+  'FEBI BILSTEIN',
+  'DELPHI',
+  'MAGNETI MARELLI',
+  'MAHLE',
+  'SACHS',
+  'CONTINENTAL',
+  'GENUINE / OEM',
+]
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([])
-  const [categories, setCategories] = useState<any[]>([])
-  const [brands, setBrands] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>(() =>
+    CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+  )
+  const [brands, setBrands] = useState<any[]>(() =>
+    DEFAULT_BRANDS.map((b, i) => ({ id: `brand-${i}`, name: b }))
+  )
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 25, pages: 1 })
   const [loading, setLoading] = useState(true)
+  const [taxonomiesLoaded, setTaxonomiesLoaded] = useState(false)
 
   // Filters
   const [query, setQuery] = useState('')
@@ -72,6 +94,7 @@ export default function AdminProducts() {
   const [modalError, setModalError] = useState<string | null>(null)
   const [modalSuccess, setModalSuccess] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [customBrandActive, setCustomBrandActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Form State
@@ -105,13 +128,35 @@ export default function AdminProducts() {
       .finally(() => setLoading(false))
   }
 
-  const loadTaxonomies = () => {
-    Promise.all([fetchAdminCategories(), fetchAdminBrands()])
-      .then(([cats, brs]) => {
-        setCategories(cats || [])
-        setBrands(brs || [])
-      })
-      .catch((err) => console.error('Error loading categories/brands:', err))
+  const loadTaxonomies = async () => {
+    try {
+      const [cats, brs] = await Promise.all([
+        fetchAdminCategories().catch(() => []),
+        fetchAdminBrands().catch(() => []),
+      ])
+
+      const loadedCats =
+        Array.isArray(cats) && cats.length > 0
+          ? cats
+          : CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+
+      const loadedBrands =
+        Array.isArray(brs) && brs.length > 0
+          ? brs
+          : DEFAULT_BRANDS.map((b, i) => ({ id: `brand-${i}`, name: b }))
+
+      setCategories(loadedCats)
+      setBrands(loadedBrands)
+      setTaxonomiesLoaded(true)
+      return { categories: loadedCats, brands: loadedBrands }
+    } catch {
+      const fallbackCats = CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+      const fallbackBrands = DEFAULT_BRANDS.map((b, i) => ({ id: `brand-${i}`, name: b }))
+      setCategories(fallbackCats)
+      setBrands(fallbackBrands)
+      setTaxonomiesLoaded(true)
+      return { categories: fallbackCats, brands: fallbackBrands }
+    }
   }
 
   useEffect(() => {
@@ -128,12 +173,24 @@ export default function AdminProducts() {
     loadProducts()
   }
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     setEditId(null)
     setModalError(null)
     setModalSuccess(null)
-    const defaultCat = categories[0]?.id || ''
-    const defaultBrand = brands[0]?.id || ''
+    setCustomBrandActive(false)
+
+    let currentCats = categories
+    let currentBrands = brands
+
+    if (!taxonomiesLoaded || currentCats.length === 0 || currentBrands.length === 0) {
+      const result = await loadTaxonomies()
+      currentCats = result.categories
+      currentBrands = result.brands
+    }
+
+    const defaultCat = currentCats[0]?.id || currentCats[0]?.nameAr || 'المشعاع'
+    const defaultBrand = currentBrands[0]?.id || currentBrands[0]?.name || 'VALEO'
+
     setForm({
       nameAr: '',
       nameFr: '',
@@ -174,8 +231,9 @@ export default function AdminProducts() {
       }))
       const primaryUrl = imageList.find((i) => i.isPrimary)?.url || imageList[0]?.url || p.image || ''
 
-      const brandMatch = brands.find((b) => b.id === p.brandId || b.name === p.brand)
+      const brandMatch = brands.find((b) => b.id === p.brandId || b.name?.toLowerCase() === p.brand?.toLowerCase())
 
+      setCustomBrandActive(!brandMatch && Boolean(p.brand))
       setForm({
         nameAr: p.nameAr || p.name || '',
         nameFr: p.nameFr || '',
@@ -225,8 +283,7 @@ export default function AdminProducts() {
               images: updatedImages,
             }
           })
-        } catch (uploadErr: any) {
-          // If server upload fails, use the base64 data directly
+        } catch {
           setForm((prev) => ({
             ...prev,
             imageUrl: base64Data,
@@ -237,7 +294,7 @@ export default function AdminProducts() {
         }
       }
       reader.readAsDataURL(file)
-    } catch (err: any) {
+    } catch {
       setModalError('فشل قراءة ملف الصورة')
       setUploadingImage(false)
     }
@@ -361,12 +418,18 @@ export default function AdminProducts() {
       return
     }
 
+    const finalBrand = form.customBrand.trim()
+      ? form.customBrand.trim()
+      : form.brandId || brands[0]?.id || 'VALEO'
+
+    const finalCategory = form.categoryId || categories[0]?.id || 'المشعاع'
+
     const payload = {
       nameAr: form.nameAr.trim(),
       nameFr: form.nameFr.trim() || form.nameAr.trim(),
       partNumber: form.partNumber.trim(),
-      categoryId: form.categoryId || categories[0]?.id,
-      brandId: form.customBrand.trim() ? form.customBrand.trim() : form.brandId || brands[0]?.id,
+      categoryId: finalCategory,
+      brandId: finalBrand,
       badge: form.badge.trim() || null,
       descriptionAr: form.descriptionAr.trim(),
       descriptionFr: form.descriptionFr.trim(),
@@ -461,7 +524,10 @@ export default function AdminProducts() {
             <span>إضافة قطعة جديدة</span>
           </button>
           <button
-            onClick={loadProducts}
+            onClick={() => {
+              loadProducts()
+              loadTaxonomies()
+            }}
             className="grid h-10 w-10 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm hover:border-brand-300 hover:text-brand-600 transition-colors"
             title="تحديث"
           >
@@ -501,10 +567,10 @@ export default function AdminProducts() {
               }}
               className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
             >
-              <option value="all">جميع الفئات</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.nameAr || c.name}>
-                  {c.nameAr || c.name}
+              <option value="all">جميع الفئات ({categories.length})</option>
+              {categories.map((c, idx) => (
+                <option key={c.id || idx} value={c.nameAr || c.name}>
+                  {c.nameAr || c.name} {c.nameFr || c.fr ? `(${c.nameFr || c.fr})` : ''}
                 </option>
               ))}
             </select>
@@ -520,9 +586,9 @@ export default function AdminProducts() {
               }}
               className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
             >
-              <option value="all">جميع الماركات</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.name}>
+              <option value="all">جميع الماركات ({brands.length})</option>
+              {brands.map((b, idx) => (
+                <option key={b.id || idx} value={b.name}>
                   {b.name}
                 </option>
               ))}
@@ -810,41 +876,78 @@ export default function AdminProducts() {
                     />
                   </div>
 
+                  {/* CATEGORY DROPDOWN */}
                   <div>
-                    <label className="text-xs font-black text-zinc-700 block mb-1">الفئة / القسم *</label>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الفئة / القسم * ({categories.length} فئة)</label>
                     <select
                       value={form.categoryId}
                       onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
                     >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nameAr || c.name}
-                        </option>
-                      ))}
+                      {categories.map((c, idx) => {
+                        const val = c.id || c.nameAr || c.name || `cat-${idx}`
+                        const label = c.nameAr || c.name || 'فئة'
+                        const sub = c.nameFr || c.fr ? ` — ${c.nameFr || c.fr}` : ''
+                        return (
+                          <option key={c.id || idx} value={val}>
+                            {label}{sub}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
 
+                  {/* BRAND SELECT & CUSTOM BRAND */}
                   <div>
-                    <label className="text-xs font-black text-zinc-700 block mb-1">الماركة / المصنّع *</label>
-                    <select
-                      value={form.brandId}
-                      onChange={(e) => setForm({ ...form, brandId: e.target.value, customBrand: '' })}
-                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
-                    >
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={form.customBrand}
-                      onChange={(e) => setForm({ ...form, customBrand: e.target.value })}
-                      placeholder="أو اكتب اسم ماركة جديدة هنا..."
-                      className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-zinc-50/70 p-1.5 text-[11px] font-bold text-zinc-700 focus:border-brand-600 focus:outline-none"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-black text-zinc-700">الماركة / المصنّع * ({brands.length} ماركة)</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomBrandActive(!customBrandActive)
+                          if (!customBrandActive) {
+                            setForm((prev) => ({ ...prev, customBrand: '' }))
+                          }
+                        }}
+                        className="text-[10px] font-black text-brand-600 hover:underline"
+                      >
+                        {customBrandActive ? 'اختر من القائمة' : '+ كتابة ماركة مخصصة'}
+                      </button>
+                    </div>
+
+                    {!customBrandActive ? (
+                      <select
+                        value={form.brandId}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setCustomBrandActive(true)
+                          } else {
+                            setForm({ ...form, brandId: e.target.value, customBrand: '' })
+                          }
+                        }}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      >
+                        {brands.map((b, idx) => {
+                          const val = b.id || b.name || `brand-${idx}`
+                          return (
+                            <option key={b.id || idx} value={val}>
+                              {b.name} {b.originCountry ? `(${b.originCountry})` : ''}
+                            </option>
+                          )
+                        })}
+                        <option value="__custom__">+ ماركة أخرى (كتابة يدوية)...</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        autoFocus
+                        required={customBrandActive}
+                        value={form.customBrand}
+                        onChange={(e) => setForm({ ...form, customBrand: e.target.value })}
+                        placeholder="اكتب اسم الماركة (مثلاً: AISIN, BILSTEIN)..."
+                        className="w-full rounded-xl border border-brand-500 bg-brand-50/30 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

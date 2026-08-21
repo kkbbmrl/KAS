@@ -429,13 +429,55 @@ export async function fetchAdminLandingPages() {
   return await res.json()
 }
 
+export async function fetchAdminLandingPageDetails(id: string) {
+  const res = await fetch(`${API_BASE}/marketing/landing-pages/${id}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('Failed to fetch landing page details')
+  return await res.json()
+}
+
 export async function createAdminLandingPage(data: any) {
   const res = await fetch(`${API_BASE}/marketing/landing-pages`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Failed to create landing page')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to create landing page')
+  }
+  return await res.json()
+}
+
+export async function updateAdminLandingPage(id: string, data: any) {
+  const res = await fetch(`${API_BASE}/marketing/landing-pages/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to update landing page')
+  }
+  return await res.json()
+}
+
+export async function deleteAdminLandingPage(id: string) {
+  const res = await fetch(`${API_BASE}/marketing/landing-pages/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('Failed to delete landing page')
+  return await res.json()
+}
+
+export async function duplicateAdminLandingPage(id: string) {
+  const res = await fetch(`${API_BASE}/marketing/landing-pages/${id}/duplicate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('Failed to duplicate landing page')
   return await res.json()
 }
 

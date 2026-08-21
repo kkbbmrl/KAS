@@ -83,4 +83,25 @@ router.get('/:slug', async (req, res) => {
   }
 })
 
+// POST /api/v1/offers/track-visit (Record landing page / ad campaign visits)
+router.post('/track-visit', async (req, res) => {
+  try {
+    const { landingSlug, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, userAgent } = req.body
+    const id = (await import('node:crypto')).randomUUID()
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''
+
+    await query(
+      `INSERT INTO campaign_visits (id, landing_slug, utm_source, utm_medium, utm_campaign, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, landingSlug || '', utmSource || '', utmMedium || '', utmCampaign || '', String(ip).slice(0, 45), String(userAgent || '').slice(0, 255)]
+    )
+
+    res.json({ success: true })
+  } catch (err: any) {
+    // Non-blocking for client
+    res.json({ success: false })
+  }
+})
+
 export default router
+

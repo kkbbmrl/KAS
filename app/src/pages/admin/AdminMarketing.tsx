@@ -183,7 +183,6 @@ export default function AdminMarketing() {
   // Builder Modal (Create / Edit)
   const [builderModalOpen, setBuilderModalOpen] = useState(false)
   const [editOfferId, setEditOfferId] = useState<string | null>(null)
-  const [builderTab, setBuilderTab] = useState<'editor' | 'preview'>('editor')
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [saving, setSaving] = useState(false)
   const [builderError, setBuilderError] = useState<string | null>(null)
@@ -295,7 +294,6 @@ export default function AdminMarketing() {
     setEditOfferId(null)
     setBuilderError(null)
     setBuilderSuccess(null)
-    setBuilderTab('editor')
 
     const defaultProd = products[0]
     setForm({
@@ -324,7 +322,6 @@ export default function AdminMarketing() {
     setEditOfferId(id)
     setBuilderError(null)
     setBuilderSuccess(null)
-    setBuilderTab('editor')
 
     // Attempt to load full detail from new endpoint; fall back to list data if unavailable
     const populateForm = (details: any) => {
@@ -787,27 +784,31 @@ export default function AdminMarketing() {
                 </h3>
               </div>
 
-              {/* Editor / Preview Switcher */}
-              <div className="flex items-center gap-1 bg-zinc-200/80 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setBuilderTab('editor')}
-                  className={`rounded-lg px-3 py-1 text-xs font-black font-cairo transition-all ${
-                    builderTab === 'editor' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
-                  }`}
-                >
-                  التخصيص والإعدادات
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBuilderTab('preview')}
-                  className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-black font-cairo transition-all ${
-                    builderTab === 'preview' ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-600'
-                  }`}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  <span>معاينة حية</span>
-                </button>
+              {/* Device Toggle for Preview */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-zinc-500">معاينة:</span>
+                <div className="flex items-center gap-1 bg-zinc-200/80 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      previewDevice === 'desktop' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'
+                    }`}
+                    title="عرض سطح المكتب"
+                  >
+                    <Globe className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      previewDevice === 'mobile' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'
+                    }`}
+                    title="عرض الهاتف المحمول"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -825,9 +826,10 @@ export default function AdminMarketing() {
               </div>
             )}
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {builderTab === 'editor' ? (
+            {/* Modal Body - Split View */}
+            <div className="flex-1 overflow-hidden flex flex-row">
+              {/* Editor Panel */}
+              <div className="flex-1 overflow-y-auto p-6 border-l border-zinc-200">
                 <form onSubmit={handleSaveBuilder} className="space-y-6">
                   {/* Step 1: Select Theme */}
                   <div className="space-y-3">
@@ -1123,141 +1125,121 @@ export default function AdminMarketing() {
                     </button>
                   </div>
                 </form>
-              ) : (
-                /* ─── LIVE PREVIEW TAB ─── */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b pb-3">
-                    <span className="font-cairo text-xs font-black text-zinc-700">
-                      معاينة حية لصفحة العرض: <span className="text-brand-600">/ads/{form.slug}</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewDevice('desktop')}
-                        className={`p-1.5 rounded-lg border ${
-                          previewDevice === 'desktop' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'
-                        }`}
-                        title="عرض سطح المكتب"
-                      >
-                        <Globe className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewDevice('mobile')}
-                        className={`p-1.5 rounded-lg border ${
-                          previewDevice === 'mobile' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600'
-                        }`}
-                        title="عرض الهاتف المحمول"
-                      >
-                        <Smartphone className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+              </div>
 
-                  {/* Preview Container */}
-                  {(() => {
-                    const activeTheme = CONVERSION_THEMES.find((t) => t.id === selectedTheme)!
-                    const p = activeTheme.preview
-                    return (
+              {/* Live Preview Panel */}
+              <div className="w-1/2 overflow-y-auto p-4 bg-zinc-50">
+                <div className="mb-3">
+                  <span className="font-cairo text-xs font-black text-zinc-700">
+                    معاينة حية: <span className="text-brand-600">/ads/{form.slug}</span>
+                  </span>
+                </div>
+
+                {/* Preview Container */}
+                {(() => {
+                  const activeTheme = CONVERSION_THEMES.find((t) => t.id === selectedTheme)!
+                  const p = activeTheme.preview
+                  return (
+                    <div
+                      className="flex justify-center rounded-2xl overflow-hidden transition-all duration-300"
+                      style={{ background: p.bg }}
+                    >
                       <div
-                        className="flex justify-center p-4 rounded-2xl overflow-hidden transition-all duration-300"
-                        style={{ background: p.bg }}
+                        className={`rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
+                          previewDevice === 'mobile' ? 'w-[375px]' : 'w-full'
+                        }`}
+                        style={{ background: p.bg, border: `1px solid ${p.border}` }}
                       >
-                        <div
-                          className={`rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
-                            previewDevice === 'mobile' ? 'w-[375px]' : 'w-full max-w-4xl'
-                          }`}
-                          style={{ background: p.bg, border: `1px solid ${p.border}` }}
-                        >
-                          {/* Fake Landing Hero */}
-                          <div className="p-6 space-y-4" style={{ background: p.bg }}>
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <span
-                                className="rounded-full px-3 py-1 text-[10px] font-black border"
-                                style={{
-                                  background: p.accentBadgeBg,
-                                  borderColor: p.accentBadgeBorder,
-                                  color: p.accentBadgeText,
-                                }}
-                              >
-                                {form.badgeText}
-                              </span>
-                              <span className="text-[10px] font-bold" style={{ color: p.accentBadgeText }}>
-                                {form.urgencyText}
-                              </span>
-                            </div>
-
-                            <h2 className="font-cairo text-xl sm:text-2xl font-black text-white">
-                              {form.titleAr || 'عنوان العرض الترويجي'}
-                            </h2>
-
-                            <p className="text-xs font-bold leading-relaxed" style={{ color: '#cbd5e1' }}>
-                              {form.subtitleAr || 'شرح تفصيلي حول القطعة ومميزاتها والتوافق...'}
-                            </p>
-
-                            <div
-                              className="aspect-video w-full rounded-xl overflow-hidden flex items-center justify-center p-2"
-                              style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
+                        {/* Fake Landing Hero */}
+                        <div className="p-6 space-y-4" style={{ background: p.bg }}>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span
+                              className="rounded-full px-3 py-1 text-[10px] font-black border"
+                              style={{
+                                background: p.accentBadgeBg,
+                                borderColor: p.accentBadgeBorder,
+                                color: p.accentBadgeText,
+                              }}
                             >
-                              <img
-                                src={form.heroImageUrl}
-                                alt="معاينة"
-                                className="h-full w-full object-contain"
-                              />
-                            </div>
+                              {form.badgeText}
+                            </span>
+                            <span className="text-[10px] font-bold" style={{ color: p.accentBadgeText }}>
+                              {form.urgencyText}
+                            </span>
+                          </div>
 
-                            <div
-                              className="flex items-center justify-between p-3 rounded-xl"
-                              style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
-                            >
-                              <div>
-                                <span className="font-cairo text-xl font-black" style={{ color: p.priceColor }}>
-                                  {formatPrice(form.customPrice)}
+                          <h2 className="font-cairo text-xl sm:text-2xl font-black text-white">
+                            {form.titleAr || 'عنوان العرض الترويجي'}
+                          </h2>
+
+                          <p className="text-xs font-bold leading-relaxed" style={{ color: '#cbd5e1' }}>
+                            {form.subtitleAr || 'شرح تفصيلي حول القطعة ومميزاتها والتوافق...'}
+                          </p>
+
+                          <div
+                            className="aspect-video w-full rounded-xl overflow-hidden flex items-center justify-center p-2"
+                            style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
+                          >
+                            <img
+                              src={form.heroImageUrl}
+                              alt="معاينة"
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+
+                          <div
+                            className="flex items-center justify-between p-3 rounded-xl"
+                            style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
+                          >
+                            <div>
+                              <span className="font-cairo text-xl font-black" style={{ color: p.priceColor }}>
+                                {formatPrice(form.customPrice)}
+                              </span>
+                              {form.customOldPrice > 0 && (
+                                <span className="text-xs text-zinc-500 line-through block" dir="ltr">
+                                  {formatPrice(form.customOldPrice)}
                                 </span>
-                                {form.customOldPrice > 0 && (
-                                  <span className="text-xs text-zinc-500 line-through block" dir="ltr">
-                                    {formatPrice(form.customOldPrice)}
-                                  </span>
-                                )}
+                              )}
+                            </div>
+                            <span
+                              className="text-[10px] font-bold px-2 py-1 rounded"
+                              style={{
+                                color: p.accentBadgeText,
+                                background: p.accentBadgeBg,
+                                border: `1px solid ${p.accentBadgeBorder}`,
+                              }}
+                            >
+                              {form.deliveryNote}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 pt-2">
+                            {form.features.map((f, i) => (
+                              <div key={i} className="flex items-center gap-2 text-xs font-bold" style={{ color: '#cbd5e1' }}>
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: p.featureCheck }} />
+                                <span>{f.text}</span>
                               </div>
-                              <span
-                                className="text-[10px] font-bold px-2 py-1 rounded"
-                                style={{
-                                  color: p.accentBadgeText,
-                                  background: p.accentBadgeBg,
-                                  border: `1px solid ${p.accentBadgeBorder}`,
-                                }}
-                              >
-                                {form.deliveryNote}
-                              </span>
-                            </div>
+                            ))}
+                          </div>
 
-                            <div className="space-y-1.5 pt-2">
-                              {form.features.map((f, i) => (
-                                <div key={i} className="flex items-center gap-2 text-xs font-bold" style={{ color: '#cbd5e1' }}>
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: p.featureCheck }} />
-                                  <span>{f.text}</span>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="pt-2">
-                              <button
-                                type="button"
-                                className="w-full rounded-xl py-3 font-cairo text-xs font-black text-white transition-all"
-                                style={{
-                                  background: p.ctaBg,
-                                  boxShadow: `0 8px 24px ${p.ctaShadow}`,
-                                }}
-                              >
-                                اطلب الآن — الدفع عند الاستلام ({formatPrice(form.customPrice)})
-                              </button>
-                            </div>
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              className="w-full rounded-xl py-3 font-cairo text-xs font-black text-white transition-all"
+                              style={{
+                                background: p.ctaBg,
+                                boxShadow: `0 8px 24px ${p.ctaShadow}`,
+                              }}
+                            >
+                              اطلب الآن — الدفع عند الاستلام ({formatPrice(form.customPrice)})
+                            </button>
                           </div>
                         </div>
                       </div>
-                    )
-                  })()}
+                    </div>
+                  )
+                })()}
+              </div>
             </div>
           </div>
         </div>

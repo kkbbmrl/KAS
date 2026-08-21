@@ -1,4 +1,4 @@
-import { Star, ShieldCheck, MapPin, CheckCircle2 } from 'lucide-react'
+import { Star, MapPin, CheckCircle2 } from 'lucide-react'
 import type { AdReview } from '@/data/adCampaigns'
 
 interface Props {

@@ -1,19 +1,13 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router'
 import {
-  AlertCircle,
-  ArrowRight,
-  Boxes,
-  CheckCircle2,
   Frown,
   Home,
   Loader2,
   MessageSquare,
   PhoneCall,
-  ShieldCheck,
   Sparkles,
   Truck,
-  Wrench,
 } from 'lucide-react'
 
 import Logo from '@/components/Logo'
@@ -52,7 +46,6 @@ export default function AdLandingPage() {
     return getCampaignBySlug(activeSlug) || null
   })
   const [loading, setLoading] = useState(!campaign)
-  const [error, setError] = useState<string | null>(null)
 
   // Track visit on mount
   useEffect(() => {

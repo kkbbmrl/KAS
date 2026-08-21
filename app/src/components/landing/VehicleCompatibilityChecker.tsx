@@ -5,9 +5,7 @@ import {
   MessageSquare,
   Search,
   ShieldCheck,
-  Sparkles,
   Wrench,
-  AlertTriangle,
 } from 'lucide-react'
 import { buildWhatsAppLink, trackConversionEvent } from '@/lib/tracking'
 import type { CompatibleVehicle } from '@/data/adCampaigns'
@@ -115,9 +113,9 @@ export default function VehicleCompatibilityChecker({
       </div>
 
       {/* Form Check */}
-      <form onSubmit={handleCheck} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <form onSubmit={handleCheck} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
         <div>
-          <label className="text-xs font-black text-zinc-700 block mb-1">الماركة (Marque)</label>
+          <label className="text-xs font-black text-zinc-700 block mb-1">الماركة</label>
           <select
             value={selectedMake}
             onChange={(e) => {
@@ -136,7 +134,7 @@ export default function VehicleCompatibilityChecker({
         </div>
 
         <div>
-          <label className="text-xs font-black text-zinc-700 block mb-1">الموديل (Modèle)</label>
+          <label className="text-xs font-black text-zinc-700 block mb-1">الموديل</label>
           <input
             type="text"
             value={modelInput}
@@ -144,13 +142,13 @@ export default function VehicleCompatibilityChecker({
               setModelInput(e.target.value)
               setChecked(false)
             }}
-            placeholder="مثال: Clio 4, 208, Golf 7..."
+            placeholder="مثال: Clio 4, 208..."
             className="w-full rounded-xl border border-zinc-300 bg-zinc-50/60 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:bg-white focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="text-xs font-black text-zinc-700 block mb-1">السنة (Année)</label>
+          <label className="text-xs font-black text-zinc-700 block mb-1">السنة</label>
           <input
             type="text"
             value={yearInput}
@@ -158,7 +156,22 @@ export default function VehicleCompatibilityChecker({
               setYearInput(e.target.value)
               setChecked(false)
             }}
-            placeholder="مثال: 2016"
+            placeholder="2016"
+            className="w-full rounded-xl border border-zinc-300 bg-zinc-50/60 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:bg-white focus:outline-none"
+            dir="ltr"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-black text-zinc-700 block mb-1">المحرك</label>
+          <input
+            type="text"
+            value={engineInput}
+            onChange={(e) => {
+              setEngineInput(e.target.value)
+              setChecked(false)
+            }}
+            placeholder="1.6 HDI / 1.2"
             className="w-full rounded-xl border border-zinc-300 bg-zinc-50/60 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:bg-white focus:outline-none"
             dir="ltr"
           />
@@ -167,10 +180,10 @@ export default function VehicleCompatibilityChecker({
         <div className="flex items-end">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-zinc-900 p-2.5 font-cairo text-xs font-black text-white hover:bg-black transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-zinc-900 p-2.5 font-cairo text-xs font-black text-white hover:bg-black transition-colors cursor-pointer"
           >
             <Search className="h-4 w-4" />
-            <span>فحص التوافق الآن</span>
+            <span>فحص التوافق</span>
           </button>
         </div>
       </form>

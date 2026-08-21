@@ -1,4 +1,4 @@
-import { Shield, Sparkles, Truck, Headphones, BadgeCheck, CheckCircle2 } from 'lucide-react'
+import { Shield, Sparkles, Truck, Headphones, BadgeCheck } from 'lucide-react'
 
 const ADVANTAGES = [
   {

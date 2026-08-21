@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Sparkles, Truck } from 'lucide-react'
+import { MessageSquare, Truck } from 'lucide-react'
 import { formatPrice } from '@/data/products'
 import { trackConversionEvent, buildWhatsAppLink } from '@/lib/tracking'
 

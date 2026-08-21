@@ -5,9 +5,7 @@ import {
   MessageSquare,
   PhoneCall,
   ShieldCheck,
-  Sparkles,
   Truck,
-  Zap,
 } from 'lucide-react'
 import { formatPrice, PHONE_CALL, PHONE_DISPLAY } from '@/data/products'
 import { trackConversionEvent, buildWhatsAppLink } from '@/lib/tracking'

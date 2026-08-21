@@ -1,4 +1,4 @@
-import { Layers, ShieldCheck, Wrench } from 'lucide-react'
+import { Layers } from 'lucide-react'
 
 interface Props {
   specifications: { label: string; value: string }[]

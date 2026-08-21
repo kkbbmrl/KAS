@@ -5,6 +5,8 @@ import Home from './pages/Home'
 import SearchPage from './pages/SearchPage'
 import ThemesPage from './pages/ThemesPage'
 import OfferPage from './pages/OfferPage'
+import AdLandingPage from './pages/AdLandingPage'
+import AdsCatalogPage from './pages/AdsCatalogPage'
 
 // Admin Components & Pages
 import AdminLayout from './components/admin/AdminLayout'
@@ -30,6 +32,12 @@ export default function App() {
           <Route path="/themes" element={<ThemesPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/offer/:slug" element={<OfferPage />} />
+
+          {/* Ad Landing Pages & Campaign System */}
+          <Route path="/ads" element={<AdsCatalogPage />} />
+          <Route path="/ads/:slug" element={<AdLandingPage />} />
+          <Route path="/ads/product/:idOrSlug" element={<AdLandingPage />} />
+          <Route path="/landing/:slug" element={<AdLandingPage />} />
 
           {/* Admin Authentication */}
           <Route path="/admin/login" element={<AdminLogin />} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -411,6 +411,20 @@ export default function QuickOrderForm({
               className="w-full rounded-xl border-2 border-zinc-200 bg-zinc-50/60 px-4 py-3 pe-4 ps-10 font-cairo text-xs font-bold text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-600/10"
             />
           </div>
+        </div>
+
+        {/* Notes (Optional) */}
+        <div>
+          <label className="text-xs font-black text-zinc-700 block mb-1">
+            ملاحظات إضافية أو تفاصيل السيارة (اختياري)
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="مثال: بيجو 208 محرك 1.6 HDI سنة 2015..."
+            className="w-full rounded-xl border-2 border-zinc-200 bg-zinc-50/60 px-4 py-3 font-cairo text-xs font-bold text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-600/10"
+          />
         </div>
 
         {/* Quantity Controls */}

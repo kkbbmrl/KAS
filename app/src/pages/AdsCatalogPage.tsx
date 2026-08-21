@@ -1,15 +1,11 @@
 import { Link } from 'react-router'
 import {
-  Boxes,
-  CheckCircle2,
   Flame,
   MessageSquare,
   PhoneCall,
   ShieldCheck,
   Sparkles,
-  Star,
   Truck,
-  Zap,
 } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { CAMPAIGN_PRESETS } from '@/data/adCampaigns'

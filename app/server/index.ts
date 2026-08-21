@@ -42,10 +42,12 @@ app.use((_req, res, next) => {
   next()
 })
 
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : '*'
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : null
 app.use(cors({
-  origin: allowedOrigins === '*' ? '*' : allowedOrigins,
-  credentials: true,
+  origin: allowedOrigins ?? '*',
+  // Wildcard origin + credentials is invalid per the Fetch/CORS spec and browsers
+  // will block it. Only allow credentials when a concrete origin list is set.
+  credentials: Boolean(allowedOrigins),
 }))
 
 app.use(express.json({ limit: '10mb' }))

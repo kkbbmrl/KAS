@@ -40,40 +40,108 @@ import {
 import { formatPrice } from '@/data/products'
 
 // ─── PRESET CONVERSION THEMES ───
+// Theme definitions — each theme includes inline preview styles and preset copy
 const CONVERSION_THEMES = [
   {
     id: 'oem-factory',
     name: 'المصنع الأصلي (OEM Factory)',
-    tagline: 'مخصص للقطع الأصلية، التبريد، الكهرباء، المحرك',
-    colorScheme: 'from-zinc-900 to-zinc-950 text-brand-400',
-    badgeStyle: 'bg-brand-600 text-white',
+    tagline: 'للقطع الأصلية، التبريد، الكهرباء، المحرك',
     icon: ShieldCheck,
+    // Preview inline styles
+    preview: {
+      bg: '#0f172a',                       // slate-900
+      cardBg: '#1e293b',                   // slate-800
+      border: '#334155',                   // slate-700
+      accentColor: '#3b82f6',              // blue-500
+      accentBadgeBg: 'rgba(59,130,246,0.15)',
+      accentBadgeBorder: 'rgba(59,130,246,0.35)',
+      accentBadgeText: '#93c5fd',          // blue-300
+      ctaBg: '#2563eb',                    // blue-600
+      ctaShadow: 'rgba(37,99,235,0.4)',
+      priceColor: '#93c5fd',
+      featureCheck: '#60a5fa',
+    },
+    // Auto-fill preset copy when theme selected
+    presets: {
+      badgeText: 'قطعة أصلية 100% — ضمان صناعي 24 شهراً',
+      urgencyText: 'الكمية محدودة — توصيل فوري لـ 58 ولاية',
+      deliveryNote: 'دفع عند الاستلام والمعاينة — شحن لباب منزلك',
+    },
   },
   {
     id: 'sport-performance',
     name: 'الأداء الرياضي (Sport Performance)',
-    tagline: 'مخصص لأنظمة الفرامل Brembo، التعليق، العوادم',
-    colorScheme: 'from-neutral-950 via-zinc-900 to-black text-red-500',
-    badgeStyle: 'bg-red-600 text-white',
+    tagline: 'للفرامل Brembo، التعليق، العوادم الرياضية',
     icon: Flame,
+    preview: {
+      bg: '#1c0a0a',
+      cardBg: '#2d1010',
+      border: '#7f1d1d',
+      accentColor: '#ef4444',
+      accentBadgeBg: 'rgba(239,68,68,0.15)',
+      accentBadgeBorder: 'rgba(239,68,68,0.35)',
+      accentBadgeText: '#fca5a5',
+      ctaBg: '#dc2626',
+      ctaShadow: 'rgba(220,38,38,0.45)',
+      priceColor: '#fca5a5',
+      featureCheck: '#f87171',
+    },
+    presets: {
+      badgeText: 'أداء رياضي عالي — معتمد من السباقات الدولية',
+      urgencyText: 'آخر 3 قطع في المخزن — اطلب الآن قبل النفاذ!',
+      deliveryNote: 'تركيب مباشر بدون تعديل — ضمان الأداء الكامل',
+    },
   },
   {
     id: 'flash-deal',
     name: 'عرض ترويجي سريع (Flash Deal)',
-    tagline: 'مخصص للتصفيات الموسمية والتخفيضات الكبرى',
-    colorScheme: 'from-amber-950 via-zinc-900 to-zinc-950 text-amber-400',
-    badgeStyle: 'bg-amber-500 text-zinc-950',
+    tagline: 'للتصفيات الموسمية والتخفيضات الكبرى',
     icon: Zap,
+    preview: {
+      bg: '#1c1000',
+      cardBg: '#2d1c00',
+      border: '#92400e',
+      accentColor: '#f59e0b',
+      accentBadgeBg: 'rgba(245,158,11,0.15)',
+      accentBadgeBorder: 'rgba(245,158,11,0.35)',
+      accentBadgeText: '#fcd34d',
+      ctaBg: '#d97706',
+      ctaShadow: 'rgba(217,119,6,0.45)',
+      priceColor: '#fcd34d',
+      featureCheck: '#fbbf24',
+    },
+    presets: {
+      badgeText: '⚡ تخفيض خاص لفترة محدودة — ادخر أكثر اليوم',
+      urgencyText: '🔥 العرض ينتهي قريباً — لا تفوّت الفرصة!',
+      deliveryNote: 'الشحن مجاني على الطلبات فوق 5000 دج — دفع عند الاستلام',
+    },
   },
   {
     id: 'eco-maintenance',
-    name: 'باقة الصيانة والفلاتر (Maintenance Pack)',
-    tagline: 'مخصص لباك الصيانة، الفلاتر، البواجي، الزيوت',
-    colorScheme: 'from-emerald-950 via-zinc-900 to-zinc-950 text-emerald-400',
-    badgeStyle: 'bg-emerald-600 text-white',
+    name: 'باقة الصيانة (Maintenance Pack)',
+    tagline: 'للفلاتر، البواجي، الزيوت، وباقات الصيانة',
     icon: Wrench,
+    preview: {
+      bg: '#071916',
+      cardBg: '#0d2b21',
+      border: '#065f46',
+      accentColor: '#10b981',
+      accentBadgeBg: 'rgba(16,185,129,0.15)',
+      accentBadgeBorder: 'rgba(16,185,129,0.35)',
+      accentBadgeText: '#6ee7b7',
+      ctaBg: '#059669',
+      ctaShadow: 'rgba(5,150,105,0.4)',
+      priceColor: '#6ee7b7',
+      featureCheck: '#34d399',
+    },
+    presets: {
+      badgeText: 'باقة صيانة كاملة — كل ما تحتاجه في مكان واحد',
+      urgencyText: 'صيانتك في الموعد — أطل عمر سيارتك الآن',
+      deliveryNote: 'اطلب اليوم والتركيب غداً — 58 ولاية بدون تنقل',
+    },
   },
-]
+] as const
+type ThemeId = typeof CONVERSION_THEMES[number]['id']
 
 const PRESET_BADGES = [
   'قطعة أصلية 100% — ضمان 24 شهراً',
@@ -773,7 +841,16 @@ export default function AdminMarketing() {
                         return (
                           <div
                             key={theme.id}
-                            onClick={() => setSelectedTheme(theme.id)}
+                            onClick={() => {
+                              setSelectedTheme(theme.id)
+                              // Apply theme preset copy to form
+                              setForm((prev) => ({
+                                ...prev,
+                                badgeText: theme.presets.badgeText,
+                                urgencyText: theme.presets.urgencyText,
+                                deliveryNote: theme.presets.deliveryNote,
+                              }))
+                            }}
                             className={`rounded-2xl border-2 p-3.5 cursor-pointer transition-all ${
                               isSelected
                                 ? 'border-brand-600 bg-brand-50/40 ring-2 ring-brand-600/20 shadow-md'
@@ -1078,77 +1155,109 @@ export default function AdminMarketing() {
                   </div>
 
                   {/* Preview Container */}
-                  <div className="flex justify-center bg-zinc-900 p-4 rounded-2xl overflow-hidden">
-                    <div
-                      className={`bg-zinc-950 text-white rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl transition-all ${
-                        previewDevice === 'mobile' ? 'w-[375px]' : 'w-full max-w-4xl'
-                      }`}
-                    >
-                      {/* Fake Landing Hero */}
-                      <div className="p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="rounded-full bg-brand-600/20 text-brand-400 px-3 py-1 text-[10px] font-black border border-brand-500/30">
-                            {form.badgeText}
-                          </span>
-                          <span className="text-[10px] text-zinc-400 font-bold">
-                            {form.urgencyText}
-                          </span>
-                        </div>
-
-                        <h2 className="font-cairo text-xl sm:text-2xl font-black text-white">
-                          {form.titleAr || 'عنوان العرض الترويجي'}
-                        </h2>
-
-                        <p className="text-xs text-zinc-300 font-bold leading-relaxed">
-                          {form.subtitleAr || 'شرح تفصيلي حول القطعة ومميزاتها والتوافق...'}
-                        </p>
-
-                        <div className="aspect-video w-full rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center justify-center p-2">
-                          <img
-                            src={form.heroImageUrl}
-                            alt="معاينة"
-                            className="h-full w-full object-contain"
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-                          <div>
-                            <span className="font-cairo text-xl font-black text-brand-400">
-                              {formatPrice(form.customPrice)}
-                            </span>
-                            {form.customOldPrice && (
-                              <span className="text-xs text-zinc-500 line-through block" dir="ltr">
-                                {formatPrice(form.customOldPrice)}
+                  {(() => {
+                    const activeTheme = CONVERSION_THEMES.find((t) => t.id === selectedTheme)!
+                    const p = activeTheme.preview
+                    return (
+                      <div
+                        className="flex justify-center p-4 rounded-2xl overflow-hidden transition-all duration-300"
+                        style={{ background: p.bg }}
+                      >
+                        <div
+                          className={`rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
+                            previewDevice === 'mobile' ? 'w-[375px]' : 'w-full max-w-4xl'
+                          }`}
+                          style={{ background: p.bg, border: `1px solid ${p.border}` }}
+                        >
+                          {/* Fake Landing Hero */}
+                          <div className="p-6 space-y-4" style={{ background: p.bg }}>
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span
+                                className="rounded-full px-3 py-1 text-[10px] font-black border"
+                                style={{
+                                  background: p.accentBadgeBg,
+                                  borderColor: p.accentBadgeBorder,
+                                  color: p.accentBadgeText,
+                                }}
+                              >
+                                {form.badgeText}
                               </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-2 py-1 rounded border border-emerald-800">
-                            {form.deliveryNote}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1.5 pt-2">
-                          {form.features.map((f, i) => (
-                            <div key={i} className="flex items-center gap-2 text-xs text-zinc-300 font-bold">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-brand-500 shrink-0" />
-                              <span>{f.text}</span>
+                              <span className="text-[10px] font-bold" style={{ color: p.accentBadgeText }}>
+                                {form.urgencyText}
+                              </span>
                             </div>
-                          ))}
-                        </div>
 
-                        <div className="pt-2">
-                          <button
-                            type="button"
-                            className="w-full rounded-xl bg-brand-600 py-3 font-cairo text-xs font-black text-white shadow-lg shadow-brand-600/30"
-                          >
-                            اطلب الآن — الدفع عند الاستلام ({formatPrice(form.customPrice)})
-                          </button>
+                            <h2 className="font-cairo text-xl sm:text-2xl font-black text-white">
+                              {form.titleAr || 'عنوان العرض الترويجي'}
+                            </h2>
+
+                            <p className="text-xs font-bold leading-relaxed" style={{ color: '#cbd5e1' }}>
+                              {form.subtitleAr || 'شرح تفصيلي حول القطعة ومميزاتها والتوافق...'}
+                            </p>
+
+                            <div
+                              className="aspect-video w-full rounded-xl overflow-hidden flex items-center justify-center p-2"
+                              style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
+                            >
+                              <img
+                                src={form.heroImageUrl}
+                                alt="معاينة"
+                                className="h-full w-full object-contain"
+                              />
+                            </div>
+
+                            <div
+                              className="flex items-center justify-between p-3 rounded-xl"
+                              style={{ background: p.cardBg, border: `1px solid ${p.border}` }}
+                            >
+                              <div>
+                                <span className="font-cairo text-xl font-black" style={{ color: p.priceColor }}>
+                                  {formatPrice(form.customPrice)}
+                                </span>
+                                {form.customOldPrice > 0 && (
+                                  <span className="text-xs text-zinc-500 line-through block" dir="ltr">
+                                    {formatPrice(form.customOldPrice)}
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className="text-[10px] font-bold px-2 py-1 rounded"
+                                style={{
+                                  color: p.accentBadgeText,
+                                  background: p.accentBadgeBg,
+                                  border: `1px solid ${p.accentBadgeBorder}`,
+                                }}
+                              >
+                                {form.deliveryNote}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5 pt-2">
+                              {form.features.map((f, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs font-bold" style={{ color: '#cbd5e1' }}>
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: p.featureCheck }} />
+                                  <span>{f.text}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                className="w-full rounded-xl py-3 font-cairo text-xs font-black text-white transition-all"
+                                style={{
+                                  background: p.ctaBg,
+                                  boxShadow: `0 8px 24px ${p.ctaShadow}`,
+                                }}
+                              >
+                                اطلب الآن — الدفع عند الاستلام ({formatPrice(form.customPrice)})
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    )
+                  })()}
             </div>
           </div>
         </div>

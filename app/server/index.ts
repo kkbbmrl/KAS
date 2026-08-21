@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import wilayasRouter from './routes/wilayas.js'
 import catalogRouter from './routes/catalog.js'
 import offersRouter from './routes/offers.js'
@@ -22,6 +24,8 @@ import { ensureAdminAccounts } from './db/ensureAdmins.js'
 import { requireAdmin } from './middleware/adminAuth.js'
 
 dotenv.config()
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -76,6 +80,14 @@ app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
 app.use('/api/v1/admin/marketing', requireAdmin, adminMarketingRouter)
 app.use('/api/v1/admin', requireAdmin, adminMiscRouter)
 
+// Serve the built React frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'dist')
+  app.use(express.static(distPath))
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
+}
 
 // Auto-initialize and start server
 async function startServer() {

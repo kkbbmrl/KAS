@@ -258,11 +258,11 @@ export default function AdminMarketing() {
     setBuilderSuccess(null)
     setBuilderTab('editor')
 
-    try {
-      const details = await fetchAdminLandingPageDetails(id)
+    // Attempt to load full detail from new endpoint; fall back to list data if unavailable
+    const populateForm = (details: any) => {
       setForm({
-        slug: details.slug,
-        productId: details.productId,
+        slug: details.slug || '',
+        productId: details.productId || '',
         titleAr: details.titleAr || details.title || '',
         subtitleAr: details.subtitleAr || details.subtitle || '',
         titleFr: details.titleFr || details.nameFr || '',
@@ -270,7 +270,7 @@ export default function AdminMarketing() {
         urgencyText: details.urgencyText || 'الكمية محدودة — اطلب الآن!',
         deliveryNote: details.deliveryNote || 'توصيل سريع لـ 58 ولاية — الدفع بعد المعاينة',
         customPrice: Number(details.customPrice || details.price || 15000),
-        customOldPrice: Number(details.customOldPrice || details.oldPrice || 18500),
+        customOldPrice: Number(details.customOldPrice || details.oldPrice || 0),
         heroImageUrl: details.heroImageUrl || details.image || '',
         features:
           Array.isArray(details.features) && details.features.length > 0
@@ -278,11 +278,25 @@ export default function AdminMarketing() {
             : [
                 { icon: 'ShieldCheck', text: 'قطعة غيار أصلية مع وصل ضمان رسمي مختوم' },
                 { icon: 'Truck', text: 'توصيل سريع لباب منزلك لـ 58 ولاية والدفع عند الاستلام' },
+                { icon: 'Wrench', text: 'مطابق لمواصفات ومقاسات الوكالة مع تركيب مباشر' },
+                { icon: 'Eye', text: 'حق المعاينة وفحص القطعة عند الباب قبل دفع أي دينار' },
               ],
       })
       setBuilderModalOpen(true)
-    } catch (err: any) {
-      alert(err.message || 'فشل تحميل بيانات صفحة الهبوط')
+    }
+
+    try {
+      const details = await fetchAdminLandingPageDetails(id)
+      populateForm(details)
+    } catch {
+      // Endpoint not yet available on production backend — use list data as fallback
+      const cached = landingPages.find((l) => l.id === id)
+      if (cached) {
+        populateForm(cached)
+      } else {
+        setBuilderError('تعذّر تحميل بيانات الصفحة. يرجى المحاولة مجدداً.')
+        setBuilderModalOpen(true)
+      }
     }
   }
 

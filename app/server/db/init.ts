@@ -389,10 +389,14 @@ export async function initDatabase() {
 }
 
 async function migrateAdminAuthSchema() {
-  try {
+  const hasUsernameColumn = isPostgres
+    ? (await query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'admin_users' AND column_name = 'username'`
+      )).rows.length > 0
+    : (await query(`PRAGMA table_info(admin_users)`)).rows.some((c: any) => c.name === 'username')
+
+  if (!hasUsernameColumn) {
     await query(`ALTER TABLE admin_users ADD COLUMN username TEXT`)
-  } catch {
-    // column already exists
   }
 
   try {

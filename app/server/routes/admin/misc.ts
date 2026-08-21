@@ -1,9 +1,53 @@
 import { Router } from 'express'
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import { query } from '../../db/db.js'
 import { requireSuperAdmin } from '../../middleware/adminAuth.js'
 
 const router = Router()
+
+// POST /api/v1/admin/upload (Image Upload handler)
+router.post('/upload', async (req, res) => {
+  try {
+    const { image, data, filename } = req.body
+    const rawData = image || data
+    if (!rawData) {
+      return res.status(400).json({ error: 'لم يتم إرسال أي صورة' })
+    }
+
+    const matches = String(rawData).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
+    if (!matches || matches.length !== 3) {
+      // If it's already an HTTP URL, return it
+      if (/^https?:\/\//i.test(String(rawData))) {
+        return res.json({ success: true, url: rawData })
+      }
+      return res.status(400).json({ error: 'تنسيق الصورة غير صالح' })
+    }
+
+    const ext = matches[1].split('/')[1]?.replace('jpeg', 'jpg') || 'png'
+    const buffer = Buffer.from(matches[2], 'base64')
+
+    // Ensure uploads directory exists
+    const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true })
+    }
+
+    const safeName = filename ? filename.replace(/[^a-zA-Z0-9_.-]/g, '_') : `img_${Date.now()}_${randomUUID().slice(0, 8)}.${ext}`
+    const finalFilename = safeName.endsWith(`.${ext}`) ? safeName : `${safeName}.${ext}`
+    const filePath = path.join(uploadsDir, finalFilename)
+
+    fs.writeFileSync(filePath, buffer)
+
+    const publicUrl = `/uploads/${finalFilename}`
+    res.status(201).json({ success: true, url: publicUrl, message: 'تم رفع الصورة بنجاح' })
+  } catch (err: any) {
+    console.error('Image upload error:', err)
+    res.status(500).json({ error: 'فشل حفظ الصورة' })
+  }
+})
+
 
 // GET /api/v1/admin/activity (Audit logs)
 router.get('/activity', async (_req, res) => {

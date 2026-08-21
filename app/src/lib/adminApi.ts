@@ -162,7 +162,10 @@ export async function updateAdminProduct(id: string, data: any) {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Failed to update product')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to update product')
+  }
   return await res.json()
 }
 
@@ -171,7 +174,10 @@ export async function duplicateAdminProduct(id: string) {
     method: 'POST',
     headers: getAuthHeaders(),
   })
-  if (!res.ok) throw new Error('Failed to duplicate product')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to duplicate product')
+  }
   return await res.json()
 }
 
@@ -180,7 +186,10 @@ export async function deleteAdminProduct(id: string) {
     method: 'DELETE',
     headers: getAuthHeaders(),
   })
-  if (!res.ok) throw new Error('Failed to delete product')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to delete product')
+  }
   return await res.json()
 }
 
@@ -189,7 +198,10 @@ export async function toggleAdminProductActive(id: string) {
     method: 'PUT',
     headers: getAuthHeaders(),
   })
-  if (!res.ok) throw new Error('Failed to toggle active status')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to toggle active status')
+  }
   return await res.json()
 }
 
@@ -198,11 +210,61 @@ export async function toggleAdminProductFeatured(id: string) {
     method: 'PUT',
     headers: getAuthHeaders(),
   })
-  if (!res.ok) throw new Error('Failed to toggle featured status')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to toggle featured status')
+  }
   return await res.json()
 }
 
-// 5. CATEGORIES
+// 5. BRANDS
+export async function fetchAdminBrands() {
+  const res = await fetch(`${API_BASE}/brands`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('Failed to fetch brands')
+  return await res.json()
+}
+
+export async function createAdminBrand(data: { name: string; slug?: string; logoUrl?: string; originCountry?: string; isFeatured?: boolean }) {
+  const res = await fetch(`${API_BASE}/brands`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to create brand')
+  }
+  return await res.json()
+}
+
+export async function updateAdminBrand(id: string, data: any) {
+  const res = await fetch(`${API_BASE}/brands/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to update brand')
+  }
+  return await res.json()
+}
+
+export async function deleteAdminBrand(id: string) {
+  const res = await fetch(`${API_BASE}/brands/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to delete brand')
+  }
+  return await res.json()
+}
+
+// 6. CATEGORIES
 export async function fetchAdminCategories() {
   const res = await fetch(`${API_BASE}/categories`, {
     headers: getAuthHeaders(),
@@ -217,7 +279,10 @@ export async function createAdminCategory(data: any) {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Failed to create category')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to create category')
+  }
   return await res.json()
 }
 
@@ -227,7 +292,10 @@ export async function updateAdminCategory(id: string, data: any) {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error('Failed to update category')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to update category')
+  }
   return await res.json()
 }
 
@@ -242,6 +310,21 @@ export async function deleteAdminCategory(id: string) {
   }
   return await res.json()
 }
+
+// 7. IMAGE UPLOAD
+export async function uploadAdminImage(data: { image: string; filename?: string }) {
+  const res = await fetch(`${API_BASE}/upload`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to upload image')
+  }
+  return await res.json()
+}
+
 
 // 6. INVENTORY
 export async function fetchAdminInventory(params: { status?: string; q?: string; page?: number; limit?: number } = {}) {

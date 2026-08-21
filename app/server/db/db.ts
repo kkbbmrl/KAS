@@ -58,12 +58,12 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
       })
       .replace(/\bILIKE\b/gi, 'LIKE')
 
-    // Handle SELECT / PRAGMA vs INSERT / UPDATE / DELETE / DDL
+    // Handle SELECT / PRAGMA / RETURNING vs INSERT / UPDATE / DELETE / DDL
     const trimmed = sqliteSql.trim()
-    const isSelect = /^SELECT|^PRAGMA|^WITH/i.test(trimmed)
+    const isSelectOrReturning = /^SELECT|^PRAGMA|^WITH/i.test(trimmed) || /\bRETURNING\b/i.test(trimmed)
 
     try {
-      if (isSelect) {
+      if (isSelectOrReturning) {
         const stmt = sqliteDb.prepare(sqliteSql)
         const rows = stmt.all(...orderedParams) as T[]
         return { rows, rowCount: rows.length }
@@ -79,6 +79,41 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
   }
 
   throw new Error('No database client initialized')
+}
+
+/**
+ * Execute a series of database operations within an atomic transaction.
+ * Rolls back automatically if any query fails.
+ */
+export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  if (isPostgres && pgPool) {
+    const client = await pgPool.connect()
+    try {
+      await client.query('BEGIN')
+      const result = await fn()
+      await client.query('COMMIT')
+      return result
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {})
+      throw err
+    } finally {
+      client.release()
+    }
+  }
+
+  if (sqliteDb) {
+    await query('BEGIN')
+    try {
+      const result = await fn()
+      await query('COMMIT')
+      return result
+    } catch (err) {
+      await query('ROLLBACK').catch(() => {})
+      throw err
+    }
+  }
+
+  return fn()
 }
 
 export async function getClient() {

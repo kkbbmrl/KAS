@@ -389,14 +389,30 @@ export async function initDatabase() {
 }
 
 async function migrateAdminAuthSchema() {
-  const hasUsernameColumn = isPostgres
-    ? (await query(
+  try {
+    let hasUsernameColumn = false
+    if (isPostgres) {
+      const res = await query(
         `SELECT 1 FROM information_schema.columns WHERE table_name = 'admin_users' AND column_name = 'username'`
-      )).rows.length > 0
-    : (await query(`PRAGMA table_info(admin_users)`)).rows.some((c: any) => c.name === 'username')
+      )
+      hasUsernameColumn = res.rows.length > 0
+    } else if (sqliteDb) {
+      const res = await query(`PRAGMA table_info(admin_users)`)
+      hasUsernameColumn = res.rows.some((c: any) => String(c.name).toLowerCase() === 'username')
+    }
 
-  if (!hasUsernameColumn) {
-    await query(`ALTER TABLE admin_users ADD COLUMN username TEXT`)
+    if (!hasUsernameColumn) {
+      try {
+        await query(`ALTER TABLE admin_users ADD COLUMN username TEXT`)
+      } catch (err: any) {
+        // If column already exists (e.g. race or pre-created), continue safely
+        if (!err.message?.includes('duplicate column')) {
+          console.warn('Notice adding username column:', err.message)
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('Notice checking admin_users schema:', err.message)
   }
 
   try {
@@ -413,21 +429,21 @@ async function migrateAdminAuthSchema() {
   }
 
   try {
-    await query(
-      `UPDATE admin_users
-       SET username = LOWER(REPLACE(SUBSTR(email, 1, INSTR(email, '@') - 1), '.', ''))
-       WHERE username IS NULL OR username = ''`
-    )
-  } catch {
-    try {
+    if (isPostgres) {
       await query(
         `UPDATE admin_users
          SET username = LOWER(SPLIT_PART(email, '@', 1))
          WHERE username IS NULL OR username = ''`
       )
-    } catch {
-      // ignore if no rows / dialect mismatch
+    } else {
+      await query(
+        `UPDATE admin_users
+         SET username = LOWER(REPLACE(SUBSTR(email, 1, INSTR(email, '@') - 1), '.', ''))
+         WHERE username IS NULL OR username = ''`
+      )
     }
+  } catch {
+    // ignore if all populated
   }
 
   try {

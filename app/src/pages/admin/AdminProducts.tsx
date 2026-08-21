@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
+  AlertCircle,
   Boxes,
+  Check,
   Copy,
   Edit,
   Loader2,
@@ -9,6 +11,7 @@ import {
   Search,
   Star,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react'
 
@@ -22,18 +25,43 @@ import {
   toggleAdminProductActive,
   toggleAdminProductFeatured,
   fetchAdminCategories,
+  fetchAdminBrands,
+  uploadAdminImage,
 } from '@/lib/adminApi'
 import { formatPrice } from '@/data/products'
+
+interface SpecItem {
+  label: string
+  value: string
+}
+
+interface VariantItem {
+  id?: string
+  label?: string
+  sku?: string
+  partNumber?: string
+  price: number
+  oldPrice?: number | null
+  stockQuantity: number
+  extraSpecs?: any[]
+}
+
+interface ImageItem {
+  url: string
+  isPrimary: boolean
+}
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
+  const [brands, setBrands] = useState<any[]>([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 25, pages: 1 })
   const [loading, setLoading] = useState(true)
 
   // Filters
   const [query, setQuery] = useState('')
   const [catFilter, setCatFilter] = useState('all')
+  const [brandFilter, setBrandFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
 
@@ -41,6 +69,10 @@ export default function AdminProducts() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [modalError, setModalError] = useState<string | null>(null)
+  const [modalSuccess, setModalSuccess] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Form State
   const [form, setForm] = useState({
@@ -49,19 +81,22 @@ export default function AdminProducts() {
     partNumber: '',
     categoryId: '',
     brandId: '',
+    customBrand: '',
     badge: '',
     descriptionAr: '',
-    price: 0,
+    descriptionFr: '',
+    price: 15000,
     oldPrice: 0,
     stockQuantity: 10,
     imageUrl: '',
-    specs: [{ label: '', value: '' }],
-    variants: [] as any[],
+    images: [] as ImageItem[],
+    specs: [{ label: '', value: '' }] as SpecItem[],
+    variants: [] as VariantItem[],
   })
 
   const loadProducts = () => {
     setLoading(true)
-    fetchAdminProducts({ q: query, category: catFilter, status: statusFilter, page, limit: 25 })
+    fetchAdminProducts({ q: query, category: catFilter, brand: brandFilter, status: statusFilter, page, limit: 25 })
       .then((res) => {
         setProducts(res.products || [])
         setPagination(res.pagination || { total: 0, page: 1, limit: 25, pages: 1 })
@@ -70,13 +105,22 @@ export default function AdminProducts() {
       .finally(() => setLoading(false))
   }
 
+  const loadTaxonomies = () => {
+    Promise.all([fetchAdminCategories(), fetchAdminBrands()])
+      .then(([cats, brs]) => {
+        setCategories(cats || [])
+        setBrands(brs || [])
+      })
+      .catch((err) => console.error('Error loading categories/brands:', err))
+  }
+
   useEffect(() => {
-    fetchAdminCategories().then((res) => setCategories(res)).catch(() => {})
+    loadTaxonomies()
   }, [])
 
   useEffect(() => {
     loadProducts()
-  }, [catFilter, statusFilter, page])
+  }, [catFilter, brandFilter, statusFilter, page])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,18 +130,27 @@ export default function AdminProducts() {
 
   const openCreateModal = () => {
     setEditId(null)
+    setModalError(null)
+    setModalSuccess(null)
+    const defaultCat = categories[0]?.id || ''
+    const defaultBrand = brands[0]?.id || ''
     setForm({
       nameAr: '',
       nameFr: '',
       partNumber: '',
-      categoryId: categories[0]?.id || '',
-      brandId: 'brand-valeo',
+      categoryId: defaultCat,
+      brandId: defaultBrand,
+      customBrand: '',
       badge: '',
       descriptionAr: '',
+      descriptionFr: '',
       price: 15000,
       oldPrice: 18000,
       stockQuantity: 10,
       imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=900&q=80',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=900&q=80', isPrimary: true },
+      ],
       specs: [
         { label: 'المادة', value: 'ألومنيوم معالج' },
         { label: 'الضمان', value: '24 شهرًا' },
@@ -109,42 +162,237 @@ export default function AdminProducts() {
 
   const openEditModal = async (id: string) => {
     setEditId(id)
+    setModalError(null)
+    setModalSuccess(null)
     try {
       const p = await fetchAdminProductDetails(id)
+      const primaryVar = p.variants?.[0]
+      const extraVars = p.variants?.slice(1) || []
+      const imageList: ImageItem[] = (p.images || []).map((img: any) => ({
+        url: typeof img === 'string' ? img : img.url,
+        isPrimary: Boolean(img.isPrimary),
+      }))
+      const primaryUrl = imageList.find((i) => i.isPrimary)?.url || imageList[0]?.url || p.image || ''
+
+      const brandMatch = brands.find((b) => b.id === p.brandId || b.name === p.brand)
+
       setForm({
-        nameAr: p.nameAr || p.name_ar,
-        nameFr: p.nameFr || p.name_fr,
-        partNumber: p.partNumber || p.base_part_number,
-        categoryId: p.categoryId || p.category_id,
-        brandId: p.brandId || p.brand_id,
+        nameAr: p.nameAr || p.name || '',
+        nameFr: p.nameFr || '',
+        partNumber: p.partNumber || p.base_part_number || '',
+        categoryId: p.categoryId || categories[0]?.id || '',
+        brandId: brandMatch ? brandMatch.id : p.brandId || brands[0]?.id || '',
+        customBrand: brandMatch ? '' : p.brand || '',
         badge: p.badge || '',
-        descriptionAr: p.descriptionAr || p.description_ar,
-        price: p.variants[0]?.price || 0,
-        oldPrice: p.variants[0]?.oldPrice || 0,
-        stockQuantity: p.variants[0]?.stockQuantity || 10,
-        imageUrl: p.images[0]?.url || '',
-        specs: p.specs || [],
-        variants: p.variants || [],
+        descriptionAr: p.descriptionAr || p.description || '',
+        descriptionFr: p.descriptionFr || '',
+        price: primaryVar?.price || 0,
+        oldPrice: primaryVar?.oldPrice || 0,
+        stockQuantity: primaryVar?.stockQuantity ?? 10,
+        imageUrl: primaryUrl,
+        images: imageList.length > 0 ? imageList : primaryUrl ? [{ url: primaryUrl, isPrimary: true }] : [],
+        specs: (p.specs || []).map((s: any) => ({ label: s.label, value: s.value })),
+        variants: extraVars,
       })
       setModalOpen(true)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching product for edit:', err)
+      alert('فشل جلب بيانات المنتج للتعديل')
     }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    setModalError(null)
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        const base64Data = event.target?.result as string
+        if (!base64Data) return
+
+        try {
+          const res = await uploadAdminImage({ image: base64Data, filename: file.name })
+          const uploadedUrl = res.url
+          setForm((prev) => {
+            const updatedImages = [{ url: uploadedUrl, isPrimary: true }, ...prev.images.map((img) => ({ ...img, isPrimary: false }))]
+            return {
+              ...prev,
+              imageUrl: uploadedUrl,
+              images: updatedImages,
+            }
+          })
+        } catch (uploadErr: any) {
+          // If server upload fails, use the base64 data directly
+          setForm((prev) => ({
+            ...prev,
+            imageUrl: base64Data,
+            images: [{ url: base64Data, isPrimary: true }, ...prev.images.map((img) => ({ ...img, isPrimary: false }))],
+          }))
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (err: any) {
+      setModalError('فشل قراءة ملف الصورة')
+      setUploadingImage(false)
+    }
+  }
+
+  const handleAddImageUrl = (url: string) => {
+    if (!url.trim()) return
+    setForm((prev) => {
+      const isFirst = prev.images.length === 0
+      return {
+        ...prev,
+        imageUrl: isFirst ? url.trim() : prev.imageUrl,
+        images: [...prev.images, { url: url.trim(), isPrimary: isFirst }],
+      }
+    })
+  }
+
+  const handleSetPrimaryImage = (index: number) => {
+    setForm((prev) => {
+      const updated = prev.images.map((img, idx) => ({
+        ...img,
+        isPrimary: idx === index,
+      }))
+      const primaryUrl = updated[index]?.url || prev.imageUrl
+      return {
+        ...prev,
+        imageUrl: primaryUrl,
+        images: updated,
+      }
+    })
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setForm((prev) => {
+      const updated = prev.images.filter((_, idx) => idx !== index)
+      if (updated.length > 0 && !updated.some((i) => i.isPrimary)) {
+        updated[0].isPrimary = true
+      }
+      const primaryUrl = updated.find((i) => i.isPrimary)?.url || updated[0]?.url || ''
+      return {
+        ...prev,
+        imageUrl: primaryUrl,
+        images: updated,
+      }
+    })
+  }
+
+  const handleAddSpec = () => {
+    setForm((prev) => ({
+      ...prev,
+      specs: [...prev.specs, { label: '', value: '' }],
+    }))
+  }
+
+  const handleRemoveSpec = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      specs: prev.specs.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const handleSpecChange = (index: number, field: 'label' | 'value', val: string) => {
+    setForm((prev) => {
+      const nextSpecs = [...prev.specs]
+      nextSpecs[index] = { ...nextSpecs[index], [field]: val }
+      return { ...prev, specs: nextSpecs }
+    })
+  }
+
+  const handleAddVariant = () => {
+    setForm((prev) => ({
+      ...prev,
+      variants: [
+        ...prev.variants,
+        {
+          label: `متغير ${prev.variants.length + 2}`,
+          sku: `${form.partNumber || 'VAR'}-${prev.variants.length + 2}`,
+          price: form.price,
+          oldPrice: form.oldPrice,
+          stockQuantity: 10,
+        },
+      ],
+    }))
+  }
+
+  const handleRemoveVariant = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const handleVariantChange = (index: number, field: keyof VariantItem, val: any) => {
+    setForm((prev) => {
+      const nextVars = [...prev.variants]
+      nextVars[index] = { ...nextVars[index], [field]: val }
+      return { ...prev, variants: nextVars }
+    })
   }
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setModalError(null)
+    setModalSuccess(null)
+
+    // Validation
+    if (!form.nameAr.trim()) {
+      setModalError('يرجى إدخال اسم القطعة بالعربية')
+      setSaving(false)
+      return
+    }
+    if (!form.partNumber.trim()) {
+      setModalError('يرجى إدخال رقم القطعة (Part Number)')
+      setSaving(false)
+      return
+    }
+    if (form.price < 0 || isNaN(form.price)) {
+      setModalError('يرجى إدخال سعر صحيح')
+      setSaving(false)
+      return
+    }
+
+    const payload = {
+      nameAr: form.nameAr.trim(),
+      nameFr: form.nameFr.trim() || form.nameAr.trim(),
+      partNumber: form.partNumber.trim(),
+      categoryId: form.categoryId || categories[0]?.id,
+      brandId: form.customBrand.trim() ? form.customBrand.trim() : form.brandId || brands[0]?.id,
+      badge: form.badge.trim() || null,
+      descriptionAr: form.descriptionAr.trim(),
+      descriptionFr: form.descriptionFr.trim(),
+      price: Number(form.price),
+      oldPrice: Number(form.oldPrice) > 0 ? Number(form.oldPrice) : null,
+      stockQuantity: Number(form.stockQuantity) || 0,
+      imageUrl: form.imageUrl.trim() || (form.images[0]?.url ? form.images[0].url : ''),
+      images: form.images.filter((img) => img.url && img.url.trim()),
+      specs: form.specs.filter((s) => s.label.trim() && s.value.trim()),
+      variants: form.variants,
+    }
+
     try {
       if (editId) {
-        await updateAdminProduct(editId, form)
+        await updateAdminProduct(editId, payload)
       } else {
-        await createAdminProduct(form)
+        await createAdminProduct(payload)
       }
-      setModalOpen(false)
-      loadProducts()
+      setModalSuccess(editId ? 'تم تحديث المنتج بنجاح' : 'تمت إضافة المنتج بنجاح')
+      setTimeout(() => {
+        setModalOpen(false)
+        loadProducts()
+        loadTaxonomies()
+      }, 500)
     } catch (err: any) {
-      alert(err.message || 'فشل حفظ المنتج')
+      setModalError(err.message || 'فشل حفظ المنتج في الخادم')
     } finally {
       setSaving(false)
     }
@@ -155,8 +403,8 @@ export default function AdminProducts() {
     try {
       await duplicateAdminProduct(id)
       loadProducts()
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      alert(err.message || 'فشل تكرار المنتج')
     }
   }
 
@@ -165,8 +413,8 @@ export default function AdminProducts() {
     try {
       await deleteAdminProduct(id)
       loadProducts()
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      alert(err.message || 'فشل حذف المنتج')
     }
   }
 
@@ -200,7 +448,7 @@ export default function AdminProducts() {
             إدارة المنتجات والمتغيرات
           </h1>
           <p className="mt-1 text-xs text-zinc-500 font-bold">
-            إجمالي {pagination.total} منتج مسجل مع التوافق ومصفوفات الموديلات
+            إجمالي {pagination.total} منتج مسجل مع الماركات، المتغيرات والمواصفات
           </p>
         </div>
 
@@ -230,7 +478,7 @@ export default function AdminProducts() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="ابحث باسم القطعة (عربي/فرنسي)، رقم القطعة PN، أو SKU..."
+              placeholder="ابحث باسم القطعة (عربي/فرنسي)، رقم القطعة PN، الماركة أو SKU..."
               className="w-full rounded-xl border border-zinc-200 bg-zinc-50/60 px-4 py-2.5 pe-4 ps-10 font-cairo text-xs font-bold text-zinc-900 outline-none focus:border-brand-600 focus:bg-white"
             />
           </div>
@@ -255,8 +503,27 @@ export default function AdminProducts() {
             >
               <option value="all">جميع الفئات</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.nameAr}>
-                  {c.nameAr}
+                <option key={c.id} value={c.nameAr || c.name}>
+                  {c.nameAr || c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-black text-zinc-500">الماركة:</label>
+            <select
+              value={brandFilter}
+              onChange={(e) => {
+                setBrandFilter(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
+            >
+              <option value="all">جميع الماركات</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.name}>
+                  {b.name}
                 </option>
               ))}
             </select>
@@ -315,7 +582,7 @@ export default function AdminProducts() {
                 </tr>
               ) : (
                 products.map((p) => {
-                  const stockNum = Number(p.totalStock || 0)
+                  const stockNum = Number(p.totalStock ?? p.stockQuantity ?? 0)
                   const stockBadge =
                     stockNum === 0
                       ? 'bg-red-50 text-red-700 border-red-200'
@@ -328,7 +595,14 @@ export default function AdminProducts() {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {p.image ? (
-                            <img src={p.image} alt={p.name} className="h-12 w-12 rounded-xl object-contain bg-zinc-50 p-1 border" />
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              className="h-12 w-12 rounded-xl object-contain bg-zinc-50 p-1 border"
+                              onError={(e) => {
+                                ;(e.currentTarget as HTMLElement).style.display = 'none'
+                              }}
+                            />
                           ) : (
                             <div className="grid h-12 w-12 place-items-center rounded-xl bg-zinc-100 text-zinc-400">
                               <Boxes className="h-5 w-5" />
@@ -336,7 +610,9 @@ export default function AdminProducts() {
                           )}
                           <div>
                             <p className="font-cairo font-black text-zinc-900 line-clamp-1">{p.name}</p>
-                            <p className="text-[10px] text-zinc-400" dir="ltr">{p.nameFr} — <span className="font-black text-zinc-700">{p.brand}</span></p>
+                            <p className="text-[10px] text-zinc-400" dir="ltr">
+                              {p.nameFr} — <span className="font-black text-zinc-700">{p.brand}</span>
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -344,8 +620,12 @@ export default function AdminProducts() {
                       <td className="p-4 text-zinc-700 font-cairo">{p.category}</td>
 
                       <td className="p-4">
-                        <span className="font-cairo font-black text-zinc-900 block" dir="ltr">{p.partNumber}</span>
-                        <span className="text-[10px] text-zinc-400" dir="ltr">{p.sku}</span>
+                        <span className="font-cairo font-black text-zinc-900 block" dir="ltr">
+                          {p.partNumber}
+                        </span>
+                        <span className="text-[10px] text-zinc-400" dir="ltr">
+                          {p.sku}
+                        </span>
                       </td>
 
                       <td className="p-4 font-cairo font-black text-brand-600">
@@ -371,7 +651,7 @@ export default function AdminProducts() {
                           }`}
                           title="عرض في الرئيسية"
                         >
-                          <Star className={`h-4 w-4 ${p.featuredHome ? 'fill-amber-500' : ''}`} />
+                          <Star className={`h-4 w-4 ${p.featuredHome ? 'fill-amber-500 text-amber-500' : ''}`} />
                         </button>
                       </td>
 
@@ -380,7 +660,9 @@ export default function AdminProducts() {
                         <button
                           onClick={() => handleToggleActive(p.id)}
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border transition-colors ${
-                            p.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-400 border-zinc-200'
+                            p.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-zinc-100 text-zinc-400 border-zinc-200'
                           }`}
                         >
                           {p.isActive ? 'مفعل' : 'مؤرشف'}
@@ -451,142 +733,410 @@ export default function AdminProducts() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm">
           <div className="fade-in absolute inset-0" onClick={() => setModalOpen(false)} />
 
-          <div className="modal-in relative w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl max-h-[90vh] flex flex-col" dir="rtl">
+          <div
+            className="modal-in relative w-full max-w-4xl overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl max-h-[92vh] flex flex-col"
+            dir="rtl"
+          >
             <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4 bg-zinc-50/70">
-              <h3 className="font-cairo text-lg font-black text-zinc-900">
-                {editId ? 'تعديل بيانات القطعة والمتغيرات' : 'إضافة قطعة غيار جديدة'}
-              </h3>
-              <button onClick={() => setModalOpen(false)} className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-200">
+              <div className="flex items-center gap-2">
+                <Boxes className="h-5 w-5 text-brand-600" />
+                <h3 className="font-cairo text-lg font-black text-zinc-900">
+                  {editId ? 'تعديل بيانات القطعة والمتغيرات والمواصفات' : 'إضافة قطعة غيار جديدة'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-200 transition-colors"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">الاسم بالعربية *</label>
-                  <input
-                    required
-                    value={form.nameAr}
-                    onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
-                    placeholder="مشعاع تبريد أصلي..."
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
-                  />
+            {/* Modal Error Banner */}
+            {modalError && (
+              <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
+            {/* Modal Success Banner */}
+            {modalSuccess && (
+              <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span>{modalSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProduct} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Basic Details */}
+              <div className="space-y-4">
+                <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                  1. المعلومات الأساسية والتعريف
+                </h4>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الاسم بالعربية *</label>
+                    <input
+                      required
+                      value={form.nameAr}
+                      onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
+                      placeholder="مشعاع تبريد أصلي..."
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الاسم بالفرنسية (اختياري)</label>
+                    <input
+                      value={form.nameFr}
+                      onChange={(e) => setForm({ ...form, nameFr: e.target.value })}
+                      placeholder="Radiateur de refroidissement moteur..."
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">الاسم بالفرنسية</label>
-                  <input
-                    value={form.nameFr}
-                    onChange={(e) => setForm({ ...form, nameFr: e.target.value })}
-                    placeholder="Radiateur moteur..."
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
-                  />
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">رقم القطعة الأصلي (PN) *</label>
+                    <input
+                      required
+                      value={form.partNumber}
+                      onChange={(e) => setForm({ ...form, partNumber: e.target.value })}
+                      placeholder="VAL-734320"
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 font-cairo focus:border-brand-600 focus:outline-none"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الفئة / القسم *</label>
+                    <select
+                      value={form.categoryId}
+                      onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nameAr || c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الماركة / المصنّع *</label>
+                    <select
+                      value={form.brandId}
+                      onChange={(e) => setForm({ ...form, brandId: e.target.value, customBrand: '' })}
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    >
+                      {brands.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={form.customBrand}
+                      onChange={(e) => setForm({ ...form, customBrand: e.target.value })}
+                      placeholder="أو اكتب اسم ماركة جديدة هنا..."
+                      className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-zinc-50/70 p-1.5 text-[11px] font-bold text-zinc-700 focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">رقم القطعة (PN) *</label>
+              {/* Pricing & Stock */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                  2. التسعير والمخزون
+                </h4>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">السعر الحالي (دج) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-black text-brand-600 font-cairo focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">السعر السابق (شطب)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.oldPrice || ''}
+                      onChange={(e) => setForm({ ...form, oldPrice: Number(e.target.value) })}
+                      placeholder="اختياري"
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-400 font-cairo focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">الكمية في المخزون *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={form.stockQuantity}
+                      onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 font-cairo focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-zinc-700 block mb-1">شارة ترويجية (Badge)</label>
+                    <input
+                      value={form.badge}
+                      onChange={(e) => setForm({ ...form, badge: e.target.value })}
+                      placeholder="أصلي 100%، الأكثر طلباً..."
+                      className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Images Manager */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                    3. صور المنتج ومعرض الصور
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm hover:border-brand-300 hover:text-brand-600 transition-colors disabled:opacity-50"
+                    >
+                      {uploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      <span>رفع صورة من الجهاز</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
                   <input
-                    required
-                    value={form.partNumber}
-                    onChange={(e) => setForm({ ...form, partNumber: e.target.value })}
-                    placeholder="RAD-8800"
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 font-cairo"
+                    value={form.imageUrl}
+                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                    placeholder="أدخل رابط صورة (URL)..."
+                    className="flex-1 rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
                     dir="ltr"
                   />
-                </div>
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">الفئة / القسم *</label>
-                  <select
-                    value={form.categoryId}
-                    onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (form.imageUrl) handleAddImageUrl(form.imageUrl)
+                    }}
+                    className="rounded-xl bg-zinc-800 px-4 py-2.5 text-xs font-bold text-white hover:bg-zinc-900 transition-colors"
                   >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nameAr}</option>
+                    إضافة للصورة للمعرض
+                  </button>
+                </div>
+
+                {/* Gallery Previews */}
+                {form.images.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                    {form.images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative rounded-xl border p-2 bg-zinc-50 flex flex-col items-center gap-2 group ${
+                          img.isPrimary ? 'border-brand-600 ring-2 ring-brand-600/20' : 'border-zinc-200'
+                        }`}
+                      >
+                        <img
+                          src={img.url}
+                          alt="معاينة"
+                          className="h-20 w-full rounded-lg object-contain bg-white"
+                          onError={(e) => {
+                            ;(e.currentTarget as HTMLElement).style.display = 'none'
+                          }}
+                        />
+                        <div className="flex items-center justify-between w-full text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryImage(idx)}
+                            className={`rounded px-1.5 py-0.5 font-bold transition-colors ${
+                              img.isPrimary ? 'bg-brand-600 text-white' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                            }`}
+                          >
+                            {img.isPrimary ? 'الرئيسية ✓' : 'تعيين كرئيسية'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="حذف الصورة"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     ))}
-                  </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Specifications */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                    4. المواصفات الفنية (Specifications)
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleAddSpec}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> إضافة خاصية
+                  </button>
                 </div>
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">الماركة *</label>
-                  <input
-                    value={form.brandId}
-                    onChange={(e) => setForm({ ...form, brandId: e.target.value })}
-                    placeholder="VALEO, BOSCH, HELLA..."
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
-                  />
+
+                <div className="space-y-2">
+                  {form.specs.map((s, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        value={s.label}
+                        onChange={(e) => handleSpecChange(idx, 'label', e.target.value)}
+                        placeholder="الخاصية (مثل: نوع المادة، الضمان، القطر)"
+                        className="w-1/2 rounded-xl border border-zinc-300 p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      />
+                      <input
+                        value={s.value}
+                        onChange={(e) => handleSpecChange(idx, 'value', e.target.value)}
+                        placeholder="القيمة (مثل: ألومنيوم مقوى، 24 شهر)"
+                        className="w-1/2 rounded-xl border border-zinc-300 p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSpec(idx)}
+                        className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">السعر (دج) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-black text-brand-600 font-cairo"
-                  />
+              {/* Additional Variants */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                    5. المتغيرات الإضافية (Variants)
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> إضافة متغير جديد
+                  </button>
                 </div>
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">السعر قبل الخصم (اختياري)</label>
-                  <input
-                    type="number"
-                    value={form.oldPrice}
-                    onChange={(e) => setForm({ ...form, oldPrice: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-400 font-cairo"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-black text-zinc-700 block mb-1">الكمية في المخزون *</label>
-                  <input
-                    type="number"
-                    required
-                    value={form.stockQuantity}
-                    onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 font-cairo"
-                  />
-                </div>
+
+                {form.variants.length === 0 ? (
+                  <p className="text-xs text-zinc-400 font-bold">
+                    المنتج يحتوي على متغير قياسي رئيسي واحد تلقائياً. يمكنك إضافة متغيرات بمقاسات أو أسعار مختلفة هنا.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {form.variants.map((v, idx) => (
+                      <div key={idx} className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-cairo text-xs font-black text-zinc-800">
+                            متغير #{idx + 2}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVariant(idx)}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            حذف المتغير
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+                          <input
+                            value={v.label || ''}
+                            onChange={(e) => handleVariantChange(idx, 'label', e.target.value)}
+                            placeholder="اسم المتغير (مثلاً: 12V / 90A)"
+                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
+                          />
+                          <input
+                            value={v.partNumber || ''}
+                            onChange={(e) => handleVariantChange(idx, 'partNumber', e.target.value)}
+                            placeholder="رقم القطعة"
+                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
+                            dir="ltr"
+                          />
+                          <input
+                            type="number"
+                            value={v.price}
+                            onChange={(e) => handleVariantChange(idx, 'price', Number(e.target.value))}
+                            placeholder="السعر (دج)"
+                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
+                          />
+                          <input
+                            type="number"
+                            value={v.stockQuantity}
+                            onChange={(e) => handleVariantChange(idx, 'stockQuantity', Number(e.target.value))}
+                            placeholder="الكمية"
+                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="text-xs font-black text-zinc-700 block mb-1">رابط صورة المنتج (URL)</label>
-                <input
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
-                  dir="ltr"
-                />
-              </div>
+              {/* Descriptions */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
+                  6. الوصف والشرح التفصيلي
+                </h4>
 
-              <div>
-                <label className="text-xs font-black text-zinc-700 block mb-1">الوصف التفصيلي</label>
-                <textarea
-                  value={form.descriptionAr}
-                  onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
-                  rows={3}
-                  className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 resize-none"
-                />
+                <div>
+                  <label className="text-xs font-black text-zinc-700 block mb-1">الوصف بالعربية</label>
+                  <textarea
+                    value={form.descriptionAr}
+                    onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
+                    rows={3}
+                    placeholder="شرح تفصيلي حول القطعة ومميزاتها والتوافق..."
+                    className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 resize-none focus:border-brand-600 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-zinc-300 px-5 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
+                  className="rounded-xl border border-zinc-300 px-5 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-colors"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-6 py-2.5 font-cairo text-xs font-black text-white hover:bg-brand-700 shadow-md shadow-brand-600/30 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-6 py-2.5 font-cairo text-xs font-black text-white hover:bg-brand-700 shadow-md shadow-brand-600/30 disabled:opacity-50 transition-all"
                 >
                   {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  حفظ ونشر
+                  <span>{editId ? 'حفظ التعديلات' : 'حفظ ونشر القطعة'}</span>
                 </button>
               </div>
             </form>

@@ -12,6 +12,7 @@ import adminAuthRouter from './routes/admin/auth.js'
 import adminAnalyticsRouter from './routes/admin/analytics.js'
 import adminOrdersRouter from './routes/admin/orders.js'
 import adminProductsRouter from './routes/admin/products.js'
+import adminBrandsRouter from './routes/admin/brands.js'
 import adminCategoriesRouter from './routes/admin/categories.js'
 import adminInventoryRouter from './routes/admin/inventory.js'
 import adminCustomersRouter from './routes/admin/customers.js'
@@ -42,15 +43,48 @@ app.use((_req, res, next) => {
   next()
 })
 
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : null
-app.use(cors({
-  origin: allowedOrigins ?? '*',
-  // Wildcard origin + credentials is invalid per the Fetch/CORS spec and browsers
-  // will block it. Only allow credentials when a concrete origin list is set.
-  credentials: Boolean(allowedOrigins),
-}))
+const configuredOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
+  : ['https://kas-gamma-woad.vercel.app', 'http://localhost:3000', 'http://localhost:5173']
 
-app.use(express.json({ limit: '10mb' }))
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, mobile apps, same-origin)
+      if (!origin) return callback(null, true)
+
+      // Match explicit configured origins or wildcard
+      if (configuredOrigins.includes('*') || configuredOrigins.includes(origin)) {
+        return callback(null, true)
+      }
+
+      // Allow Vercel preview and production deployments for KAS
+      if (
+        /^https:\/\/kas-[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
+        /^https:\/\/kas-gamma-woad\.vercel\.app$/i.test(origin) ||
+        /^http:\/\/localhost:\d+$/i.test(origin) ||
+        /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
+      ) {
+        return callback(null, true)
+      }
+
+      // If in dev, be lenient
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true)
+      }
+
+      return callback(null, false)
+    },
+    credentials: true,
+  })
+)
+
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+
+// Static uploads folder
+const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
+app.use('/uploads', express.static(uploadsDir))
 
 // Request logger (in production only logs errors/warns, in dev logs request lines)
 if (process.env.NODE_ENV !== 'production') {
@@ -76,6 +110,7 @@ app.use('/api/v1/admin/auth', adminAuthRouter)
 app.use('/api/v1/admin/analytics', requireAdmin, adminAnalyticsRouter)
 app.use('/api/v1/admin/orders', requireAdmin, adminOrdersRouter)
 app.use('/api/v1/admin/products', requireAdmin, adminProductsRouter)
+app.use('/api/v1/admin/brands', requireAdmin, adminBrandsRouter)
 app.use('/api/v1/admin/categories', requireAdmin, adminCategoriesRouter)
 app.use('/api/v1/admin/inventory', requireAdmin, adminInventoryRouter)
 app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
@@ -86,7 +121,7 @@ app.use('/api/v1/admin', requireAdmin, adminMiscRouter)
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist')
   app.use(express.static(distPath))
-  app.get(/^(?!\/api).*/, (_req, res) => {
+  app.get(/^(?!\/api|\/uploads).*/, (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'))
   })
 }

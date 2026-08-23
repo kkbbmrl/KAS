@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Copy,
   Edit,
-  Eye,
   ExternalLink,
   Flame,
   Globe,
@@ -141,7 +140,6 @@ const CONVERSION_THEMES = [
     },
   },
 ] as const
-type ThemeId = typeof CONVERSION_THEMES[number]['id']
 
 const PRESET_BADGES = [
   'قطعة أصلية 100% — ضمان 24 شهراً',

@@ -33,7 +33,7 @@ router.get('/brands', async (_req, res) => {
   }
 })
 
-// GET /api/v1/vehicles
+// GET /api/v1/vehicles (Structured makes + models + tree)
 router.get('/vehicles', async (_req, res) => {
   try {
     const makes = await query(`SELECT id, slug, name_ar AS "nameAr", name_fr AS "nameFr" FROM vehicle_makes ORDER BY display_order ASC`)
@@ -51,6 +51,36 @@ router.get('/vehicles', async (_req, res) => {
   } catch (err: any) {
     console.error('Error fetching vehicle taxonomy:', err)
     res.status(500).json({ error: 'Failed to fetch vehicles' })
+  }
+})
+
+// GET /api/v1/vehicle-makes
+router.get('/vehicle-makes', async (_req, res) => {
+  try {
+    const makes = await query(`SELECT id, slug, name_ar AS "nameAr", name_fr AS "nameFr" FROM vehicle_makes ORDER BY display_order ASC`)
+    res.json(makes.rows)
+  } catch (err: any) {
+    console.error('Error fetching vehicle makes:', err)
+    res.status(500).json({ error: 'Failed to fetch vehicle makes' })
+  }
+})
+
+// GET /api/v1/vehicle-models
+router.get('/vehicle-models', async (req, res) => {
+  try {
+    const { make_id } = req.query
+    let sql = `SELECT id, make_id AS "makeId", slug, name_ar AS "nameAr", name_fr AS "nameFr" FROM vehicle_models`
+    const params: any[] = []
+    if (make_id) {
+      sql += ` WHERE make_id = $1`
+      params.push(make_id)
+    }
+    sql += ` ORDER BY display_order ASC`
+    const models = await query(sql, params)
+    res.json(models.rows)
+  } catch (err: any) {
+    console.error('Error fetching vehicle models:', err)
+    res.status(500).json({ error: 'Failed to fetch vehicle models' })
   }
 })
 

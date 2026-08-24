@@ -43,9 +43,14 @@ app.use((_req, res, next) => {
   next()
 })
 
-const configuredOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-  : ['https://kas-gamma-woad.vercel.app', 'http://localhost:3000', 'http://localhost:5173']
+const rawOrigins = [
+  ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : []),
+  'https://kas-gamma-woad.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+]
+const configuredOrigins = rawOrigins.map((s) => s.trim()).filter(Boolean)
 
 app.use(
   cors({
@@ -62,6 +67,7 @@ app.use(
       if (
         /^https:\/\/kas-[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
         /^https:\/\/kas-gamma-woad\.vercel\.app$/i.test(origin) ||
+        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
         /^http:\/\/localhost:\d+$/i.test(origin) ||
         /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
       ) {
@@ -84,6 +90,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Static uploads folder
 const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
 app.use('/uploads', express.static(uploadsDir))
 
 // Request logger (in production only logs errors/warns, in dev logs request lines)
@@ -94,9 +103,18 @@ if (process.env.NODE_ENV !== 'production') {
   })
 }
 
-// Health checks
-app.get('/healthz', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }))
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'KAS Auto Parts API' }))
+// Health check endpoints (handles /healthz, /health, /api/health)
+const healthHandler = (_req: express.Request, res: express.Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'KAS Auto Parts API',
+    uptime: process.uptime(),
+    time: new Date().toISOString(),
+  })
+}
+app.get('/healthz', healthHandler)
+app.get('/health', healthHandler)
+app.get('/api/health', healthHandler)
 
 // Public API Routes
 app.use('/api/v1/wilayas', wilayasRouter)
@@ -117,13 +135,20 @@ app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
 app.use('/api/v1/admin/marketing', requireAdmin, adminMarketingRouter)
 app.use('/api/v1/admin', requireAdmin, adminMiscRouter)
 
-// Serve the built React frontend in production
+// 404 handler for API routes
+app.use('/api/*', (_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' })
+})
+
+// Serve the built React frontend in production (if running unified)
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist')
-  app.use(express.static(distPath))
-  app.get(/^(?!\/api|\/uploads).*/, (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'))
-  })
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath))
+    app.get(/^(?!\/api|\/uploads).*/, (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'))
+    })
+  }
 }
 
 // Global Process Error Handlers (Prevents silent container exits)
@@ -161,5 +186,21 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
       console.error('⚠️ Warning: Database initialization error:', err.message)
     })
 })
+
+// Graceful shutdown handling for Railway/Docker container termination
+const gracefulShutdown = (signal: string) => {
+  console.log(`Received ${signal}. Shutting down gracefully...`)
+  server.close(() => {
+    console.log('HTTP server closed.')
+    process.exit(0)
+  })
+  setTimeout(() => {
+    console.error('Forcing shutdown after 10s timeout.')
+    process.exit(1)
+  }, 10000)
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 export default server

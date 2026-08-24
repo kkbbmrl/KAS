@@ -14,9 +14,17 @@ let sqliteDb: Database.Database | null = null
 if (isPostgres) {
   pgPool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+    ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1')
+      ? undefined
+      : { rejectUnauthorized: false },
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   })
-  console.log('🐘 Connected to PostgreSQL Database')
+  pgPool.on('error', (err) => {
+    console.error('⚠️ Unexpected PostgreSQL pool client error:', err.message)
+  })
+  console.log('🐘 Initialized PostgreSQL Database Pool')
 } else {
   const dbDir = path.resolve(process.cwd(), 'server', 'data')
   if (!fs.existsSync(dbDir)) {

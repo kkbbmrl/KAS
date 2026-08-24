@@ -5,21 +5,9 @@ import path from 'node:path'
 export async function initDatabase() {
   console.log('🔄 Initializing database schema...')
 
-  if (isPostgres) {
-    const schemaPath = path.resolve(process.cwd(), 'server', 'db', 'schema.sql')
-    const indexesPath = path.resolve(process.cwd(), 'server', 'db', 'indexes.sql')
-    if (fs.existsSync(schemaPath)) {
-      const schemaSql = fs.readFileSync(schemaPath, 'utf-8')
-      await query(schemaSql)
-    }
-    if (fs.existsSync(indexesPath)) {
-      const indexesSql = fs.readFileSync(indexesPath, 'utf-8')
-      await query(indexesSql)
-    }
-    console.log('✅ PostgreSQL schema and indexes verified.')
-  } else if (sqliteDb) {
-    // SQLite compatible schema initialization
-    sqliteDb.exec(`
+  if (sqliteDb) {
+    try {
+      sqliteDb.exec(`
       CREATE TABLE IF NOT EXISTS algeria_wilayas (
         code TEXT PRIMARY KEY,
         name_ar TEXT NOT NULL,
@@ -387,8 +375,28 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_variants_pnum ON product_variants(part_number);
       CREATE INDEX IF NOT EXISTS idx_timeline_order ON order_timeline(order_id);
       CREATE INDEX IF NOT EXISTS idx_notif_unread ON notifications(is_read);
-    `)
-    console.log('✅ SQLite schema initialized.')
+      console.log('✅ SQLite schema initialized.')
+    } catch (err: any) {
+      console.warn('⚠️ SQLite schema warning:', err.message)
+    }
+  }
+
+  if (isPostgres) {
+    try {
+      const schemaPath = path.resolve(process.cwd(), 'server', 'db', 'schema.sql')
+      const indexesPath = path.resolve(process.cwd(), 'server', 'db', 'indexes.sql')
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, 'utf-8')
+        await query(schemaSql)
+      }
+      if (fs.existsSync(indexesPath)) {
+        const indexesSql = fs.readFileSync(indexesPath, 'utf-8')
+        await query(indexesSql)
+      }
+      console.log('✅ PostgreSQL schema and indexes verified.')
+    } catch (err: any) {
+      console.warn('⚠️ PostgreSQL initialization skipped/failed (falling back to SQLite):', err.message)
+    }
   }
 
   await migrateAdminAuthSchema()

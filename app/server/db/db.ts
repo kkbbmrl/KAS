@@ -6,38 +6,43 @@ import fs from 'node:fs'
 
 dotenv.config()
 
-const isPostgres = Boolean(process.env.DATABASE_URL)
-
+let isPostgres = Boolean(process.env.DATABASE_URL)
 let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
 
-if (isPostgres) {
-  pgPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1')
-      ? undefined
-      : { rejectUnauthorized: false },
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  })
-  pgPool.on('error', (err) => {
-    console.error('⚠️ Unexpected PostgreSQL pool client error:', err.message)
-  })
-  console.log('🐘 Initialized PostgreSQL Database Pool')
-} else {
+// 1. Initialize SQLite Database always as a zero-latency engine and reliable fallback
+try {
+  const dbDir = path.resolve(process.cwd(), 'server', 'data')
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+  }
+  const dbPath = path.join(dbDir, 'kas_autoparts.sqlite')
+  sqliteDb = new Database(dbPath)
+  sqliteDb.pragma('journal_mode = WAL')
+  sqliteDb.pragma('foreign_keys = ON')
+  console.log(`🗄️ SQLite Database engine ready (${dbPath})`)
+} catch (err: any) {
+  console.warn('⚠️ SQLite initialization warning:', err.message)
+}
+
+// 2. If PostgreSQL is configured, initialize pool
+if (isPostgres && process.env.DATABASE_URL) {
   try {
-    const dbDir = path.resolve(process.cwd(), 'server', 'data')
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true })
-    }
-    const dbPath = path.join(dbDir, 'kas_autoparts.sqlite')
-    sqliteDb = new Database(dbPath)
-    sqliteDb.pragma('journal_mode = WAL')
-    sqliteDb.pragma('foreign_keys = ON')
-    console.log(`🗄️ Connected to Local SQLite Database (${dbPath})`)
+    const isLocal = process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1')
+    pgPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 4000,
+    })
+    pgPool.on('error', (err) => {
+      console.warn('⚠️ PostgreSQL pool error:', err.message)
+    })
+    console.log('🐘 Initialized PostgreSQL Database Pool')
   } catch (err: any) {
-    console.warn('⚠️ SQLite not initialized:', err.message)
+    console.warn('⚠️ Could not configure PostgreSQL pool:', err.message)
+    isPostgres = false
   }
 }
 
@@ -48,14 +53,19 @@ export interface QueryResult<T = any> {
 
 /**
  * Universal query runner that translates parameterized queries ($1, $2)
- * to PostgreSQL or SQLite bindings transparently.
+ * to PostgreSQL or SQLite bindings transparently with resilient fallback.
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
   if (isPostgres && pgPool) {
-    const res = await pgPool.query(sql, params)
-    return {
-      rows: res.rows,
-      rowCount: res.rowCount ?? res.rows.length,
+    try {
+      const res = await pgPool.query(sql, params)
+      return {
+        rows: res.rows,
+        rowCount: res.rowCount ?? res.rows.length,
+      }
+    } catch (err: any) {
+      console.warn(`⚠️ PostgreSQL query failed (${err.message}). Using local database engine...`)
+      // If postgres times out or crashes, temporarily fallback
     }
   }
 

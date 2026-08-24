@@ -3,6 +3,9 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
+# Install native compilation dependencies for node-gyp (Python, make, g++)
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+
 COPY app/package*.json ./
 RUN npm install
 
@@ -16,6 +19,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=5000
+
+# Install runtime compilation dependencies for native addons
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 COPY app/package*.json ./
 RUN npm install --omit=dev

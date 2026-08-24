@@ -1,7 +1,7 @@
 const RAW_API_URL =
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
-    ? 'https://kas-production-01e9.up.railway.app'
+    ? 'https://kas-production-42f9.up.railway.app'
     : '')
 
 const API_BASE = `${RAW_API_URL}/api/v1/admin`

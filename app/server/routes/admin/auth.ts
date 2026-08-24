@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { randomBytes } from 'node:crypto'
 import { query } from '../../db/db.js'
+import { ensureAdminAccounts } from '../../db/ensureAdmins.js'
 import { hashPassword, isHashedPassword, verifyPassword } from '../../lib/password.js'
 import { requireAdmin } from '../../middleware/adminAuth.js'
 
@@ -88,13 +89,24 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبان' })
     }
 
-    const result = await query(
+    let result = await query(
       `SELECT id, name, username, email, password_hash AS "passwordHash", role, avatar_url AS "avatarUrl",
               (is_active = 1 OR is_active = TRUE) AS "isActive"
        FROM admin_users
-       WHERE LOWER(username) = $1 OR LOWER(email) = $1`,
-      [username]
+       WHERE LOWER(username) = $1 OR LOWER(email) = $2`,
+      [username, username]
     )
+
+    if (result.rows.length === 0) {
+      await ensureAdminAccounts()
+      result = await query(
+        `SELECT id, name, username, email, password_hash AS "passwordHash", role, avatar_url AS "avatarUrl",
+                (is_active = 1 OR is_active = TRUE) AS "isActive"
+         FROM admin_users
+         WHERE LOWER(username) = $1 OR LOWER(email) = $2`,
+        [username, username]
+      )
+    }
 
     if (result.rows.length === 0) {
       recordFailedAttempt(rateKey)

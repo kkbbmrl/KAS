@@ -28,7 +28,7 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/dist-server ./dist-server
-COPY --from=builder /app/server/data ./server/data
+COPY --from=builder /app/server/db ./server/db
 
 RUN mkdir -p /app/server/data/uploads
 

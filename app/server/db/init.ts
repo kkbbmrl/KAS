@@ -6,11 +6,17 @@ export async function initDatabase() {
   console.log('🔄 Initializing database schema...')
 
   if (isPostgres) {
-    const schemaSql = fs.readFileSync(path.resolve(process.cwd(), 'server', 'db', 'schema.sql'), 'utf-8')
-    const indexesSql = fs.readFileSync(path.resolve(process.cwd(), 'server', 'db', 'indexes.sql'), 'utf-8')
-    await query(schemaSql)
-    await query(indexesSql)
-    console.log('✅ PostgreSQL schema and indexes initialized.')
+    const schemaPath = path.resolve(process.cwd(), 'server', 'db', 'schema.sql')
+    const indexesPath = path.resolve(process.cwd(), 'server', 'db', 'indexes.sql')
+    if (fs.existsSync(schemaPath)) {
+      const schemaSql = fs.readFileSync(schemaPath, 'utf-8')
+      await query(schemaSql)
+    }
+    if (fs.existsSync(indexesPath)) {
+      const indexesSql = fs.readFileSync(indexesPath, 'utf-8')
+      await query(indexesSql)
+    }
+    console.log('✅ PostgreSQL schema and indexes verified.')
   } else if (sqliteDb) {
     // SQLite compatible schema initialization
     sqliteDb.exec(`

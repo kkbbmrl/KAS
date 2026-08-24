@@ -18,7 +18,6 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=5000
 
 # Install runtime compilation dependencies for native addons
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
@@ -31,7 +30,5 @@ COPY --from=builder /app/dist-server ./dist-server
 COPY --from=builder /app/server/db ./server/db
 
 RUN mkdir -p /app/server/data/uploads
-
-EXPOSE 5000
 
 CMD ["node", "dist-server/index.js"]

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
 import pg from 'pg'
+import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -26,7 +27,6 @@ if (isPostgres) {
   console.log('🐘 Initialized PostgreSQL Database Pool')
 } else {
   try {
-    const Database = (await import('better-sqlite3')).default
     const dbDir = path.resolve(process.cwd(), 'server', 'data')
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true })
@@ -37,7 +37,7 @@ if (isPostgres) {
     sqliteDb.pragma('foreign_keys = ON')
     console.log(`🗄️ Connected to Local SQLite Database (${dbPath})`)
   } catch (err: any) {
-    console.warn('⚠️ SQLite not loaded:', err.message)
+    console.warn('⚠️ SQLite not initialized:', err.message)
   }
 }
 

@@ -450,7 +450,7 @@ export default function SearchPage() {
                       {p.name}
                     </button>
 
-                    {(p.compat?.length ?? 0) > 0 && (
+                    {Array.isArray(p.compat) && p.compat.length > 0 && (
                       <p className="line-clamp-1 text-xs text-zinc-500">
                         {p.compat.slice(0, 3).join(' · ')}
                         {p.compat.length > 3 && ` +${p.compat.length - 3}`}

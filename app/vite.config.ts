@@ -30,14 +30,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1500,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'react-router', 'lucide-react'],
-          },
-        },
-      },
+      chunkSizeWarningLimit: 2500,
     },
   }
 });

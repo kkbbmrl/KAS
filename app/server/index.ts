@@ -47,6 +47,7 @@ app.use((_req, res, next) => {
 const rawOrigins = [
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : []),
+  'https://kas-git-main-kkbbmrls-projects.vercel.app',
   'https://kas-gamma-woad.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
@@ -66,9 +67,9 @@ app.use(
 
       // Allow Vercel preview and production deployments for KAS
       if (
+        /^https:\/\/kas-git-main-kkbbmrls-projects\.vercel\.app$/i.test(origin) ||
         /^https:\/\/kas-[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
-        /^https:\/\/kas-gamma-woad\.vercel\.app$/i.test(origin) ||
-        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
+        /^https:\/\/.*\.vercel\.app$/i.test(origin) ||
         /^http:\/\/localhost:\d+$/i.test(origin) ||
         /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
       ) {

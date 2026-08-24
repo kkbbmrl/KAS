@@ -126,33 +126,40 @@ if (process.env.NODE_ENV === 'production') {
   })
 }
 
-// Auto-initialize and start server
-async function startServer() {
-  try {
-    await initDatabase()
+// Global Process Error Handlers (Prevents silent container exits)
+process.on('uncaughtException', (err) => {
+  console.error('🔥 UNCAUGHT EXCEPTION:', err)
+})
 
-    // Reference data (wilayas, categories, vehicle taxonomy, settings) is safe to
-    // ensure on every boot. Products are NOT seeded — an empty catalogue is a
-    // valid state and the owner's stock is managed via the Admin Dashboard.
-    const hasWilayas = await query(`SELECT COUNT(*) AS count FROM algeria_wilayas`)
-    if (Number(hasWilayas.rows[0]?.count || 0) === 0) {
-      console.log('🌱 No reference data found. Seeding wilayas/categories/vehicles...')
-      await seedDatabase()
-    }
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 UNHANDLED REJECTION at:', promise, 'reason:', reason)
+})
 
-    const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
-    console.log(`✅ Database ready with ${Number(checkProds.rows[0]?.count || 0)} products.`)
+// Start server listening IMMEDIATELY so /healthz responds on the first probe
+const listenPort = Number(process.env.PORT) || 5000
 
-    await ensureAdminAccounts()
+const server = app.listen(listenPort, '0.0.0.0', () => {
+  console.log(`🚀 KAS Auto Parts API Server listening on http://0.0.0.0:${listenPort}`)
+  console.log(`💚 Healthcheck live at http://0.0.0.0:${listenPort}/healthz`)
 
-    const listenPort = Number(process.env.PORT) || 5000
-    app.listen(listenPort, '0.0.0.0', () => {
-      console.log(`🚀 KAS Auto Parts API Server listening on http://0.0.0.0:${listenPort}`)
+  // Initialize database in background after server is listening
+  initDatabase()
+    .then(async () => {
+      const hasWilayas = await query(`SELECT COUNT(*) AS count FROM algeria_wilayas`)
+      if (Number(hasWilayas.rows[0]?.count || 0) === 0) {
+        console.log('🌱 No reference data found. Seeding wilayas/categories/vehicles...')
+        await seedDatabase()
+      }
+
+      const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
+      console.log(`✅ Database ready with ${Number(checkProds.rows[0]?.count || 0)} products.`)
+
+      await ensureAdminAccounts()
+      console.log('🛡️ Admin accounts verified.')
     })
-  } catch (err) {
-    console.error('❌ Failed to start API server:', err)
-    process.exit(1)
-  }
-}
+    .catch((err) => {
+      console.error('⚠️ Warning: Database initialization error:', err.message)
+    })
+})
 
-startServer()
+export default server

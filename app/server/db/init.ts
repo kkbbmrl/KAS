@@ -375,10 +375,11 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_variants_pnum ON product_variants(part_number);
       CREATE INDEX IF NOT EXISTS idx_timeline_order ON order_timeline(order_id);
       CREATE INDEX IF NOT EXISTS idx_notif_unread ON notifications(is_read);
-      console.log('✅ SQLite schema initialized.')
-    } catch (err: any) {
-      console.warn('⚠️ SQLite schema warning:', err.message)
-    }
+    `)
+    console.log('✅ SQLite schema initialized.')
+  } catch (err: any) {
+    console.warn('⚠️ SQLite schema warning:', err.message)
+  }
   }
 
   if (isPostgres) {

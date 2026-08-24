@@ -145,8 +145,9 @@ async function startServer() {
 
     await ensureAdminAccounts()
 
-    app.listen(PORT, () => {
-      console.log(`🚀 KAS Auto Parts API Server listening on http://localhost:${PORT}`)
+    const listenPort = Number(process.env.PORT) || 5000
+    app.listen(listenPort, '0.0.0.0', () => {
+      console.log(`🚀 KAS Auto Parts API Server listening on http://0.0.0.0:${listenPort}`)
     })
   } catch (err) {
     console.error('❌ Failed to start API server:', err)

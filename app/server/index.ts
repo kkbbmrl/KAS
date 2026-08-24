@@ -82,10 +82,11 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Health check endpoints (handles /healthz, /health, /api/health)
-const healthHandler = (_req: express.Request, res: express.Response) => {
+const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'ok',
     service: 'KAS Auto Parts API',
+    version: '2026-08-24.3',
     uptime: process.uptime(),
     time: new Date().toISOString(),
   })

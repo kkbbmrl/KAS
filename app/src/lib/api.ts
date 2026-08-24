@@ -4,70 +4,113 @@ import type { OfferProduct } from '@/data/offers'
 
 const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/v1`
 
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+/**
+ * Single fetch helper for every customer-facing call.
+ *
+ * Deliberately has NO static-data fallback: a backend failure must surface as an
+ * error the UI can show, never as demo products that look like real stock.
+ */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, init)
+  } catch {
+    // Network-level failure (offline, DNS, CORS, server down).
+    throw new ApiError('تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.', 0)
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string })
+    throw new ApiError(body.error || `فشل الطلب (${res.status})`, res.status)
+  }
+
+  return (await res.json()) as T
+}
+
+export function resolveImageUrl(url?: string): string {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+  const apiBase = import.meta.env.VITE_API_URL || ''
+  if (url.startsWith('/')) {
+    return `${apiBase}${url}`
+  }
+  return `${apiBase}/${url}`
+}
+
+function normalizeProduct(p: Product): Product {
+  return {
+    ...p,
+    image: resolveImageUrl(p.image),
+    variants: p.variants?.map((v) => ({
+      ...v,
+      image: v.image ? resolveImageUrl(v.image) : undefined,
+    })),
+  }
+}
+
+function normalizeOffer(o: OfferProduct): OfferProduct {
+  return {
+    ...o,
+    image: resolveImageUrl(o.image),
+  }
+}
+
 export async function fetchWilayas(): Promise<Wilaya[]> {
-  try {
-    const res = await fetch(`${API_BASE}/wilayas`)
-    if (!res.ok) throw new Error('Network error')
-    return await res.json()
-  } catch (err) {
-    console.warn('API unavailable, falling back to local dataset for wilayas')
-    const { ALGERIA_WILAYAS } = await import('@/data/wilayas')
-    return ALGERIA_WILAYAS
-  }
+  return request<Wilaya[]>('/wilayas')
 }
 
-export async function fetchCategories(): Promise<{ name: string; fr: string; icon: string; available: boolean }[]> {
-  try {
-    const res = await fetch(`${API_BASE}/categories`)
-    if (!res.ok) throw new Error('Network error')
-    return await res.json()
-  } catch (err) {
-    const { CATEGORIES } = await import('@/data/products')
-    return CATEGORIES
-  }
+export async function fetchCategories(): Promise<
+  { name: string; fr: string; icon: string; available: boolean }[]
+> {
+  return request('/categories')
 }
 
-export async function fetchProducts(params: {
+export interface ProductQuery {
   q?: string
   brand?: string
   model?: string
   cat?: string
   in_stock?: boolean
-} = {}): Promise<Product[]> {
-  try {
-    const sp = new URLSearchParams()
-    if (params.q) sp.set('q', params.q)
-    if (params.brand) sp.set('brand', params.brand)
-    if (params.model) sp.set('model', params.model)
-    if (params.cat && params.cat !== 'الكل') sp.set('cat', params.cat)
-    if (params.in_stock) sp.set('in_stock', 'true')
-
-    const res = await fetch(`${API_BASE}/products?${sp.toString()}`)
-    if (!res.ok) throw new Error('Network error')
-    return await res.json()
-  } catch (err) {
-    console.warn('API unavailable, falling back to local product search')
-    const { searchProducts } = await import('@/data/products')
-    return searchProducts({
-      query: params.q || '',
-      brand: params.brand || '',
-      model: params.model || '',
-      year: '',
-      engine: '',
-      inStockOnly: params.in_stock,
-    }).filter((p) => !params.cat || params.cat === 'الكل' || p.category === params.cat)
-  }
 }
 
-export async function fetchOfferBySlug(slug: string): Promise<OfferProduct | undefined> {
-  try {
-    const res = await fetch(`${API_BASE}/offers/${slug}`)
-    if (!res.ok) throw new Error('Network error')
-    return await res.json()
-  } catch (err) {
-    const { getOfferBySlug } = await import('@/data/offers')
-    return getOfferBySlug(slug)
-  }
+export async function fetchProducts(
+  params: ProductQuery = {},
+  signal?: AbortSignal
+): Promise<Product[]> {
+  const sp = new URLSearchParams()
+  if (params.q) sp.set('q', params.q)
+  if (params.brand) sp.set('brand', params.brand)
+  if (params.model) sp.set('model', params.model)
+  if (params.cat && params.cat !== 'الكل') sp.set('cat', params.cat)
+  if (params.in_stock) sp.set('in_stock', 'true')
+
+  const qs = sp.toString()
+  const list = await request<Product[]>(`/products${qs ? `?${qs}` : ''}`, { signal })
+  return list.map(normalizeProduct)
+}
+
+export async function fetchProductById(id: string | number, signal?: AbortSignal): Promise<Product> {
+  const prod = await request<Product>(`/products/${encodeURIComponent(String(id))}`, { signal })
+  return normalizeProduct(prod)
+}
+
+export async function fetchOffers(signal?: AbortSignal): Promise<OfferProduct[]> {
+  const list = await request<OfferProduct[]>('/offers', { signal })
+  return list.map(normalizeOffer)
+}
+
+export async function fetchOfferBySlug(slug: string, signal?: AbortSignal): Promise<OfferProduct> {
+  const offer = await request<OfferProduct>(`/offers/${encodeURIComponent(slug)}`, { signal })
+  return normalizeOffer(offer)
 }
 
 export interface PlaceOrderPayload {
@@ -91,56 +134,49 @@ export interface PlaceOrderPayload {
   }[]
 }
 
-export async function submitOrder(payload: PlaceOrderPayload) {
-  try {
-    const res = await fetch(`${API_BASE}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.error || 'Failed to submit order')
-    }
-    return await res.json()
-  } catch (err: any) {
-    console.warn('Backend API order failed, storing in localStorage fallback', err)
-    // Fallback: store locally
-    const id = `KAS-${Math.floor(100000 + Math.random() * 900000)}`
-    const snapshot = {
-      ...payload,
-      orderId: id,
-      orderReference: id,
-      total: payload.items.reduce((s, i) => s + i.price * i.qty, 0),
-      createdAt: new Date().toISOString(),
-    }
-    const raw = localStorage.getItem('kas-orders')
-    const prev = raw ? JSON.parse(raw) : []
-    localStorage.setItem('kas-orders', JSON.stringify([snapshot, ...prev]))
-    return snapshot
-  }
+export interface PlacedOrderResponse {
+  success: boolean
+  orderId: string
+  orderReference: string
+  firstName: string
+  lastName: string
+  phone: string
+  address: string
+  commune?: string
+  wilayaCode?: string
+  subtotal: number
+  shippingFee: number
+  totalAmount: number
+  items: { id: string; name: string; partNumber: string; price: number; qty: number; lineTotal: number }[]
+  createdAt: string
 }
 
-export async function submitContactMessage(payload: { name: string; phone: string; msg: string; email?: string }) {
-  try {
-    const res = await fetch(`${API_BASE}/contact`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!res.ok) throw new Error('Failed to submit message')
-    return await res.json()
-  } catch (err) {
-    console.warn('Backend API message failed, storing locally', err)
-    const raw = localStorage.getItem('kas-messages')
-    const prev = raw ? JSON.parse(raw) : []
-    localStorage.setItem('kas-messages', JSON.stringify([{ ...payload, createdAt: new Date().toISOString() }, ...prev]))
-    return { success: true }
-  }
+/**
+ * Places a COD order. Throws ApiError on failure — the caller must surface it.
+ * No localStorage queueing: an order the business never receives must not look
+ * like a confirmed sale to the customer.
+ */
+export async function submitOrder(payload: PlaceOrderPayload): Promise<PlacedOrderResponse> {
+  return request<PlacedOrderResponse>('/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function submitContactMessage(payload: {
+  name: string
+  phone: string
+  msg: string
+  email?: string
+}) {
+  return request<{ success: boolean }>('/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function trackOrder(orderReference: string) {
-  const res = await fetch(`${API_BASE}/orders/${orderReference}`)
-  if (!res.ok) throw new Error('Order not found')
-  return await res.json()
+  return request(`/orders/${encodeURIComponent(orderReference)}`)
 }

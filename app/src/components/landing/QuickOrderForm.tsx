@@ -138,7 +138,11 @@ export default function QuickOrderForm({
 
     try {
       const res = await submitOrder(orderPayload)
-      const finalId = res.orderId || `KAS-${Date.now().toString().slice(-6)}`
+      // Server reference only — a missing one means the order did not land.
+      if (!res?.orderReference) {
+        throw new Error('لم يتم تأكيد الطلب من الخادم. يرجى المحاولة مرة أخرى.')
+      }
+      const finalId = res.orderReference
       setSuccessOrderId(finalId)
 
       trackConversionEvent('order_placed', {

@@ -1,6 +1,10 @@
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
+import { useEffect } from 'react'
 import { ShopProvider } from './context/ShopContext'
 import { AdminAuthProvider } from './context/AdminAuthContext'
+import ProductModal from './components/ProductModal'
+import CartDrawer from './components/CartDrawer'
+import Toast from './components/Toast'
 import Home from './pages/Home'
 import SearchPage from './pages/SearchPage'
 import ThemesPage from './pages/ThemesPage'
@@ -23,6 +27,24 @@ import AdminUsers from './pages/admin/AdminUsers'
 import AdminSettings from './pages/admin/AdminSettings'
 
 export default function App() {
+  const { pathname, hash } = useLocation()
+  // Overlays are storefront-only — never mount them inside the admin dashboard.
+  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
+
+  /*
+   * react-router does not scroll to hash targets itself. The navbar links to
+   * "/#brands" etc. from any page, so resolve the target after the route renders.
+   */
+  useEffect(() => {
+    if (!hash) return
+    const id = hash.slice(1)
+    // rAF lets the destination page paint before we look for the anchor.
+    const raf = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [pathname, hash])
+
   return (
     <ShopProvider>
       <AdminAuthProvider>
@@ -57,6 +79,16 @@ export default function App() {
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Routes>
+
+        {/* Global storefront overlays — mounted once, outside <Routes>, so they
+            survive navigation and work on every customer page. */}
+        {!isAdmin && (
+          <>
+            <ProductModal />
+            <CartDrawer />
+            <Toast />
+          </>
+        )}
       </AdminAuthProvider>
     </ShopProvider>
   )

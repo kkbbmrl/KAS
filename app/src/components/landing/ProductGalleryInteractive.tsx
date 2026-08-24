@@ -8,8 +8,16 @@ interface Props {
   brand?: string
 }
 
+/**
+ * Neutral local placeholder for a missing/broken product image. Deliberately not
+ * a stock photo from an image host — the storefront must only ever show the
+ * owner's own product photography.
+ */
+const PLACEHOLDER_IMAGE =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f4f4f5'/%3E%3Cg fill='none' stroke='%23a1a1aa' stroke-width='6' stroke-linecap='round'%3E%3Ccircle cx='200' cy='140' r='42'/%3E%3Cpath d='M200 74v-16M200 222v-16M258 140h16M126 140h-16M243 97l11-11M146 183l-11 11M243 183l11 11M146 97l-11-11'/%3E%3C/g%3E%3Ctext x='200' y='245' font-family='sans-serif' font-size='18' fill='%23a1a1aa' text-anchor='middle'%3Eلا توجد صورة%3C/text%3E%3C/svg%3E"
+
 export default function ProductGalleryInteractive({ images, productName, badge, brand }: Props) {
-  const safeImages = images && images.length > 0 ? images : ['https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=85']
+  const safeImages = images && images.length > 0 ? images : [PLACEHOLDER_IMAGE]
   const [activeIdx, setActiveIdx] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
@@ -59,8 +67,7 @@ export default function ProductGalleryInteractive({ images, productName, badge, 
             isZoomed ? 'scale-105 opacity-90' : 'scale-100'
           }`}
           onError={(e) => {
-            ;(e.currentTarget as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=85'
+            ;(e.currentTarget as HTMLImageElement).src = PLACEHOLDER_IMAGE
           }}
         />
 

@@ -76,6 +76,8 @@
     @apply bg-background text-foreground;
     font-family: 'Tajawal', 'Cairo', system-ui, sans-serif;
     overflow-x: hidden;
+    /* iOS momentum scrolling for nested scroll containers */
+    -webkit-overflow-scrolling: touch;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;

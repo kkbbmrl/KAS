@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router'
 import {
   AlertCircle,
@@ -21,9 +21,9 @@ import * as LucideIcons from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { formatPrice } from '@/data/products'
 import { ALGERIA_WILAYAS } from '@/data/wilayas'
-import { OFFERS, getOfferBySlug } from '@/data/offers'
+import type { OfferProduct } from '@/data/offers'
 import Logo from '@/components/Logo'
-import { submitOrder } from '@/lib/api'
+import { fetchOfferBySlug, fetchOffers, submitOrder } from '@/lib/api'
 
 interface OrderForm {
   firstName: string
@@ -54,7 +54,10 @@ function getIcon(name: string): LucideIcon {
 
 export default function OfferPage() {
   const { slug } = useParams<{ slug: string }>()
-  const offer = slug ? getOfferBySlug(slug) : undefined
+
+  const [offer, setOffer] = useState<OfferProduct | null>(null)
+  const [offerLoading, setOfferLoading] = useState(true)
+  const [otherOffers, setOtherOffers] = useState<OfferProduct[]>([])
 
   const [form, setForm] = useState<OrderForm>(emptyForm)
   const [submitted, setSubmitted] = useState(false)
@@ -62,20 +65,54 @@ export default function OfferPage() {
   const [error, setError] = useState('')
   const [orderId, setOrderId] = useState('')
 
+  // Offer comes from the owner's database, never a bundled sample.
+  useEffect(() => {
+    if (!slug) {
+      setOfferLoading(false)
+      return
+    }
+    const ac = new AbortController()
+    setOfferLoading(true)
+    fetchOfferBySlug(slug, ac.signal)
+      .then((o) => {
+        setOffer(o)
+        setOfferLoading(false)
+      })
+      .catch(() => {
+        setOffer(null)
+        setOfferLoading(false)
+        // Only for the "not found" screen — suggest other live offers.
+        fetchOffers(ac.signal)
+          .then((list) => setOtherOffers(list.filter((o) => o.slug !== slug).slice(0, 6)))
+          .catch(() => setOtherOffers([]))
+      })
+    return () => ac.abort()
+  }, [slug])
+
+  if (offerLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50" dir="rtl">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-600" />
+      </div>
+    )
+  }
+
   if (!offer) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-50 p-8 text-center font-tajawal" dir="rtl">
         <Frown className="h-16 w-16 text-zinc-300" />
         <h1 className="font-cairo text-2xl font-black text-zinc-900">العرض غير موجود</h1>
         <p className="text-zinc-500">الرابط الذي تبحث عنه غير متوفر أو انتهت صلاحيته.</p>
-        <div className="flex flex-wrap justify-center gap-3 mt-4">
-          {OFFERS.map((o) => (
-            <Link key={o.slug} to={`/offer/${o.slug}`} className="rounded-xl border-2 border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-700 hover:border-brand-400 hover:text-brand-700 transition-colors">
-              {o.nameFr}
-            </Link>
-          ))}
-        </div>
-        <Link to="/" className="mt-2 flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 font-cairo font-black text-white hover:bg-brand-700 transition-colors">
+        {otherOffers.length > 0 && (
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            {otherOffers.map((o) => (
+              <Link key={o.slug} to={`/offer/${o.slug}`} className="rounded-xl border-2 border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-700 transition-colors hover:border-brand-400 hover:text-brand-700">
+                {o.nameFr || o.title}
+              </Link>
+            ))}
+          </div>
+        )}
+        <Link to="/" className="mt-2 flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 font-cairo font-black text-white transition-colors hover:bg-brand-700">
           <Home className="h-4 w-4" /> العودة للرئيسية
         </Link>
       </div>
@@ -84,47 +121,48 @@ export default function OfferPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     if (!form.wilaya) { setError('يرجى اختيار الولاية'); return }
     if (form.phone.replace(/\s/g, '').length < 9) { setError('رقم الهاتف غير صحيح'); return }
     setError('')
     setLoading(true)
 
-    // Submit order to database
-    const apiRes = await submitOrder({
-      source: 'landing_offer',
-      firstName: form.firstName,
-      lastName: form.lastName,
-      phone: form.phone,
-      commune: form.commune || form.wilaya,
-      address: form.commune ? `${form.commune} — ${form.wilaya}` : form.wilaya,
-      notes: form.note,
-      items: [
-        {
-          id: offer.productId,
-          name: offer.title,
-          partNumber: offer.partNumber,
-          price: offer.price,
-          qty: form.qty,
-        },
-      ],
-    })
+    const selectedWilaya = ALGERIA_WILAYAS.find(
+      (w) => `${w.code} - ${w.nameAr}` === form.wilaya || w.nameAr === form.wilaya
+    )
 
-    const id = apiRes?.orderReference || apiRes?.orderId || `KAS-${Math.floor(100000 + Math.random() * 900000)}`
-    setOrderId(id)
-
-    // Store locally
     try {
-      const raw = localStorage.getItem('kas-offer-orders')
-      const prev = raw ? JSON.parse(raw) : []
-      localStorage.setItem('kas-offer-orders', JSON.stringify([
-        { ...form, orderId: id, product: offer.nameFr, slug: offer.slug, createdAt: new Date().toISOString() },
-        ...prev,
-      ]))
-    } catch { /* ignore */ }
+      const apiRes = await submitOrder({
+        source: 'landing_offer',
+        offerId: offer.id,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+        wilayaCode: selectedWilaya?.code,
+        commune: form.commune || selectedWilaya?.nameAr || form.wilaya,
+        address: form.commune ? `${form.commune} — ${form.wilaya}` : form.wilaya,
+        notes: form.note,
+        items: [
+          {
+            productId: String(offer.productId),
+            name: offer.title,
+            partNumber: offer.partNumber,
+            price: offer.price,
+            qty: form.qty,
+          },
+        ],
+      })
 
-    setLoading(false)
-    setSubmitted(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+      // Always the server's reference — never a locally invented one.
+      setOrderId(apiRes.orderReference)
+      setSubmitted(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err) {
+      // Form stays filled so the customer can retry.
+      setError(err instanceof Error ? err.message : 'تعذر إرسال الطلب. حاول مرة أخرى.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const out = offer.stock === 'غير متوفر'

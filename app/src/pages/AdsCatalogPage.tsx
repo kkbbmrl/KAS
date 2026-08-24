@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import {
   Flame,
+  Frown,
+  Loader2,
   MessageSquare,
   PhoneCall,
   ShieldCheck,
@@ -8,11 +11,32 @@ import {
   Truck,
 } from 'lucide-react'
 import Logo from '@/components/Logo'
-import { CAMPAIGN_PRESETS } from '@/data/adCampaigns'
+import type { OfferProduct } from '@/data/offers'
+import { fetchOffers } from '@/lib/api'
 import { formatPrice, PHONE_CALL, PHONE_DISPLAY } from '@/data/products'
 import { buildWhatsAppLink } from '@/lib/tracking'
 
 export default function AdsCatalogPage() {
+  const [offers, setOffers] = useState<OfferProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Campaigns come from the owner's landing_offers table (Admin → Marketing).
+  useEffect(() => {
+    const ac = new AbortController()
+    fetchOffers(ac.signal)
+      .then((list) => {
+        setOffers(list)
+        setLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (ac.signal.aborted) return
+        setError(err instanceof Error ? err.message : 'تعذر تحميل العروض')
+        setLoading(false)
+      })
+    return () => ac.abort()
+  }, [])
+
   const generalWhatsApp = buildWhatsAppLink({
     productName: 'استفسار عام بخصوص العروض الترويجية وقطع الغيار',
   })
@@ -73,90 +97,122 @@ export default function AdsCatalogPage() {
 
       {/* Campaign Cards Grid */}
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {CAMPAIGN_PRESETS.map((campaign) => {
-            const diff = campaign.oldPrice ? campaign.oldPrice - campaign.price : 0
-            return (
-              <div
-                key={campaign.slug}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border-2 border-zinc-200 bg-white p-5 shadow-sm hover:border-brand-600 hover:shadow-xl transition-all"
-              >
-                <div className="space-y-4">
-                  {/* Image with Badges */}
-                  <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-50 border p-2 flex items-center justify-center">
-                    <img
-                      src={campaign.primaryImage}
-                      alt={campaign.productName}
-                      className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {campaign.badge && (
-                      <span className="absolute top-2.5 right-2.5 rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow">
-                        {campaign.badge}
-                      </span>
-                    )}
-                    <span className="absolute bottom-2.5 right-2.5 rounded-lg bg-zinc-900/80 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur-sm">
-                      {campaign.brand}
-                    </span>
-                  </div>
-
-                  {/* Info */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-brand-600 block">
-                      {campaign.category}
-                    </span>
-                    <h2 className="font-cairo text-base font-black text-zinc-900 line-clamp-2">
-                      {campaign.productName}
-                    </h2>
-                    <p className="text-[11px] font-bold text-zinc-500 line-clamp-2 leading-relaxed">
-                      {campaign.heroSubtitle}
-                    </p>
-                  </div>
-
-                  {/* Key points */}
-                  <div className="space-y-1 pt-1 border-t border-zinc-100 text-[11px] font-bold text-zinc-600">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                      <span>قطع أصلية مع وصل ضمان رسمي</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                      <span>توصيل لـ 58 ولاية — الدفع عند الاستلام</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pricing & CTA */}
-                <div className="pt-4 mt-4 border-t border-zinc-100 space-y-3">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <span className="font-cairo text-lg font-black text-brand-600 block leading-tight">
-                        {formatPrice(campaign.price)}
-                      </span>
-                      {campaign.oldPrice && (
-                        <span className="text-xs text-zinc-400 line-through block" dir="ltr">
-                          {formatPrice(campaign.oldPrice)}
+        {loading ? (
+          <div className="flex flex-col items-center gap-4 py-20">
+            <Loader2 className="h-10 w-10 animate-spin text-brand-600" />
+            <p className="font-cairo text-sm font-bold text-zinc-500">جارٍ تحميل العروض…</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-4 py-20 text-center">
+            <Frown className="h-14 w-14 text-zinc-300" />
+            <h2 className="font-cairo text-xl font-black text-zinc-900">تعذر تحميل العروض</h2>
+            <p className="max-w-sm text-sm text-zinc-500">{error}</p>
+          </div>
+        ) : offers.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-20 text-center">
+            <Sparkles className="h-14 w-14 text-zinc-300" />
+            <h2 className="font-cairo text-xl font-black text-zinc-900">لا توجد عروض حالياً</h2>
+            <p className="max-w-sm text-sm text-zinc-500">
+              تابعنا قريباً — سيتم إضافة عروض وحملات ترويجية جديدة.
+            </p>
+            <Link
+              to="/themes"
+              className="mt-2 rounded-xl bg-brand-600 px-6 py-3 font-cairo text-xs font-black text-white transition-colors hover:bg-brand-700"
+            >
+              تصفح جميع المنتجات
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {offers.map((campaign) => {
+              const diff = campaign.oldPrice ? campaign.oldPrice - campaign.price : 0
+              return (
+                <div
+                  key={campaign.slug}
+                  className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border-2 border-zinc-200 bg-white p-5 shadow-sm transition-all hover:border-brand-600 hover:shadow-xl"
+                >
+                  <div className="space-y-4">
+                    {/* Image with Badges */}
+                    <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl border bg-zinc-50 p-2">
+                      <img
+                        src={campaign.image}
+                        alt={campaign.title}
+                        loading="lazy"
+                        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {campaign.badge && (
+                        <span className="absolute right-2.5 top-2.5 rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow">
+                          {campaign.badge}
+                        </span>
+                      )}
+                      {campaign.brand && (
+                        <span className="absolute bottom-2.5 right-2.5 rounded-lg bg-zinc-900/80 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur-sm">
+                          {campaign.brand}
                         </span>
                       )}
                     </div>
-                    {diff > 0 && (
-                      <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700 border border-emerald-200">
-                        وفر {formatPrice(diff)}
-                      </span>
-                    )}
+
+                    {/* Info */}
+                    <div className="space-y-1.5">
+                      {campaign.nameFr && (
+                        <span className="block text-[10px] font-bold text-brand-600" dir="ltr">
+                          {campaign.nameFr}
+                        </span>
+                      )}
+                      <h2 className="line-clamp-2 font-cairo text-base font-black text-zinc-900">
+                        {campaign.title}
+                      </h2>
+                      <p className="line-clamp-2 text-[11px] font-bold leading-relaxed text-zinc-500">
+                        {campaign.subtitle}
+                      </p>
+                    </div>
+
+                    {/* Key points */}
+                    <div className="space-y-1 border-t border-zinc-100 pt-1 text-[11px] font-bold text-zinc-600">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span>قطع أصلية مع وصل ضمان رسمي</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                        <span>توصيل لـ 58 ولاية — الدفع عند الاستلام</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <Link
-                    to={`/ads/${campaign.slug}`}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-3 font-cairo text-xs font-black text-white shadow-md shadow-brand-600/30 group-hover:bg-brand-700 transition-colors"
-                  >
-                    <span>عرض صفحة العرض والطلب المباشر</span>
-                    <Truck className="h-4 w-4" />
-                  </Link>
+                  {/* Pricing & CTA */}
+                  <div className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div>
+                        <span className="block font-cairo text-lg font-black leading-tight text-brand-600">
+                          {formatPrice(campaign.price)}
+                        </span>
+                        {campaign.oldPrice ? (
+                          <span className="block text-xs text-zinc-400 line-through" dir="ltr">
+                            {formatPrice(campaign.oldPrice)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {diff > 0 && (
+                        <span className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">
+                          وفر {formatPrice(diff)}
+                        </span>
+                      )}
+                    </div>
+
+                    <Link
+                      to={`/ads/${campaign.slug}`}
+                      className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-brand-600 font-cairo text-xs font-black text-white shadow-md shadow-brand-600/30 transition-colors group-hover:bg-brand-700"
+                    >
+                      <span>عرض صفحة العرض والطلب المباشر</span>
+                      <Truck className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </main>
 
       {/* Footer */}

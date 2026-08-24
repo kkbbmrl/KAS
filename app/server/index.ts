@@ -131,15 +131,17 @@ async function startServer() {
   try {
     await initDatabase()
 
-    // Check if products exist, otherwise auto-seed
-    const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
-    const count = Number(checkProds.rows[0]?.count || 0)
-    if (count === 0) {
-      console.log('📦 Database is empty. Running initial seed...')
+    // Reference data (wilayas, categories, vehicle taxonomy, settings) is safe to
+    // ensure on every boot. Products are NOT seeded — an empty catalogue is a
+    // valid state and the owner's stock is managed via the Admin Dashboard.
+    const hasWilayas = await query(`SELECT COUNT(*) AS count FROM algeria_wilayas`)
+    if (Number(hasWilayas.rows[0]?.count || 0) === 0) {
+      console.log('🌱 No reference data found. Seeding wilayas/categories/vehicles...')
       await seedDatabase()
-    } else {
-      console.log(`✅ Database ready with ${count} auto-part products.`)
     }
+
+    const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
+    console.log(`✅ Database ready with ${Number(checkProds.rows[0]?.count || 0)} products.`)
 
     await ensureAdminAccounts()
 

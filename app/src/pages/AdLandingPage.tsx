@@ -13,18 +13,17 @@ import {
 import Logo from '@/components/Logo'
 import { PHONE_CALL, PHONE_DISPLAY, ADDRESS, WORK_HOURS } from '@/data/products'
 import {
-  CAMPAIGN_PRESETS,
-  getCampaignBySlug,
   buildCampaignFromProduct,
   type AdCampaignConfig,
 } from '@/data/adCampaigns'
+import type { OfferProduct } from '@/data/offers'
 import {
   getAndPersistUTM,
   trackCampaignVisit,
   trackConversionEvent,
   buildWhatsAppLink,
 } from '@/lib/tracking'
-import { fetchOfferBySlug, fetchProducts } from '@/lib/api'
+import { fetchOfferBySlug, fetchOffers } from '@/lib/api'
 
 import AdHero from '@/components/landing/AdHero'
 import TrustBar from '@/components/landing/TrustBar'
@@ -40,15 +39,15 @@ import MobileStickyCTA from '@/components/landing/MobileStickyCTA'
 export default function AdLandingPage() {
   const { slug, idOrSlug } = useParams<{ slug?: string; idOrSlug?: string }>()
   const [searchParams] = useSearchParams()
-  const activeSlug = slug || idOrSlug || 'radiateur-peugeot-208'
+  const activeSlug = slug || idOrSlug || ''
 
-  const [campaign, setCampaign] = useState<AdCampaignConfig | null>(() => {
-    return getCampaignBySlug(activeSlug) || null
-  })
-  const [loading, setLoading] = useState(!campaign)
+  const [campaign, setCampaign] = useState<AdCampaignConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [otherOffers, setOtherOffers] = useState<OfferProduct[]>([])
 
   // Track visit on mount
   useEffect(() => {
+    if (!activeSlug) return
     const utms = getAndPersistUTM()
     trackCampaignVisit(activeSlug, utms)
     trackConversionEvent('landing_view', {
@@ -57,39 +56,35 @@ export default function AdLandingPage() {
     })
   }, [activeSlug, searchParams])
 
-  // Resolve campaign if not in static presets
+  /*
+   * Campaigns are resolved from the owner's landing_offers table only.
+   * A dead or expired link must render the not-found screen — substituting a
+   * sample campaign would advertise a product the owner never listed.
+   */
   useEffect(() => {
-    const preset = getCampaignBySlug(activeSlug)
-    if (preset) {
-      setCampaign(preset)
+    if (!activeSlug) {
+      setCampaign(null)
       setLoading(false)
       return
     }
 
+    const ac = new AbortController()
     setLoading(true)
-    // 1. Try fetching from backend offers or products
-    fetchOfferBySlug(activeSlug)
+
+    fetchOfferBySlug(activeSlug, ac.signal)
       .then((offer) => {
-        if (offer) {
-          const config = buildCampaignFromProduct(offer, activeSlug)
-          setCampaign(config)
-          return
-        }
-        // 2. Try fetching as product ID/slug
-        return fetchProducts({ q: activeSlug }).then((products) => {
-          if (products && products.length > 0) {
-            const config = buildCampaignFromProduct(products[0], activeSlug)
-            setCampaign(config)
-          } else {
-            // Fallback to first available preset
-            setCampaign(CAMPAIGN_PRESETS[0])
-          }
-        })
+        setCampaign(buildCampaignFromProduct(offer, activeSlug))
+        setLoading(false)
       })
       .catch(() => {
-        setCampaign(CAMPAIGN_PRESETS[0])
+        setCampaign(null)
+        setLoading(false)
+        fetchOffers(ac.signal)
+          .then((list) => setOtherOffers(list.filter((o) => o.slug !== activeSlug).slice(0, 6)))
+          .catch(() => setOtherOffers([]))
       })
-      .finally(() => setLoading(false))
+
+    return () => ac.abort()
   }, [activeSlug])
 
   const scrollToOrderForm = () => {
@@ -118,19 +113,22 @@ export default function AdLandingPage() {
         <Frown className="h-16 w-16 text-zinc-300" />
         <h1 className="font-cairo text-2xl font-black text-zinc-900">العرض الترويجي غير متوفر</h1>
         <p className="text-zinc-500 max-w-md">
-          الرابط الذي تبحث عنه غير موجود أو انتهت فترة العرض الترويجي. يمكنك تصفح العروض الحالية:
+          الرابط الذي تبحث عنه غير موجود أو انتهت فترة العرض الترويجي.
+          {otherOffers.length > 0 && ' يمكنك تصفح العروض الحالية:'}
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {CAMPAIGN_PRESETS.map((p) => (
-            <Link
-              key={p.slug}
-              to={`/ads/${p.slug}`}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-bold text-zinc-700 hover:border-brand-600 hover:text-brand-600 shadow-sm"
-            >
-              {p.productName}
-            </Link>
-          ))}
-        </div>
+        {otherOffers.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {otherOffers.map((o) => (
+              <Link
+                key={o.slug}
+                to={`/ads/${o.slug}`}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-bold text-zinc-700 shadow-sm hover:border-brand-600 hover:text-brand-600"
+              >
+                {o.nameFr || o.title}
+              </Link>
+            ))}
+          </div>
+        )}
         <Link
           to="/"
           className="flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 font-cairo text-xs font-black text-white hover:bg-brand-700 transition-colors"

@@ -13,7 +13,8 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react'
-import { formatPrice, PRODUCTS, type ProductVariant } from '@/data/products'
+import { formatPrice, type Product, type ProductVariant } from '@/data/products'
+import { fetchProducts } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
 
 const VIEWS = ['الواجهة', 'منظر جانبي', 'لقطة مقرّبة'] as const
@@ -26,6 +27,7 @@ export default function ProductModal() {
   const [origin, setOrigin] = useState('50% 50%')
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [variantOpen, setVariantOpen] = useState(false)
+  const [similar, setSimilar] = useState<Product[]>([])
   const imgBox = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,6 +35,32 @@ export default function ProductModal() {
     setView(0)
     setSelectedVariant(null)
     setVariantOpen(false)
+  }, [selected])
+
+  // Related products come from the live catalogue (same category + complementary recommendations).
+  useEffect(() => {
+    if (!selected) {
+      setSimilar([])
+      return
+    }
+    const ac = new AbortController()
+    fetchProducts({ cat: selected.category }, ac.signal)
+      .then((list) => {
+        const filtered = list.filter((x) => String(x.id) !== String(selected.id))
+        if (filtered.length >= 4) {
+          setSimilar(filtered.slice(0, 4))
+        } else {
+          // If category has few items, fetch all products to fill 4 recommendations
+          fetchProducts({}, ac.signal)
+            .then((allList) => {
+              const extra = allList.filter((x) => String(x.id) !== String(selected.id) && !filtered.some((f) => String(f.id) === String(x.id)))
+              setSimilar([...filtered, ...extra].slice(0, 4))
+            })
+            .catch(() => setSimilar(filtered.slice(0, 4)))
+        }
+      })
+      .catch(() => setSimilar([]))
+    return () => ac.abort()
   }, [selected])
 
   useEffect(() => {
@@ -63,8 +91,6 @@ export default function ProductModal() {
   const out = effectiveStock === 'غير متوفر'
   const hasVariants = (p.variants ?? []).length > 0
 
-  const similar = PRODUCTS.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 4)
-
   const onMove = (e: React.MouseEvent) => {
     const r = imgBox.current?.getBoundingClientRect()
     if (!r) return
@@ -74,7 +100,7 @@ export default function ProductModal() {
   }
 
   const directOrder = () => {
-    addToCart(p, qty)
+    addToCart(p, qty, selectedVariant ?? undefined)
     setSelected(null)
     setCartOpen(true)
   }
@@ -92,7 +118,7 @@ export default function ProductModal() {
       onClick={() => setSelected(null)}
     >
       <div
-        className="modal-in relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border-2 border-zinc-100 bg-white shadow-2xl"
+        className="modal-in relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border-2 border-zinc-100 bg-white shadow-2xl supports-[max-height:1dvh]:max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -337,7 +363,7 @@ export default function ProductModal() {
 
               <div className="flex flex-1 gap-2.5">
                 <button
-                  onClick={() => addToCart(p, qty)}
+                  onClick={() => addToCart(p, qty, selectedVariant ?? undefined)}
                   disabled={out}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-brand-600 bg-white py-3.5 font-cairo text-xs font-black text-brand-600 transition-all hover:bg-brand-50 active:scale-95 disabled:border-zinc-300 disabled:text-zinc-400"
                 >

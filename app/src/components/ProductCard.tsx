@@ -2,13 +2,26 @@ import { CheckCircle2, Eye, ShoppingCart, Star, XCircle, Zap } from 'lucide-reac
 import { formatPrice, type Product } from '@/data/products'
 import { useShop } from '@/context/ShopContext'
 
-export default function ProductCard({ product, delay = 0 }: { product: Product; delay?: number }) {
+export default function ProductCard({
+  product,
+  delay = 0,
+  reveal = false,
+}: {
+  product: Product
+  delay?: number
+  /**
+   * Opt into the scroll-reveal animation. Only enable inside a container that
+   * calls useReveal() — the .reveal class starts at opacity:0 and is only
+   * cleared by that observer, so a card without one stays invisible forever.
+   */
+  reveal?: boolean
+}) {
   const { addToCart, setSelected } = useShop()
   const out = product.stock === 'غير متوفر'
 
   return (
     <article
-      className="reveal card-glow group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm transition-all duration-500 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-600/10"
+      className={`card-glow group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm transition-all duration-500 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-600/10 ${reveal ? 'reveal' : ''}`}
       data-delay={delay}
     >
       {/* image container */}

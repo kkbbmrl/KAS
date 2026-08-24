@@ -2,14 +2,22 @@ import { randomUUID } from 'node:crypto'
 import { query } from './db.js'
 import { initDatabase } from './init.js'
 import { ALGERIA_WILAYAS } from '../../src/data/wilayas.js'
-import { CATEGORIES, PRODUCTS, CAR_BRANDS } from '../../src/data/products.js'
-import { OFFERS } from '../../src/data/offers.js'
+import { CATEGORIES, CAR_BRANDS } from '../../src/data/products.js'
 
+/**
+ * Seeds REFERENCE data only: wilayas, category taxonomy, vehicle makes/models,
+ * system settings and admin accounts.
+ *
+ * Products, variants, images and offers are NOT seeded — the catalogue belongs to
+ * the store owner and is managed through the Admin Dashboard. An empty catalogue
+ * is a valid state; injecting sample products would put stock the owner never
+ * added in front of real customers.
+ */
 export async function seedDatabase() {
   await initDatabase()
-  console.log('🌱 Seeding database from frontend mock datasets...')
+  console.log('🌱 Seeding reference data (no sample products)...')
 
-  // 1. Wilayas
+  // 1. Wilayas — real Algerian delivery zones and shipping fees
   console.log(`🇩🇿 Seeding ${ALGERIA_WILAYAS.length} Wilayas of Algeria...`)
   for (const w of ALGERIA_WILAYAS) {
     await query(
@@ -24,77 +32,88 @@ export async function seedDatabase() {
     )
   }
 
-  // 2. Categories
+  // 2. Categories — taxonomy the Admin product editor depends on
   console.log(`📂 Seeding ${CATEGORIES.length} Categories...`)
-  const categoryMap = new Map<string, string>() // Name -> UUID
   for (let i = 0; i < CATEGORIES.length; i++) {
     const c = CATEGORIES[i]
     const slug = c.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `cat-${i}`
-    const id = randomUUID()
 
     const existing = await query(`SELECT id FROM categories WHERE slug = $1`, [slug])
-    let categoryId = existing.rows[0]?.id
-
-    if (!categoryId) {
-      categoryId = id
+    if (existing.rows[0]?.id) {
       await query(
-        `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [categoryId, slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
+        `UPDATE categories SET name_ar = $1, name_fr = $2, icon_name = $3, is_available = $4, display_order = $5 WHERE id = $6`,
+        [c.name, c.fr, c.icon, c.available ? 1 : 0, i, existing.rows[0].id]
       )
     } else {
       await query(
-        `UPDATE categories SET name_ar = $1, name_fr = $2, icon_name = $3, is_available = $4, display_order = $5 WHERE id = $6`,
-        [c.name, c.fr, c.icon, c.available ? 1 : 0, i, categoryId]
+        `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [randomUUID(), slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
       )
     }
-    categoryMap.set(c.name, categoryId)
   }
 
-  // 3. Brands (from products)
-  console.log('🏷️ Seeding Brands...')
-  const brandNames = Array.from(new Set(PRODUCTS.map((p) => p.brand)))
-  const brandMap = new Map<string, string>() // Name -> UUID
-  for (let i = 0; i < brandNames.length; i++) {
-    const b = brandNames[i]
-    const slug = b.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `brand-${i}`
-    const id = randomUUID()
-
-    const existing = await query(`SELECT id FROM brands WHERE slug = $1`, [slug])
-    let brandId = existing.rows[0]?.id
-
-    if (!brandId) {
-      brandId = id
-      await query(
-        `INSERT INTO brands (id, slug, name, is_featured, display_order)
-         VALUES ($1, $2, $3, 1, $4)`,
-        [brandId, slug, b, i]
-      )
-    }
-    brandMap.set(b, brandId)
-  }
-
-  // 4. Vehicle Taxonomy (Makes & Models)
+  // 3. Vehicle taxonomy — makes & models used by the compatibility picker
   console.log('🚗 Seeding Vehicle Taxonomy...')
-  const makeMap = new Map<string, string>()
-  const modelMap = new Map<string, string>() // "make:model" -> UUID
+  const MAKE_METADATA: Record<string, { slug: string; fr: string; displayOrder: number }> = {
+    'تويوتا': { slug: 'toyota', fr: 'Toyota', displayOrder: 1 },
+    'رينو': { slug: 'renault', fr: 'Renault', displayOrder: 2 },
+    'بيجو': { slug: 'peugeot', fr: 'Peugeot', displayOrder: 3 },
+    'فولكسفاغن': { slug: 'volkswagen', fr: 'Volkswagen', displayOrder: 4 },
+    'داسيا': { slug: 'dacia', fr: 'Dacia', displayOrder: 5 },
+    'هيونداي': { slug: 'hyundai', fr: 'Hyundai', displayOrder: 6 },
+    'كيا': { slug: 'kia', fr: 'Kia', displayOrder: 7 },
+    'مرسيدس': { slug: 'mercedes', fr: 'Mercedes-Benz', displayOrder: 8 },
+    'BMW': { slug: 'bmw', fr: 'BMW', displayOrder: 9 },
+    'نيسان': { slug: 'nissan', fr: 'Nissan', displayOrder: 10 },
+    'سيات': { slug: 'seat', fr: 'Seat', displayOrder: 11 },
+    'سكودا': { slug: 'skoda', fr: 'Skoda', displayOrder: 12 },
+    'فورد': { slug: 'ford', fr: 'Ford', displayOrder: 13 },
+    'سيتروين': { slug: 'citroen', fr: 'Citroën', displayOrder: 14 },
+  }
+
+  const MODEL_SLUGS: Record<string, string> = {
+    'كورولا': 'corolla', 'ياريس': 'yaris', 'كامري': 'camry', 'هيلوكس': 'hilux', 'راف 4': 'rav4',
+    'كليو 4': 'clio-4', 'كليو 5': 'clio-5', 'سيمبول': 'symbol', 'ميغان 4': 'megane-4', 'داستر': 'duster', 'كابتور': 'captur',
+    '208': '208', '301': '301', '2008': '2008', '308': '308', '3008': '3008', '508': '508',
+    'غولف 7': 'golf-7', 'غولف 8': 'golf-8', 'بولو': 'polo', 'باسات': 'passat', 'تيجوان': 'tiguan', 'كادي': 'caddy',
+    'لوغان': 'logan', 'سانديرو': 'sandero', 'ستيبواي': 'stepway',
+    'أكسنت': 'accent', 'إلنترا': 'elantra', 'i20': 'i20', 'i30': 'i30', 'توسان': 'tucson', 'كريتا': 'creta',
+    'ريو': 'rio', 'سيراتو': 'cerato', 'بيكانتو': 'picanto', 'سبورتاج': 'sportage', 'سيلتوس': 'seltos',
+    'Class A': 'class-a', 'Class C': 'class-c', 'Class E': 'class-e', 'GLA': 'gla', 'GLC': 'glc',
+    'الفئة 1': 'serie-1', 'الفئة 3': 'serie-3', 'الفئة 5': 'serie-5', 'X1': 'x1', 'X3': 'x3',
+    'صني': 'sunny', 'ميكرا': 'micra', 'قشقاي': 'qashqai', 'جوك': 'juke', 'باترول': 'patrol',
+    'ليون': 'leon', 'إبيزا': 'ibiza', 'أرونا': 'arona', 'أتيكا': 'ateca',
+    'أوكتافيا': 'octavia', 'فابيا': 'fabia', 'سوبرب': 'superb',
+    'فييستا': 'fiesta', 'فوكس': 'focus', 'إيكوسبورت': 'ecosport', 'رينجر': 'ranger',
+    'C3': 'c3', 'C-Elysée': 'c-elysee', 'C4': 'c4', 'برلينغو': 'berlingo',
+  }
+
+  const makeIdMap: Record<string, string> = {}
+  const modelIdMap: Record<string, string> = {}
 
   for (const [makeName, models] of Object.entries(CAR_BRANDS)) {
-    const makeSlug = makeName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `make-${randomUUID().slice(0, 6)}`
-    const existingMake = await query(`SELECT id FROM vehicle_makes WHERE slug = $1`, [makeSlug])
+    const meta = MAKE_METADATA[makeName] || { slug: `make-${randomUUID().slice(0, 6)}`, fr: makeName, displayOrder: 99 }
+    const existingMake = await query(`SELECT id FROM vehicle_makes WHERE slug = $1`, [meta.slug])
     let makeId = existingMake.rows[0]?.id
     if (!makeId) {
       makeId = randomUUID()
       await query(
-        `INSERT INTO vehicle_makes (id, slug, name_ar, name_fr) VALUES ($1, $2, $3, $4)`,
-        [makeId, makeSlug, makeName, makeName]
+        `INSERT INTO vehicle_makes (id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, $5)`,
+        [makeId, meta.slug, makeName, meta.fr, meta.displayOrder]
+      )
+    } else {
+      await query(
+        `UPDATE vehicle_makes SET name_ar = $1, name_fr = $2, display_order = $3 WHERE id = $4`,
+        [makeName, meta.fr, meta.displayOrder, makeId]
       )
     }
-    makeMap.set(makeName, makeId)
+    makeIdMap[makeName] = makeId
 
-    for (const modelName of models) {
-      const modelSlug = modelName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `model-${randomUUID().slice(0, 6)}`
-      const key = `${makeName}:${modelName}`
+    for (let i = 0; i < models.length; i++) {
+      const modelName = models[i]
+      const modelClean = MODEL_SLUGS[modelName] || modelName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `m-${i + 1}`
+      const modelSlug = `${meta.slug}-${modelClean}`
       const existingModel = await query(
         `SELECT id FROM vehicle_models WHERE make_id = $1 AND slug = $2`,
         [makeId, modelSlug]
@@ -103,257 +122,70 @@ export async function seedDatabase() {
       if (!modelId) {
         modelId = randomUUID()
         await query(
-          `INSERT INTO vehicle_models (id, make_id, slug, name_ar, name_fr) VALUES ($1, $2, $3, $4, $5)`,
-          [modelId, makeId, modelSlug, modelName, modelName]
+          `INSERT INTO vehicle_models (id, make_id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [modelId, makeId, modelSlug, modelName, modelName, i + 1]
         )
       }
-      modelMap.set(key, modelId)
+      modelIdMap[`${makeName}::${modelName}`] = modelId
     }
   }
 
-  // 5. Products, Variants, Specs, Aliases, Images
-  console.log(`⚙️ Seeding ${PRODUCTS.length} Master Products and Variants...`)
-  const productDbMap = new Map<number, string>() // frontend ID -> DB UUID
+  // Link product variants to vehicle compatibility
+  try {
+    const variants = await query(`SELECT id, product_id, label_ar, label_fr, extra_specs AS "extraSpecs" FROM product_variants`)
+    for (const v of variants.rows) {
+      const text = `${v.label_ar || ''} ${v.label_fr || ''} ${typeof v.extraSpecs === 'string' ? v.extraSpecs : JSON.stringify(v.extraSpecs || '')}`.toLowerCase()
+      for (const [makeName, models] of Object.entries(CAR_BRANDS)) {
+        const meta = MAKE_METADATA[makeName]
+        const makeKeywords = [makeName, meta.fr.toLowerCase(), meta.slug]
+        const makeMatches = makeKeywords.some((k) => text.includes(k.toLowerCase()))
+        for (const modelName of models) {
+          const modelKeywords = [modelName.toLowerCase()]
+          if (modelName === 'كليو 4' || modelName === 'كليو 5') modelKeywords.push('كليو', 'clio')
+          if (modelName === 'غولف 7' || modelName === 'غولف 8') modelKeywords.push('غولف', 'golf')
+          if (modelName === 'سيمبول') modelKeywords.push('symbol', 'symbole')
+          if (modelName === 'أكسنت') modelKeywords.push('accent')
+          if (modelName === 'إلنترا') modelKeywords.push('elantra')
+          if (modelName === 'كورولا') modelKeywords.push('corolla')
+          if (modelName === 'ياريس') modelKeywords.push('yaris')
+          if (modelName === 'ريو') modelKeywords.push('rio')
+          if (modelName === 'سيراتو') modelKeywords.push('cerato')
+          if (modelName === '208') modelKeywords.push('208')
+          if (modelName === '301') modelKeywords.push('301')
+          if (modelName === 'C3') modelKeywords.push('c3')
+          if (modelName === 'C-Elysée') modelKeywords.push('c-elysée', 'c-elysee', 'elysee')
+          if (modelName === 'ليون') modelKeywords.push('leon')
+          if (modelName === 'إبيزا') modelKeywords.push('ibiza')
+          if (modelName === 'بولو') modelKeywords.push('polo')
 
-  for (const p of PRODUCTS) {
-    const categoryId = categoryMap.get(p.category) || Array.from(categoryMap.values())[0]
-    const brandId = brandMap.get(p.brand) || Array.from(brandMap.values())[0]
-    const sku = `SKU-PRD-${p.id}`
-
-    const existingProduct = await query(`SELECT id FROM products WHERE sku = $1`, [sku])
-    let productId = existingProduct.rows[0]?.id
-
-    if (!productId) {
-      productId = randomUUID()
-      await query(
-        `INSERT INTO products (
-          id, sku, base_part_number, name_ar, name_fr, category_id, brand_id,
-          badge, rating, description_ar, featured_home, is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1)`,
-        [
-          productId,
-          sku,
-          p.partNumber,
-          p.name,
-          p.nameFr || p.name,
-          categoryId,
-          brandId,
-          p.badge || null,
-          p.rating || 5.0,
-          p.description,
-          p.featuredHome ? 1 : 0,
-        ]
-      )
-    } else {
-      await query(
-        `UPDATE products SET
-          name_ar = $1, name_fr = $2, rating = $3, description_ar = $4, featured_home = $5
-         WHERE id = $6`,
-        [p.name, p.nameFr || p.name, p.rating || 5.0, p.description, p.featuredHome ? 1 : 0, productId]
-      )
-    }
-    productDbMap.set(p.id, productId)
-
-    // Image
-    if (p.image) {
-      const existingImg = await query(`SELECT id FROM product_images WHERE product_id = $1 AND image_url = $2`, [productId, p.image])
-      if (existingImg.rows.length === 0) {
-        await query(
-          `INSERT INTO product_images (id, product_id, image_url, is_primary, display_order)
-           VALUES ($1, $2, $3, 1, 0)`,
-          [randomUUID(), productId, p.image]
-        )
-      }
-    }
-
-    // Specs
-    if (p.specs && p.specs.length > 0) {
-      await query(`DELETE FROM product_specs WHERE product_id = $1`, [productId])
-      for (let sIdx = 0; sIdx < p.specs.length; sIdx++) {
-        const spec = p.specs[sIdx]
-        await query(
-          `INSERT INTO product_specs (id, product_id, label_ar, value_ar, display_order)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [randomUUID(), productId, spec.label, spec.value, sIdx]
-        )
-      }
-    }
-
-    // Aliases
-    if (p.aliases && p.aliases.length > 0) {
-      for (const alias of p.aliases) {
-        const existAlias = await query(
-          `SELECT id FROM product_aliases WHERE product_id = $1 AND alias_term = $2`,
-          [productId, alias]
-        )
-        if (existAlias.rows.length === 0) {
-          await query(
-            `INSERT INTO product_aliases (id, product_id, alias_term)
-             VALUES ($1, $2, $3)`,
-            [randomUUID(), productId, alias]
-          )
+          const modelMatches = modelKeywords.some((k) => text.includes(k))
+          if (makeMatches && modelMatches) {
+            const makeId = makeIdMap[makeName]
+            const modelId = modelIdMap[`${makeName}::${modelName}`]
+            if (makeId && modelId) {
+              const existingCompat = await query(
+                `SELECT id FROM part_compatibility WHERE product_id = $1 AND make_id = $2 AND model_id = $3`,
+                [v.product_id, makeId, modelId]
+              )
+              if (existingCompat.rows.length === 0) {
+                await query(
+                  `INSERT INTO part_compatibility (id, product_id, variant_id, make_id, model_id) VALUES ($1, $2, $3, $4, $5)`,
+                  [randomUUID(), v.product_id, v.id, makeId, modelId]
+                )
+              }
+            }
+          }
         }
       }
     }
-
-    // Variants
-    if (p.variants && p.variants.length > 0) {
-      for (const v of p.variants) {
-        const variantSku = `VAR-${v.id}`
-        const stockQty = v.stock === 'متوفر' ? 15 : v.stock === 'كمية محدودة' ? 3 : 0
-        const stockStatus = v.stock === 'متوفر' ? 'in_stock' : v.stock === 'كمية محدودة' ? 'limited_stock' : 'out_of_stock'
-        const existingVar = await query(`SELECT id FROM product_variants WHERE variant_sku = $1`, [variantSku])
-
-        if (existingVar.rows.length === 0) {
-          await query(
-            `INSERT INTO product_variants (
-              id, product_id, variant_sku, part_number, label_ar, price, old_price, stock_quantity, stock_status, extra_specs
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              randomUUID(),
-              productId,
-              variantSku,
-              v.partNumber || p.partNumber,
-              v.label,
-              v.price || p.price,
-              v.oldPrice || p.oldPrice || null,
-              stockQty,
-              stockStatus,
-              JSON.stringify(v.extraSpecs || []),
-            ]
-          )
-        }
-      }
-    } else {
-      // Default Variant
-      const defaultVarSku = `VAR-DEF-${p.id}`
-      const stockQty = p.stock === 'متوفر' ? 20 : p.stock === 'كمية محدودة' ? 3 : 0
-      const stockStatus = p.stock === 'متوفر' ? 'in_stock' : p.stock === 'كمية محدودة' ? 'limited_stock' : 'out_of_stock'
-      const existingVar = await query(`SELECT id FROM product_variants WHERE variant_sku = $1`, [defaultVarSku])
-
-      if (existingVar.rows.length === 0) {
-        await query(
-          `INSERT INTO product_variants (
-            id, product_id, variant_sku, part_number, label_ar, price, old_price, stock_quantity, stock_status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [
-            randomUUID(),
-            productId,
-            defaultVarSku,
-            p.partNumber,
-            p.name,
-            p.price,
-            p.oldPrice || null,
-            stockQty,
-            stockStatus,
-          ]
-        )
-      }
-    }
-  }
-
-  // 6. Landing Offers
-  console.log(`🎯 Seeding ${OFFERS.length} Marketing Offers...`)
-  for (const o of OFFERS) {
-    const dbProdId = productDbMap.get(o.productId)
-    if (!dbProdId) continue
-
-    const existingOffer = await query(`SELECT id FROM landing_offers WHERE slug = $1`, [o.slug])
-    let offerId = existingOffer.rows[0]?.id
-
-    if (!offerId) {
-      offerId = randomUUID()
-      await query(
-        `INSERT INTO landing_offers (
-          id, slug, product_id, title_ar, subtitle_ar, title_fr,
-          badge_text, urgency_text, delivery_note, custom_price, custom_old_price, hero_image_url, is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)`,
-        [
-          offerId,
-          o.slug,
-          dbProdId,
-          o.title,
-          o.subtitle,
-          o.nameFr,
-          o.badge || null,
-          o.urgencyText || null,
-          o.deliveryNote || null,
-          o.price,
-          o.oldPrice || null,
-          o.image,
-        ]
-      )
-    }
-
-    if (o.features && o.features.length > 0) {
-      await query(`DELETE FROM offer_features WHERE offer_id = $1`, [offerId])
-      for (let fIdx = 0; fIdx < o.features.length; fIdx++) {
-        const f = o.features[fIdx]
-        await query(
-          `INSERT INTO offer_features (id, offer_id, icon_name, text_ar, display_order)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [randomUUID(), offerId, f.icon, f.text, fIdx]
-        )
-      }
-    }
+  } catch (err: any) {
+    console.warn('Notice seeding compatibility:', err.message)
   }
 
   const { ensureAdminAccounts } = await import('./ensureAdmins.js')
   await ensureAdminAccounts()
 
-  // 8. Marketing Campaigns
-  console.log('📈 Seeding Marketing Campaigns & Tracking...')
-  const defaultCampaigns = [
-    {
-      id: randomUUID(),
-      name: 'Radiateur Peugeot 208 — Facebook Ads',
-      platform: 'facebook',
-      utm_source: 'facebook',
-      utm_medium: 'cpc',
-      utm_campaign: 'rad-peugeot-summer',
-      budget: 45000,
-    },
-    {
-      id: randomUUID(),
-      name: 'Phare Clio 4 — Instagram Influencers',
-      platform: 'instagram',
-      utm_source: 'instagram',
-      utm_medium: 'reels',
-      utm_campaign: 'phare-clio4-promo',
-      budget: 28000,
-    },
-    {
-      id: randomUUID(),
-      name: 'Brake Pads & Discs — TikTok Ads',
-      platform: 'tiktok',
-      utm_source: 'tiktok',
-      utm_medium: 'video',
-      utm_campaign: 'brembo-tiktok-surge',
-      budget: 35000,
-    },
-    {
-      id: randomUUID(),
-      name: 'Auto Parts Search — Google Ads',
-      platform: 'google',
-      utm_source: 'google',
-      utm_medium: 'search',
-      utm_campaign: 'kas-google-brand',
-      budget: 50000,
-    },
-  ]
-
-  for (const c of defaultCampaigns) {
-    const existing = await query(`SELECT id FROM marketing_campaigns WHERE name = $1`, [c.name])
-    if (existing.rows.length === 0) {
-      await query(
-        `INSERT INTO marketing_campaigns (id, name, platform, utm_source, utm_medium, utm_campaign, budget)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [c.id, c.name, c.platform, c.utm_source, c.utm_medium, c.utm_campaign, c.budget]
-      )
-    }
-  }
-
-  // 9. Initial System Settings
+  // 4. System settings — store identity and operational defaults
   console.log('⚙️ Seeding System Settings...')
   const defaultSettings = [
     { key: 'store_name', value: 'Khaled Auto Spart', cat: 'general' },
@@ -365,9 +197,6 @@ export async function seedDatabase() {
     { key: 'free_shipping_threshold', value: '15000', cat: 'shipping' },
     { key: 'low_stock_threshold', value: '5', cat: 'inventory' },
     { key: 'auto_reserve_stock', value: 'true', cat: 'orders' },
-    { key: 'facebook_pixel_id', value: 'FB-9847120938', cat: 'tracking' },
-    { key: 'tiktok_pixel_id', value: 'TT-7489230192', cat: 'tracking' },
-    { key: 'google_analytics_id', value: 'G-KAS9847291', cat: 'tracking' },
   ]
 
   for (const s of defaultSettings) {
@@ -381,56 +210,14 @@ export async function seedDatabase() {
     }
   }
 
-  // 10. Sample Notifications
-  console.log('🔔 Seeding Initial Admin Notifications...')
-  const initialNotifs = [
-    {
-      id: randomUUID(),
-      title: 'طلب جديد #KAS-849201',
-      message: 'طلب جديد من ولاية وهران بقيمة 16,500 دج بانتظار التأكيد',
-      type: 'order',
-      link: '/admin/orders',
-    },
-    {
-      id: randomUUID(),
-      title: 'تنبيه مخزون منخفض: مشعاع رينو كليو 4',
-      message: 'المخزون الحالي 2 قطع فقط، يرجى إعادة الطلب من المورّد',
-      type: 'stock',
-      link: '/admin/inventory',
-    },
-    {
-      id: randomUUID(),
-      title: 'حملة تيك توك تحقق 18 طلباً اليوم',
-      message: 'معدل التحويل لحملة تيك توك ارتفع بنسبة +4.2%',
-      type: 'marketing',
-      link: '/admin/marketing',
-    },
-  ]
-
-  for (const n of initialNotifs) {
-    const existing = await query(`SELECT id FROM notifications WHERE title = $1`, [n.title])
-    if (existing.rows.length === 0) {
-      await query(
-        `INSERT INTO notifications (id, title, message, type, link)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [n.id, n.title, n.message, n.type, n.link]
-      )
-    }
-  }
-
-  console.log('✨ All seed data successfully loaded into database!')
+  console.log('✅ Reference data seeded. Add products via the Admin Dashboard.')
 }
 
-// Auto-run if executed directly
 if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.includes('seed')) {
   seedDatabase()
-    .then(() => {
-      console.log('🚀 Database setup & seed complete!')
-      process.exit(0)
-    })
+    .then(() => process.exit(0))
     .catch((err) => {
-      console.error('❌ Database seed error:', err)
+      console.error('❌ Seed failed:', err)
       process.exit(1)
     })
 }
-

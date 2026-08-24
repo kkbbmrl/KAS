@@ -5,7 +5,7 @@ import { ADDRESS, EMAIL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
 const QUICK = [
   { href: '#home', label: 'الرئيسية' },
-  { href: '/themes', label: 'المنتجات' },
+  { href: '/themes', label: 'كتالوج قطع الغيار' },
   { href: '#brands', label: 'العلامات التجارية' },
   { href: '#offers', label: 'العروض' },
   { href: '#about', label: 'من نحن' },

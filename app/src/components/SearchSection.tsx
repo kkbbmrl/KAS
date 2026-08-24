@@ -3,21 +3,14 @@ import { useNavigate } from 'react-router'
 import {
   Car,
   ChevronDown,
+  Loader2,
   RotateCcw,
   Search,
   Sparkles,
 } from 'lucide-react'
-import { CAR_BRANDS, CATEGORIES, ENGINE_TYPES, normalizeSearchText, PRODUCTS, YEARS, searchProducts } from '@/data/products'
+import { CAR_BRANDS, normalizeSearchText, type Product } from '@/data/products'
+import { fetchProducts } from '@/lib/api'
 import { useReveal } from '@/hooks/useReveal'
-
-// Build suggestion pool from all product names + aliases + French names
-const SUGGESTION_POOL: string[] = Array.from(
-  new Set([
-    ...PRODUCTS.map((p) => p.nameFr ?? '').filter(Boolean),
-    ...PRODUCTS.flatMap((p) => p.aliases ?? []),
-    ...CATEGORIES.map((c) => c.fr),
-  ])
-).sort()
 
 const QUICK_TAGS = [
   'Radiateur',
@@ -27,13 +20,10 @@ const QUICK_TAGS = [
   'Pare-chocs',
   'Ventilateur',
   'Verre de phare',
-  'Perceau',
-  'Cerceau',
   'Cache poussière',
   'Poignée de porte',
   'Essuie-glace',
   'Feu arrière',
-  'Armature',
 ]
 
 const selectCls =
@@ -44,47 +34,68 @@ export default function SearchSection() {
   const ref = useReveal<HTMLDivElement>()
   const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
-  const [year, setYear] = useState('')
-  const [engine, setEngine] = useState('')
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSugg, setShowSugg] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Live preview against the real catalogue.
+  const [preview, setPreview] = useState<Product[]>([])
+  const [previewing, setPreviewing] = useState(false)
+
   const models = useMemo(() => (brand ? CAR_BRANDS[brand] ?? [] : []), [brand])
 
-  // Live availability preview (before navigating)
-  const liveHits = useMemo(
-    () => searchProducts({ brand, model, year, engine, query }),
-    [brand, engine, model, query, year]
-  )
-  const availableCount = liveHits.filter((p) => p.stock !== 'غير متوفر').length
-
-  // Build suggestions from typed query
   useEffect(() => {
-    const q = normalizeSearchText(query)
-    if (q.length < 2) {
-      setSuggestions([])
+    if (!query.trim() && !brand) {
+      setPreview([])
       return
     }
-    setSuggestions(
-      SUGGESTION_POOL.filter((t) => normalizeSearchText(t).includes(q)).slice(0, 7)
-    )
-  }, [query])
+    const ac = new AbortController()
+    const t = setTimeout(() => {
+      setPreviewing(true)
+      // Only send text query to the API; vehicle brand/model are filtered
+      // client-side because the backend `brand` param searches product brands
+      // (VALEO, BOSCH), not vehicle makes (Toyota, Renault).
+      fetchProducts({ q: query.trim(), brand, model }, ac.signal)
+        .then((list) => {
+          setPreview(list)
+          setPreviewing(false)
+        })
+        .catch(() => {
+          setPreview([])
+          setPreviewing(false)
+        })
+    }, 320)
+    return () => {
+      clearTimeout(t)
+      ac.abort()
+    }
+  }, [query, brand, model])
+
+  const availableCount = preview.filter((p) => p.stock !== 'غير متوفر').length
+
+  // Suggestions from live results, not a hardcoded token pool.
+  const suggestions = useMemo(() => {
+    const q = normalizeSearchText(query)
+    if (q.length < 2) return []
+    const out = new Set<string>()
+    for (const p of preview) {
+      for (const t of [p.nameFr, p.name, ...(p.aliases ?? [])]) {
+        if (t && normalizeSearchText(t).includes(q)) out.add(t)
+      }
+    }
+    return [...out].slice(0, 7)
+  }, [query, preview])
 
   const buildSearchUrl = (q: string) => {
     const sp = new URLSearchParams()
     if (q) sp.set('q', q)
     if (brand) sp.set('brand', brand)
     if (model) sp.set('model', model)
-    if (year) sp.set('year', year)
-    if (engine) sp.set('engine', engine)
     return `/search?${sp.toString()}`
   }
 
   const doSearch = (q?: string) => {
-    const finalQ = (q ?? query).trim()
-    navigate(buildSearchUrl(finalQ))
+    navigate(buildSearchUrl((q ?? query).trim()))
     setShowSugg(false)
   }
 
@@ -102,11 +113,9 @@ export default function SearchSection() {
   const reset = () => {
     setBrand('')
     setModel('')
-    setYear('')
-    setEngine('')
     setQuery('')
     setShowSugg(false)
-    setSuggestions([])
+    setPreview([])
   }
 
   return (
@@ -208,7 +217,7 @@ export default function SearchSection() {
             </div>
 
             {/* Select Dropdowns */}
-            <div className="mt-6 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-6 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               {/* Brand */}
               <div className="relative">
                 <label className="mb-1.5 block font-cairo text-xs font-black text-zinc-700">1. نوع السيارة (Marque)</label>
@@ -228,30 +237,6 @@ export default function SearchSection() {
                   <select value={model} onChange={(e) => setModel(e.target.value)} disabled={!brand} className={selectCls} aria-label="موديل السيارة">
                     <option value="">{brand ? 'جميع الموديلات' : 'اختر الماركة أولاً'}</option>
                     {models.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                </div>
-              </div>
-
-              {/* Year */}
-              <div className="relative">
-                <label className="mb-1.5 block font-cairo text-xs font-black text-zinc-700">3. سنة الصنع (Année)</label>
-                <div className="relative">
-                  <select value={year} onChange={(e) => setYear(e.target.value)} className={selectCls} aria-label="سنة الصنع">
-                    <option value="">اختياري (الكل)</option>
-                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                </div>
-              </div>
-
-              {/* Engine */}
-              <div className="relative">
-                <label className="mb-1.5 block font-cairo text-xs font-black text-zinc-700">4. نوع المحرك (Motorisation)</label>
-                <div className="relative">
-                  <select value={engine} onChange={(e) => setEngine(e.target.value)} className={selectCls} aria-label="نوع المحرك">
-                    <option value="">اختياري (الكل)</option>
-                    {ENGINE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 </div>
@@ -279,12 +264,14 @@ export default function SearchSection() {
             {(query || brand) && (
               <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-5 py-3.5">
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-600 text-white">
-                  <Search className="h-4 w-4" />
+                  {previewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </div>
                 <p className="font-cairo text-sm font-black text-brand-900">
-                  {availableCount > 0
-                    ? `${availableCount} قطعة متوفرة — اضغط "بحث وعرض النتائج" لعرضها`
-                    : 'لا توجد قطع متوفرة بهذه المواصفات'}
+                  {previewing
+                    ? 'جارٍ البحث…'
+                    : availableCount > 0
+                      ? `${availableCount} قطعة متوفرة — اضغط "بحث وعرض النتائج" لعرضها`
+                      : 'لا توجد قطع متوفرة بهذه المواصفات'}
                 </p>
               </div>
             )}

@@ -1,12 +1,25 @@
+import { useEffect, useState } from 'react'
 import { ArrowLeft, BadgeCheck, MessageCircle, ShieldCheck, Truck } from 'lucide-react'
 import { Link } from 'react-router'
-import { formatPrice, PRODUCTS } from '@/data/products'
+import { formatPrice, type Product } from '@/data/products'
+import { fetchProducts } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
 
 export default function Hero() {
   const { setSelected } = useShop()
-  const rad = PRODUCTS.find((p) => p.id === 21) ?? PRODUCTS[0]
-  const lamp = PRODUCTS.find((p) => p.id === 15) ?? PRODUCTS[1]
+  const [featured, setFeatured] = useState<Product[]>([])
+
+  // Two real products for the floating chips. If the shop is empty or the API is
+  // down the chips simply don't render — never fall back to demo stock.
+  useEffect(() => {
+    const ac = new AbortController()
+    fetchProducts({ in_stock: true }, ac.signal)
+      .then((list) => setFeatured(list.slice(0, 2)))
+      .catch(() => setFeatured([]))
+    return () => ac.abort()
+  }, [])
+
+  const [rad, lamp] = featured
 
   return (
     <section id="home" className="relative overflow-hidden bg-white pt-36 pb-10 lg:pt-40">
@@ -88,28 +101,32 @@ export default function Hero() {
           </div>
 
           {/* floating part chips */}
-          <button
-            onClick={() => setSelected(rad)}
-            className="animate-floaty group absolute -right-3 top-8 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:right-6"
-          >
-            <img src={rad.image} alt={rad.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
-            <span>
-              <span className="block text-xs font-bold text-zinc-800">{rad.brand} — {rad.category}</span>
-              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(rad.price)}</span>
-            </span>
-          </button>
+          {rad && (
+            <button
+              onClick={() => setSelected(rad)}
+              className="animate-floaty group absolute -right-3 top-8 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:right-6"
+            >
+              <img src={rad.image} alt={rad.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
+              <span>
+                <span className="block text-xs font-bold text-zinc-800">{rad.brand} — {rad.category}</span>
+                <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(rad.price)}</span>
+              </span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setSelected(lamp)}
-            className="animate-floaty-slow group absolute -left-3 bottom-16 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:left-6"
-            style={{ animationDelay: '1.2s' }}
-          >
-            <img src={lamp.image} alt={lamp.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
-            <span>
-              <span className="block text-xs font-bold text-zinc-800">{lamp.brand} — المصباح الأمامي</span>
-              <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(lamp.price)}</span>
-            </span>
-          </button>
+          {lamp && (
+            <button
+              onClick={() => setSelected(lamp)}
+              className="animate-floaty-slow group absolute -left-3 bottom-16 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:left-6"
+              style={{ animationDelay: '1.2s' }}
+            >
+              <img src={lamp.image} alt={lamp.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
+              <span>
+                <span className="block text-xs font-bold text-zinc-800">{lamp.brand} — {lamp.category}</span>
+                <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(lamp.price)}</span>
+              </span>
+            </button>
+          )}
 
           <div className="animate-floaty absolute -bottom-4 right-10 flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-lg shadow-zinc-900/10" style={{ animationDelay: '0.7s' }}>
             <Truck className="h-4 w-4 text-brand-600" />

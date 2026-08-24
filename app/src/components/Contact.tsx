@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Clock3, Mail, MapPin, Phone, Send } from 'lucide-react'
+import { Clock3, Loader2, Mail, MapPin, Phone, Send } from 'lucide-react'
 import SectionHeading from './SectionHeading'
 import { useReveal } from '@/hooks/useReveal'
 import { ADDRESS, EMAIL, PHONE_CALL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
@@ -18,32 +18,35 @@ const inputCls =
 export default function Contact() {
   const ref = useReveal<HTMLDivElement>()
   const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', phone: '', msg: '' })
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.msg.trim()) return
-    
-    // Save to database
-    submitContactMessage({
-      name: form.name,
-      phone: form.phone,
-      msg: form.msg,
-    }).catch((err) => console.warn('Contact sync note:', err))
-
-    try {
-      const raw = localStorage.getItem('kas-messages')
-      const prev = raw ? JSON.parse(raw) : []
-      localStorage.setItem(
-        'kas-messages',
-        JSON.stringify([{ ...form, createdAt: new Date().toISOString() }, ...prev])
-      )
-    } catch {
-      /* ignore */
+    if (sending) return
+    if (!form.name.trim() || !form.msg.trim()) {
+      setError('يرجى إدخال الاسم والرسالة')
+      return
     }
-    setSent(true)
-    setForm({ name: '', phone: '', msg: '' })
-    setTimeout(() => setSent(false), 5000)
+
+    setError('')
+    setSending(true)
+    try {
+      await submitContactMessage({
+        name: form.name,
+        phone: form.phone,
+        msg: form.msg,
+      })
+      // Only confirm once the server accepted it.
+      setSent(true)
+      setForm({ name: '', phone: '', msg: '' })
+      setTimeout(() => setSent(false), 5000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إرسال الرسالة. حاول مرة أخرى.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -145,11 +148,27 @@ export default function Contact() {
 
             <button
               type="submit"
-              className="btn-shine group mt-6 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand-600 py-4 font-cairo font-extrabold text-white shadow-xl shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
+              disabled={sending}
+              className="btn-shine group mt-6 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand-600 py-4 font-cairo font-extrabold text-white shadow-xl shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700 disabled:translate-y-0 disabled:bg-zinc-400 disabled:shadow-none"
             >
-              <Send className="h-5 w-5 transition-transform duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5" />
-              إرسال الرسالة
+              {sending ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  جارٍ الإرسال…
+                </>
+              ) : (
+                <>
+                  <Send className="h-5 w-5 transition-transform duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5" />
+                  إرسال الرسالة
+                </>
+              )}
             </button>
+
+            {error && (
+              <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-center text-sm font-bold text-brand-700">
+                {error}
+              </p>
+            )}
 
             {sent && (
               <p className="toast-in mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-600">

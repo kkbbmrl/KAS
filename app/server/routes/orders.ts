@@ -70,58 +70,53 @@ router.post('/', async (req, res) => {
     let subtotal = 0
     const itemsToInsert: any[] = []
 
-    if (Array.isArray(items) && items.length > 0) {
-      for (const item of items) {
-        const qty = Math.max(1, Number(item.quantity || item.qty || 1))
-        let unitPrice = Number(item.price || 0)
-        let prodId = item.productId || item.id
-        let varId = item.variantId
-        let prodName = item.name || 'قطعة غيار'
-        let partNum = item.partNumber || 'PART-AUTO'
-        let stockQty = 10
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'السلة فارغة — لا يمكن إنشاء طلب بدون قطع' })
+    }
 
-        // Look up db product/variant if available
-        if (prodId || varId) {
-          const varRes = await query(
-            `SELECT v.id AS "variantId", v.product_id AS "productId", v.price, v.part_number AS "partNumber", p.name_ar AS name, v.stock_quantity
-             FROM product_variants v
-             JOIN products p ON p.id = v.product_id
-             WHERE v.id = $1 OR v.product_id = $1 OR p.id = $1 OR p.sku = $2
-             LIMIT 1`,
-            [varId || prodId, `SKU-PRD-${prodId}`]
-          )
-          if (varRes.rows.length > 0) {
-            const v = varRes.rows[0]
-            unitPrice = v.price
-            prodId = v.productId
-            varId = v.variantId
-            prodName = v.name
-            partNum = v.partNumber
-            stockQty = v.stock_quantity || 0
-          }
-        }
+    for (const item of items) {
+      const qty = Math.max(1, Number(item.quantity || item.qty || 1))
+      const requestedId = item.variantId || item.productId || item.id
+      if (!requestedId) {
+        return res.status(400).json({ error: 'أحد عناصر السلة غير صالح (معرّف القطعة مفقود)' })
+      }
 
-        // If prodId is still not a UUID, grab any default product
-        if (!prodId || typeof prodId === 'number' || String(prodId).length < 20) {
-          const fallbackProd = await query(`SELECT id FROM products LIMIT 1`)
-          prodId = fallbackProd.rows[0]?.id
-        }
+      // Resolve against the real catalogue. Price and name come from the DB, not
+      // from the client, so a tampered payload cannot set its own price.
+      const varRes = await query(
+        `SELECT v.id AS "variantId", v.product_id AS "productId", v.price, v.part_number AS "partNumber",
+                p.name_ar AS name, v.stock_quantity AS "stockQuantity"
+         FROM product_variants v
+         JOIN products p ON p.id = v.product_id
+         WHERE v.id = $1 OR v.product_id = $1 OR p.id = $1 OR p.sku = $1
+         ORDER BY (v.id = $1) DESC, (v.product_id = $1) DESC
+         LIMIT 1`,
+        [String(requestedId)]
+      )
 
-        const lineTotal = unitPrice * qty
-        subtotal += lineTotal
-
-        itemsToInsert.push({
-          itemId: randomUUID(),
-          prodId,
-          varId,
-          prodName,
-          partNum,
-          unitPrice,
-          qty,
-          lineTotal,
-          stockQty,
+      if (varRes.rows.length === 0) {
+        // Never silently substitute a different product — that corrupts the order.
+        return res.status(400).json({
+          error: `القطعة المطلوبة غير متوفرة في الكتالوج (${item.name || requestedId})`,
         })
       }
+
+      const v = varRes.rows[0]
+      const unitPrice = Number(v.price) || 0
+      const lineTotal = unitPrice * qty
+      subtotal += lineTotal
+
+      itemsToInsert.push({
+        itemId: randomUUID(),
+        prodId: v.productId,
+        varId: v.variantId,
+        prodName: v.name,
+        partNum: v.partNumber || 'PART-AUTO',
+        unitPrice,
+        qty,
+        lineTotal,
+        stockQty: Number(v.stockQuantity) || 0,
+      })
     }
 
     const totalAmount = subtotal + shippingFee
@@ -158,7 +153,7 @@ router.post('/', async (req, res) => {
     for (const it of itemsToInsert) {
       if (it.varId) {
         await query(
-          `UPDATE product_variants SET stock_quantity = MAX(0, stock_quantity - $1) WHERE id = $2`,
+          `UPDATE product_variants SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2`,
           [it.qty, it.varId]
         )
         await query(

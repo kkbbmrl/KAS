@@ -5,14 +5,16 @@ import Logo from './Logo'
 import { useShop } from '@/context/ShopContext'
 import { PHONE_DISPLAY } from '@/data/products'
 
+// Hash targets live on the Home page, so they must be prefixed with "/" —
+// a bare "#brands" on /search or /ads resolves to nothing.
 const LINKS = [
-  { href: '#home', label: 'الرئيسية' },
-  { href: '#search', label: 'البحث' },
-  { href: '/themes', label: 'المنتجات' },
-  { href: '#brands', label: 'العلامات التجارية' },
-  { href: '#offers', label: 'العروض' },
-  { href: '#about', label: 'من نحن' },
-  { href: '#contact', label: 'اتصل بنا' },
+  { href: '/#home', label: 'الرئيسية' },
+  { href: '/#search', label: 'البحث' },
+  { href: '/themes', label: 'كتالوج قطع الغيار' },
+  { href: '/#brands', label: 'العلامات التجارية' },
+  { href: '/#offers', label: 'العروض' },
+  { href: '/#about', label: 'من نحن' },
+  { href: '/#contact', label: 'اتصل بنا' },
 ]
 
 export default function Navbar() {
@@ -104,28 +106,22 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* mobile menu */}
-      <div className={`overflow-hidden bg-white transition-all duration-500 lg:hidden ${open ? 'max-h-96 border-t border-zinc-100' : 'max-h-0'}`}>
-        <ul className="space-y-1 px-6 py-4">
+      {/* mobile menu — grid-rows transition instead of max-h so 7 links can never clip */}
+      <div
+        className={`grid overflow-hidden bg-white transition-all duration-500 lg:hidden ${
+          open ? 'grid-rows-[1fr] border-t border-zinc-100' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <ul className="min-h-0 space-y-1 overflow-hidden px-6 py-4">
           {LINKS.map((l, i) => (
             <li key={l.href} style={{ transitionDelay: `${i * 40}ms` }}>
-              {l.href.startsWith('/') ? (
-                <Link
-                  to={l.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
-                >
-                  {l.label}
-                </Link>
-              ) : (
-                <a
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
-                >
-                  {l.label}
-                </a>
-              )}
+              <Link
+                to={l.href}
+                onClick={() => setOpen(false)}
+                className="flex min-h-[44px] items-center rounded-lg px-3 font-semibold text-zinc-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
+              >
+                {l.label}
+              </Link>
             </li>
           ))}
         </ul>

@@ -17,6 +17,7 @@ import {
   fetchAdminInventoryTransactions,
 } from '@/lib/adminApi'
 import { formatPrice } from '@/data/products'
+import { resolveImageUrl } from '@/lib/api'
 
 export default function AdminInventory() {
   const [items, setItems] = useState<any[]>([])
@@ -271,7 +272,7 @@ export default function AdminInventory() {
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               {it.image && (
-                                <img src={it.image} alt={it.productName} className="h-10 w-10 rounded-xl object-contain bg-zinc-50 border p-1" />
+                                <img src={resolveImageUrl(it.image)} alt={it.productName} className="h-10 w-10 rounded-xl object-contain bg-zinc-50 border p-1" />
                               )}
                               <div>
                                 <p className="font-cairo font-black text-zinc-900">{it.productName}</p>

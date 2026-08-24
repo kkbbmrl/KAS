@@ -37,6 +37,7 @@ import {
   fetchAdminProducts,
 } from '@/lib/adminApi'
 import { formatPrice } from '@/data/products'
+import { resolveImageUrl } from '@/lib/api'
 
 // ─── PRESET CONVERSION THEMES ───
 // Theme definitions — each theme includes inline preview styles and preset copy
@@ -589,7 +590,7 @@ export default function AdminMarketing() {
                             <div className="flex items-center gap-3">
                               {l.image ? (
                                 <img
-                                  src={l.image}
+                                  src={resolveImageUrl(l.image)}
                                   alt={l.title}
                                   className="h-12 w-12 rounded-xl object-contain bg-zinc-50 p-1 border"
                                 />

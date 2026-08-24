@@ -29,6 +29,7 @@ import {
   uploadAdminImage,
 } from '@/lib/adminApi'
 import { formatPrice, CATEGORIES } from '@/data/products'
+import { resolveImageUrl } from '@/lib/api'
 
 interface SpecItem {
   label: string
@@ -662,7 +663,7 @@ export default function AdminProducts() {
                         <div className="flex items-center gap-3">
                           {p.image ? (
                             <img
-                              src={p.image}
+                              src={resolveImageUrl(p.image)}
                               alt={p.name}
                               className="h-12 w-12 rounded-xl object-contain bg-zinc-50 p-1 border"
                               onError={(e) => {
@@ -1063,7 +1064,7 @@ export default function AdminProducts() {
                         }`}
                       >
                         <img
-                          src={img.url}
+                          src={resolveImageUrl(img.url)}
                           alt="معاينة"
                           className="h-20 w-full rounded-lg object-contain bg-white"
                           onError={(e) => {

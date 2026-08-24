@@ -45,6 +45,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function resolveImageUrl(url?: string): string {
   if (!url) return ''
   if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+  if (url.startsWith('/img/')) {
+    return url
+  }
   const apiBase = RAW_API_URL || ''
   if (url.startsWith('/')) {
     return `${apiBase}${url}`

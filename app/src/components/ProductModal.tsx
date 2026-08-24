@@ -330,14 +330,20 @@ export default function ProductModal() {
             <div className="mt-5">
               <p className="font-cairo text-xs font-black text-zinc-800">السيارات المتوافقة:</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {(selectedVariant?.compat ?? p.compat).map((c) => (
-                  <span
-                    key={c}
-                    className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1 font-cairo text-xs font-bold text-zinc-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
-                  >
-                    {c}
+                {(selectedVariant?.compat ?? p.compat ?? []).length > 0 ? (
+                  (selectedVariant?.compat ?? p.compat ?? []).map((c) => (
+                    <span
+                      key={c}
+                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1 font-cairo text-xs font-bold text-zinc-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+                    >
+                      {c}
+                    </span>
+                  ))
+                ) : (
+                  <span className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1 font-cairo text-xs font-bold text-zinc-500">
+                    متوافقة مع عدة طرازات (يرجى التحقق برقم القطعة أو الهيكل)
                   </span>
-                ))}
+                )}
               </div>
             </div>
 

@@ -78,9 +78,15 @@ export default function ProductCard({
           {product.name}
         </h3>
 
-        <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">
-          متوافقة مع: {product.compat.slice(0, 2).join('، ')}{product.compat.length > 2 ? '…' : ''}
-        </p>
+        {Array.isArray(product.compat) && product.compat.length > 0 ? (
+          <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">
+            متوافقة مع: {product.compat.slice(0, 2).join('، ')}{product.compat.length > 2 ? '…' : ''}
+          </p>
+        ) : (
+          <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-400">
+            {product.category || 'قطع غيار سيارات أصلية'}
+          </p>
+        )}
 
         {/* stock status */}
         <div className="mt-3.5 flex items-center justify-between">

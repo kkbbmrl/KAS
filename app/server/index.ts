@@ -135,9 +135,12 @@ app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
 app.use('/api/v1/admin/marketing', requireAdmin, adminMarketingRouter)
 app.use('/api/v1/admin', requireAdmin, adminMiscRouter)
 
-// 404 handler for API routes
-app.use('/api/*', (_req, res) => {
-  res.status(404).json({ error: 'API endpoint not found' })
+// 404 handler for unmatched API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' })
+  }
+  next()
 })
 
 // Serve the built React frontend in production (if running unified)
@@ -145,8 +148,11 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist')
   if (fs.existsSync(distPath)) {
     app.use(express.static(distPath))
-    app.get(/^(?!\/api|\/uploads).*/, (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'))
+    app.use((req, res, next) => {
+      if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+        return res.sendFile(path.join(distPath, 'index.html'))
+      }
+      next()
     })
   }
 }

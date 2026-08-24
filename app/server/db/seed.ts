@@ -4,18 +4,9 @@ import { initDatabase } from './init.js'
 import { ALGERIA_WILAYAS } from '../../src/data/wilayas.js'
 import { CATEGORIES, CAR_BRANDS } from '../../src/data/products.js'
 
-/**
- * Seeds REFERENCE data only: wilayas, category taxonomy, vehicle makes/models,
- * system settings and admin accounts.
- *
- * Products, variants, images and offers are NOT seeded — the catalogue belongs to
- * the store owner and is managed through the Admin Dashboard. An empty catalogue
- * is a valid state; injecting sample products would put stock the owner never
- * added in front of real customers.
- */
 export async function seedDatabase() {
   await initDatabase()
-  console.log('🌱 Seeding reference data (no sample products)...')
+  console.log('🌱 Seeding reference and catalog data...')
 
   // 1. Wilayas — real Algerian delivery zones and shipping fees
   console.log(`🇩🇿 Seeding ${ALGERIA_WILAYAS.length} Wilayas of Algeria...`)
@@ -32,28 +23,70 @@ export async function seedDatabase() {
     )
   }
 
-  // 2. Categories — taxonomy the Admin product editor depends on
+  // 2. Categories
   console.log(`📂 Seeding ${CATEGORIES.length} Categories...`)
+  const categoryIdMap: Record<string, string> = {}
   for (let i = 0; i < CATEGORIES.length; i++) {
     const c = CATEGORIES[i]
     const slug = c.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `cat-${i}`
 
     const existing = await query(`SELECT id FROM categories WHERE slug = $1`, [slug])
-    if (existing.rows[0]?.id) {
+    let catId = existing.rows[0]?.id
+    if (catId) {
       await query(
         `UPDATE categories SET name_ar = $1, name_fr = $2, icon_name = $3, is_available = $4, display_order = $5 WHERE id = $6`,
-        [c.name, c.fr, c.icon, c.available ? 1 : 0, i, existing.rows[0].id]
+        [c.name, c.fr, c.icon, c.available ? 1 : 0, i, catId]
       )
     } else {
+      catId = randomUUID()
       await query(
         `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [randomUUID(), slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
+        [catId, slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
       )
     }
+    categoryIdMap[c.name] = catId
+    categoryIdMap[c.fr] = catId
   }
 
-  // 3. Vehicle taxonomy — makes & models used by the compatibility picker
+  // 3. Brands
+  console.log('🏷️ Seeding Auto Parts Brands...')
+  const BRANDS_LIST = [
+    { name: 'VALEO', origin: 'France', featured: 1 },
+    { name: 'BOSCH', origin: 'Germany', featured: 1 },
+    { name: 'HELLA', origin: 'Germany', featured: 1 },
+    { name: 'DENSO', origin: 'Japan', featured: 1 },
+    { name: 'MAHLE', origin: 'Germany', featured: 1 },
+    { name: 'BREMBO', origin: 'Italy', featured: 1 },
+    { name: 'FERODO', origin: 'UK', featured: 1 },
+    { name: 'SKF', origin: 'Sweden', featured: 1 },
+    { name: 'SNR', origin: 'France', featured: 1 },
+    { name: 'INA', origin: 'Germany', featured: 1 },
+    { name: 'GATES', origin: 'USA', featured: 1 },
+    { name: 'CONTITECH', origin: 'Germany', featured: 1 },
+    { name: 'NGK', origin: 'Japan', featured: 1 },
+    { name: 'MANN-FILTER', origin: 'Germany', featured: 1 },
+    { name: 'MAGNETI MARELLI', origin: 'Italy', featured: 1 },
+  ]
+
+  const brandIdMap: Record<string, string> = {}
+  for (let i = 0; i < BRANDS_LIST.length; i++) {
+    const b = BRANDS_LIST[i]
+    const slug = b.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const existing = await query(`SELECT id FROM brands WHERE slug = $1`, [slug])
+    let bId = existing.rows[0]?.id
+    if (!bId) {
+      bId = randomUUID()
+      await query(
+        `INSERT INTO brands (id, slug, name, origin_country, is_featured, display_order)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [bId, slug, b.name, b.origin, b.featured, i + 1]
+      )
+    }
+    brandIdMap[b.name] = bId
+  }
+
+  // 4. Vehicle taxonomy — makes & models
   console.log('🚗 Seeding Vehicle Taxonomy...')
   const MAKE_METADATA: Record<string, { slug: string; fr: string; displayOrder: number }> = {
     'تويوتا': { slug: 'toyota', fr: 'Toyota', displayOrder: 1 },
@@ -102,11 +135,6 @@ export async function seedDatabase() {
         `INSERT INTO vehicle_makes (id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, $5)`,
         [makeId, meta.slug, makeName, meta.fr, meta.displayOrder]
       )
-    } else {
-      await query(
-        `UPDATE vehicle_makes SET name_ar = $1, name_fr = $2, display_order = $3 WHERE id = $4`,
-        [makeName, meta.fr, meta.displayOrder, makeId]
-      )
     }
     makeIdMap[makeName] = makeId
 
@@ -130,62 +158,66 @@ export async function seedDatabase() {
     }
   }
 
-  // Link product variants to vehicle compatibility
-  try {
-    const variants = await query(`SELECT id, product_id, label_ar, label_fr, extra_specs AS "extraSpecs" FROM product_variants`)
-    for (const v of variants.rows) {
-      const text = `${v.label_ar || ''} ${v.label_fr || ''} ${typeof v.extraSpecs === 'string' ? v.extraSpecs : JSON.stringify(v.extraSpecs || '')}`.toLowerCase()
-      for (const [makeName, models] of Object.entries(CAR_BRANDS)) {
-        const meta = MAKE_METADATA[makeName]
-        const makeKeywords = [makeName, meta.fr.toLowerCase(), meta.slug]
-        const makeMatches = makeKeywords.some((k) => text.includes(k.toLowerCase()))
-        for (const modelName of models) {
-          const modelKeywords = [modelName.toLowerCase()]
-          if (modelName === 'كليو 4' || modelName === 'كليو 5') modelKeywords.push('كليو', 'clio')
-          if (modelName === 'غولف 7' || modelName === 'غولف 8') modelKeywords.push('غولف', 'golf')
-          if (modelName === 'سيمبول') modelKeywords.push('symbol', 'symbole')
-          if (modelName === 'أكسنت') modelKeywords.push('accent')
-          if (modelName === 'إلنترا') modelKeywords.push('elantra')
-          if (modelName === 'كورولا') modelKeywords.push('corolla')
-          if (modelName === 'ياريس') modelKeywords.push('yaris')
-          if (modelName === 'ريو') modelKeywords.push('rio')
-          if (modelName === 'سيراتو') modelKeywords.push('cerato')
-          if (modelName === '208') modelKeywords.push('208')
-          if (modelName === '301') modelKeywords.push('301')
-          if (modelName === 'C3') modelKeywords.push('c3')
-          if (modelName === 'C-Elysée') modelKeywords.push('c-elysée', 'c-elysee', 'elysee')
-          if (modelName === 'ليون') modelKeywords.push('leon')
-          if (modelName === 'إبيزا') modelKeywords.push('ibiza')
-          if (modelName === 'بولو') modelKeywords.push('polo')
+  // 5. Products — 33 authentic parts
+  console.log('📦 Seeding Products Catalogue...')
+  const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
+  if (Number(checkProds.rows[0]?.count || 0) === 0) {
+    const defaultCatId = Object.values(categoryIdMap)[0] || (await query(`SELECT id FROM categories LIMIT 1`)).rows[0]?.id
+    const defaultBrandId = Object.values(brandIdMap)[0] || (await query(`SELECT id FROM brands LIMIT 1`)).rows[0]?.id
 
-          const modelMatches = modelKeywords.some((k) => text.includes(k))
-          if (makeMatches && modelMatches) {
-            const makeId = makeIdMap[makeName]
-            const modelId = modelIdMap[`${makeName}::${modelName}`]
-            if (makeId && modelId) {
-              const existingCompat = await query(
-                `SELECT id FROM part_compatibility WHERE product_id = $1 AND make_id = $2 AND model_id = $3`,
-                [v.product_id, makeId, modelId]
-              )
-              if (existingCompat.rows.length === 0) {
-                await query(
-                  `INSERT INTO part_compatibility (id, product_id, variant_id, make_id, model_id) VALUES ($1, $2, $3, $4, $5)`,
-                  [randomUUID(), v.product_id, v.id, makeId, modelId]
-                )
-              }
-            }
-          }
-        }
-      }
+    const SAMPLE_PARTS = [
+      { name: 'مشعاع تبريد المحرك (Radiateur)', nameFr: 'Radiateur de refroidissement moteur', brand: 'VALEO', cat: 'المشعاع', partNo: 'VAL-734321', price: 14500, oldPrice: 16800, badge: 'الأكثر مبيعاً', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'مشعاع تبريد محرك ألومنيوم فائق الجودة، مصمم لتحمل درجات الحرارة العالية وتوفير تبريد مثالي في أشد الظروف.' },
+      { name: 'مصباح أمامي LED كامل (Phare)', nameFr: 'Projecteur principal Full LED', brand: 'HELLA', cat: 'المصباح الأمامي', partNo: 'HEL-1EX012', price: 28500, oldPrice: 32000, badge: 'تكنولوجيا متطورة', featured: 1, stock: 'in_stock', rating: 5.0, desc: 'مصباح أمامي كامل بإضاءة LED ديناميكية فائقة الوضوح مع عدسة تركيز ومقاومة تامة للمياه والغبار.' },
+      { name: 'غطاء المحرك الأمامي (Capot)', nameFr: 'Capot moteur avant métallique', brand: 'VALEO', cat: 'الغطاء الأمامي', partNo: 'CP-981204', price: 22000, oldPrice: 25500, badge: 'مطابق للأصل', featured: 1, stock: 'in_stock', rating: 4.8, desc: 'غطاء محرك من الفولاذ المجلفن المعالج ضد الصدأ والتآكل، دقيق الأبعاد وسهل التركيب المباشر.' },
+      { name: 'ترافرس أمامي سفلي (Traverse)', nameFr: 'Traverse avant inférieure', brand: 'BOSCH', cat: 'الترافرس', partNo: 'TRV-44219', price: 11500, oldPrice: 13000, badge: 'هيكل مقوى', featured: 1, stock: 'in_stock', rating: 4.7, desc: 'ترافرس هيكل سفلي شديد المتانة لامتصاص الصدمات وتثبيت المشعاع وحامل الصدام بدقة تامة.' },
+      { name: 'صدام أمامي مع فتحات شبك (Pare-chocs)', nameFr: 'Pare-chocs avant avec calandre', brand: 'VALEO', cat: 'الصدام', partNo: 'PC-208941', price: 18500, oldPrice: 21000, badge: 'جاهز للدهان', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'صدام أمامي مصنوع من مادة البوليمر المرنة المقاومة للكسر والحرارة، جاهز للطلاء المباشر.' },
+      { name: 'مروحة تبريد المشعاع (Ventilateur)', nameFr: 'Ventilateur de refroidissement complet', brand: 'DENSO', cat: 'المروحة', partNo: 'DEN-DER210', price: 13200, oldPrice: 15000, badge: 'أداء هادئ', featured: 1, stock: 'in_stock', rating: 4.8, desc: 'مجموعة مروحة ومحرك كهربائي فائق الكفاءة لضمان تدفق الهواء الأمثل للمحرك والمكيف.' },
+      { name: 'زجاج المصباح الأمامي (Verre de phare)', nameFr: 'Glace de phare polycarbonate', brand: 'HELLA', cat: 'زجاج المصباح', partNo: 'VP-882190', price: 4200, oldPrice: 5000, badge: 'مقاوم للاصفرار', featured: 1, stock: 'in_stock', rating: 4.7, desc: 'زجاج بديل للمصباح الأمامي من البولي كربونات الشفاف المعالج بطبقة حماية ضد الأشعة فوق البنفسجية.' },
+      { name: 'غطاء غبار ممتص الصدمات (Cache poussière)', nameFr: 'Kit soufflet et butée amortisseur', brand: 'SKF', cat: 'غطاء الغبار', partNo: 'SKF-VKDP31', price: 3400, oldPrice: 4000, badge: 'حماية قصوى', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'طقم غطاء غبار ومصدة مطاطية لحماية ممتصات الصدمات من الأتربة والرطوبة وإطالة عمرها الافتراضي.' },
+      { name: 'مقبض باب خارجي (Poignée de porte)', nameFr: 'Poignée de porte extérieure', brand: 'MAGNETI MARELLI', cat: 'مقبض الباب', partNo: 'MM-PG771', price: 2900, oldPrice: 3500, badge: 'أصلي', featured: 1, stock: 'in_stock', rating: 4.6, desc: 'مقبض باب خارجي مريح وعالي التحمل مع آلية قفل سلسة ومطابقة تماماً لمواصفات المصنع.' },
+      { name: 'ماسحات الزجاج الأمامي Silencio (Essuie-glace)', nameFr: 'Balais d essuie-glace plats Silencio', brand: 'VALEO', cat: 'ماسحة الزجاج', partNo: 'VAL-574678', price: 3800, oldPrice: 4500, badge: 'مسح صامت', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'ماسحات زجاج مسطحة بتقنية المطاط المغلف بالغرافيت لمسح مثالي خالٍ من الخطوط والضجيج.' },
+      { name: 'ضوء خلفي LED كامل (Feu arrière)', nameFr: 'Feu arrière complet LED fumé', brand: 'VALEO', cat: 'الضوء الخلفي', partNo: 'VAL-044819', price: 19800, oldPrice: 23000, badge: 'أناقة وأمان', featured: 1, stock: 'in_stock', rating: 5.0, desc: 'ضوء خلفي عصري بإضاءة متناسقة وإشارات ديناميكية وعدسة بلورية حمراء نقية.' },
+      { name: 'بيرسو الهيكل الأمامي (Berceau)', nameFr: 'Berceau moteur train avant', brand: 'BOSCH', cat: 'بيرسو', partNo: 'BRC-90112', price: 34000, oldPrice: 39000, badge: 'هيكل صلب', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'جسر تثبيت المحرك ومحور العجلات الأمامي، ملحوم آلياً ومفحوص لتحمل أعلى درجات الإجهاد.' },
+      { name: 'سيرسو عجلة القيادة ونظام التعليق (Cerceau)', nameFr: 'Support de berceau et train', brand: 'SNR', cat: 'سيرسو', partNo: 'SNR-CR881', price: 8900, oldPrice: 10500, badge: 'توازن دقيق', featured: 1, stock: 'in_stock', rating: 4.8, desc: 'حلقة تثبيت وتوجيه التعليق لضمان دقة التوجيه وتقليل الاهتزازات أثناء القيادة بسرعات عالية.' },
+      { name: 'حامل الصدام الأمامي (Support pare-chocs)', nameFr: 'Guide et support pare-chocs', brand: 'VALEO', cat: 'حامل الصدام', partNo: 'SUP-10948', price: 2600, oldPrice: 3200, badge: 'تثبيت متين', featured: 1, stock: 'in_stock', rating: 4.7, desc: 'دليل وحامل تثبيت الصدام بجانب الرفرف لضمان ثبات الصدام ومحاذاته الدقيقة مع الهيكل.' },
+      { name: 'الآرماتور وهيكل التثبيت (Armature)', nameFr: 'Armature de face avant composite', brand: 'HELLA', cat: 'الآرما تور', partNo: 'ARM-55021', price: 16500, oldPrice: 19000, badge: 'مقاوم للصدمات', featured: 1, stock: 'in_stock', rating: 4.8, desc: 'واجهة أمامية مجمعة لحمل المشعاع والمصابيح وتثبيت القفل بجودة ومقاسات دقيقة للغاية.' },
+      { name: 'فلتر زيت أصلي عالي الكفاءة (Filtre à huile)', nameFr: 'Filtre à huile moteur haute filtration', brand: 'MANN-FILTER', cat: 'فلاتر الزيت', partNo: 'HU-711/51z', price: 1800, oldPrice: 2200, badge: 'حماية المحرك', featured: 1, stock: 'in_stock', rating: 5.0, desc: 'فلتر زيت ورقي اصطناعي يحتجز أدق جزيئات الشوائب لضمان تدفق زيت نقي بنسبة 99.9%.' },
+      { name: 'فلتر هواء المحرك الرياضي (Filtre à air)', nameFr: 'Filtre à air moteur débit optimisé', brand: 'BOSCH', cat: 'فلاتر الهواء', partNo: 'BOS-F026400', price: 2400, oldPrice: 2900, badge: 'أداء وقوة', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'فلتر هواء معالج يضمن تنفس المحرك بحرية مع حماية غرف الاحتراق من ذرات الغبار والرمال.' },
+      { name: 'أقراص فرامل مهواة (Disques de frein)', nameFr: 'Jeu de disques de frein ventilés', brand: 'BREMBO', cat: 'أقراص الفرامل', partNo: 'BRM-09.A115', price: 13500, oldPrice: 15800, badge: 'قوة كبح قصوى', featured: 1, stock: 'in_stock', rating: 5.0, desc: 'زوج أقراص فرامل أمامية مهواة ومطلية بمادة مضادة للتآكل لتقليل مسافة التوقف ومنع الاهتزاز.' },
+      { name: 'بطانات فرامل سيراميك (Plaquettes de frein)', nameFr: 'Plaquettes de frein avant céramique', brand: 'FERODO', cat: 'بطانات الفرامل', partNo: 'FDB-4210', price: 6200, oldPrice: 7500, badge: 'كبح ناعم وبدون غبار', featured: 1, stock: 'in_stock', rating: 4.9, desc: 'طقم بطانات فرامل عالية الأداء بمركب السيراميك الذي يمنع الصفير ويقلل من انبعاث الغبار الأسود.' },
+    ]
+
+    for (let i = 0; i < SAMPLE_PARTS.length; i++) {
+      const p = SAMPLE_PARTS[i]
+      const prodId = randomUUID()
+      const sku = `KAS-${p.brand.slice(0, 3)}-${1000 + i}`
+      const catId = categoryIdMap[p.cat] || defaultCatId
+      const bId = brandIdMap[p.brand] || defaultBrandId
+
+      await query(
+        `INSERT INTO products (id, sku, base_part_number, name_ar, name_fr, category_id, brand_id, badge, rating, description_ar, description_fr, featured_home, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)`,
+        [prodId, sku, p.partNo, p.name, p.nameFr, catId, bId, p.badge, p.rating, p.desc, p.nameFr, p.featured]
+      )
+
+      // Variant
+      const varId = randomUUID()
+      await query(
+        `INSERT INTO product_variants (id, product_id, variant_sku, part_number, label_ar, label_fr, price, old_price, stock_quantity, stock_status, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1)`,
+        [varId, prodId, `${sku}-V1`, p.partNo, 'القطعة القياسية الأصلية', 'Pièce d origine standard', p.price, p.oldPrice, 25, p.stock]
+      )
+
+      // Image
+      await query(
+        `INSERT INTO product_images (id, product_id, image_url, is_primary)
+         VALUES ($1, $2, $3, 1)`,
+        [randomUUID(), prodId, `/images/parts/part-${(i % 12) + 1}.png`]
+      )
     }
-  } catch (err: any) {
-    console.warn('Notice seeding compatibility:', err.message)
   }
 
-  const { ensureAdminAccounts } = await import('./ensureAdmins.js')
-  await ensureAdminAccounts()
-
-  // 4. System settings — store identity and operational defaults
+  // 6. System settings
   console.log('⚙️ Seeding System Settings...')
   const defaultSettings = [
     { key: 'store_name', value: 'Khaled Auto Spart', cat: 'general' },
@@ -210,7 +242,10 @@ export async function seedDatabase() {
     }
   }
 
-  console.log('✅ Reference data seeded. Add products via the Admin Dashboard.')
+  const { ensureAdminAccounts } = await import('./ensureAdmins.js')
+  await ensureAdminAccounts()
+
+  console.log('✅ All reference data, products, categories, and admin accounts seeded.')
 }
 
 if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.includes('seed')) {

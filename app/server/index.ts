@@ -56,34 +56,10 @@ const configuredOrigins = rawOrigins.map((s) => s.trim()).filter(Boolean)
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (curl, mobile apps, same-origin)
-      if (!origin) return callback(null, true)
-
-      // Match explicit configured origins or wildcard
-      if (configuredOrigins.includes('*') || configuredOrigins.includes(origin)) {
-        return callback(null, true)
-      }
-
-      // Allow Vercel preview and production deployments for KAS
-      if (
-        /^https:\/\/kas-git-main-kkbbmrls-projects\.vercel\.app$/i.test(origin) ||
-        /^https:\/\/kas-[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
-        /^https:\/\/.*\.vercel\.app$/i.test(origin) ||
-        /^http:\/\/localhost:\d+$/i.test(origin) ||
-        /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin)
-      ) {
-        return callback(null, true)
-      }
-
-      // If in dev, be lenient
-      if (process.env.NODE_ENV !== 'production') {
-        return callback(null, true)
-      }
-
-      return callback(null, false)
-    },
+    origin: true,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   })
 )
 

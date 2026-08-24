@@ -248,11 +248,3 @@ export async function seedDatabase() {
   console.log('✅ All reference data, products, categories, and admin accounts seeded.')
 }
 
-if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.includes('seed')) {
-  seedDatabase()
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error('❌ Seed failed:', err)
-      process.exit(1)
-    })
-}

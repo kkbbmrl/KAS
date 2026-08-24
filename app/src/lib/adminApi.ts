@@ -1,6 +1,10 @@
-// Dedicated Type-Safe Admin API Client
-// In production (Vercel), VITE_API_URL must be set to the Railway backend URL e.g. https://your-app.up.railway.app
-const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/v1/admin`
+const RAW_API_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://kas-production-01e9.up.railway.app'
+    : '')
+
+const API_BASE = `${RAW_API_URL}/api/v1/admin`
 
 function getAuthHeaders() {
   const token = localStorage.getItem('kas_admin_token') || ''

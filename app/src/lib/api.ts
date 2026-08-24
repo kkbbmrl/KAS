@@ -2,7 +2,13 @@ import type { Product } from '@/data/products'
 import type { Wilaya } from '@/data/wilayas'
 import type { OfferProduct } from '@/data/offers'
 
-const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/v1`
+const RAW_API_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://kas-production-01e9.up.railway.app'
+    : '')
+
+const API_BASE = `${RAW_API_URL}/api/v1`
 
 export class ApiError extends Error {
   status: number
@@ -39,7 +45,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function resolveImageUrl(url?: string): string {
   if (!url) return ''
   if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
-  const apiBase = import.meta.env.VITE_API_URL || ''
+  const apiBase = RAW_API_URL || ''
   if (url.startsWith('/')) {
     return `${apiBase}${url}`
   }

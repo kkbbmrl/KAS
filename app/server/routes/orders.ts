@@ -123,6 +123,7 @@ router.post('/', async (req, res) => {
         partNum = item.partNumber || v.partNumber || 'PART-AUTO'
         unitPrice = item.price ? Number(item.price) : Number(v.price) || 0
         stockQty = Number(v.stockQuantity) || 0
+      } else {
         const prodCheck = await query(
           `SELECT p.id, p.name_ar, p.base_part_number, COALESCE(v.price, 0) AS price, v.id AS "variantId"
            FROM products p
@@ -154,7 +155,12 @@ router.post('/', async (req, res) => {
             partNum = item.partNumber || p.base_part_number || 'PART-AUTO'
             unitPrice = item.price ? Number(item.price) : Number(p.price) || 0
           } else {
-            prodId = String(requestedId || randomUUID())
+            const offerProd = await query(`SELECT product_id FROM landing_offers LIMIT 1`)
+            if (offerProd.rows.length > 0 && offerProd.rows[0].product_id) {
+              prodId = offerProd.rows[0].product_id
+            } else {
+              prodId = String(requestedId || randomUUID())
+            }
           }
         }
       }

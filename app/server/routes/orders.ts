@@ -123,23 +123,33 @@ router.post('/', async (req, res) => {
         partNum = item.partNumber || v.partNumber || 'PART-AUTO'
         unitPrice = item.price ? Number(item.price) : Number(v.price) || 0
         stockQty = Number(v.stockQuantity) || 0
-      } else {
         const prodCheck = await query(
-          `SELECT id, name_ar, base_part_number, price FROM products WHERE id = $1 OR sku = $1 OR base_part_number = $1 LIMIT 1`,
+          `SELECT p.id, p.name_ar, p.base_part_number, COALESCE(v.price, 0) AS price, v.id AS "variantId"
+           FROM products p
+           LEFT JOIN product_variants v ON v.product_id = p.id
+           WHERE p.id = $1 OR p.sku = $1 OR p.base_part_number = $1
+           LIMIT 1`,
           [String(requestedId || '')]
         )
         if (prodCheck.rows.length > 0) {
           const p = prodCheck.rows[0]
           prodId = p.id
+          varId = p.variantId || null
           prodName = item.name || p.name_ar
           partNum = item.partNumber || p.base_part_number || 'PART-AUTO'
           unitPrice = item.price ? Number(item.price) : Number(p.price) || 0
         } else {
           // Fallback to first existing product to satisfy Foreign Key constraint
-          const firstProd = await query(`SELECT id, name_ar, base_part_number, price FROM products LIMIT 1`)
+          const firstProd = await query(
+            `SELECT p.id, p.name_ar, p.base_part_number, COALESCE(v.price, 0) AS price, v.id AS "variantId"
+             FROM products p
+             LEFT JOIN product_variants v ON v.product_id = p.id
+             LIMIT 1`
+          )
           if (firstProd.rows.length > 0) {
             const p = firstProd.rows[0]
             prodId = p.id
+            varId = p.variantId || null
             prodName = item.name || p.name_ar
             partNum = item.partNumber || p.base_part_number || 'PART-AUTO'
             unitPrice = item.price ? Number(item.price) : Number(p.price) || 0

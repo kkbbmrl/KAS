@@ -249,57 +249,25 @@ export async function seedPartCompatibility() {
   
   const makes = await query(`SELECT id, slug, name_ar AS "nameAr" FROM vehicle_makes`)
   const models = await query(`SELECT id, make_id AS "makeId", slug, name_ar AS "nameAr" FROM vehicle_models`)
-  
-  const modelLookup: Record<string, { makeId: string; modelId: string }> = {}
-  for (const m of models.rows) {
-    const mk = makes.rows.find((k: any) => k.id === m.makeId)
-    if (mk) {
-      modelLookup[`${mk.nameAr}::${m.nameAr}`] = { makeId: mk.id, modelId: m.id }
-      modelLookup[`${mk.slug}::${m.slug}`] = { makeId: mk.id, modelId: m.id }
-      modelLookup[m.nameAr] = { makeId: mk.id, modelId: m.id }
-      modelLookup[m.slug] = { makeId: mk.id, modelId: m.id }
-    }
-  }
-
   const prods = await query(`SELECT id, name_ar AS name, category_id AS "categoryId" FROM products`)
-  if (prods.rows.length === 0) return
-
-  const POPULAR_MODELS = [
-    { make: 'رينو', models: ['كليو 4', 'كليو 5', 'سيمبول', 'ميغان 4', 'داستر', 'كابتور'] },
-    { make: 'بيجو', models: ['208', '301', '2008', '308', '3008'] },
-    { make: 'فولكسفاغن', models: ['غولف 7', 'غولف 8', 'بولو', 'باسات', 'كادي'] },
-    { make: 'داسيا', models: ['لوغان', 'سانديرو', 'ستيبواي', 'داستر'] },
-    { make: 'هيونداي', models: ['أكسنت', 'إلنترا', 'i20', 'i30', 'توسان'] },
-    { make: 'تويوتا', models: ['كورولا', 'ياريس', 'هيلوكس', 'راف 4'] },
-    { make: 'كيا', models: ['ريو', 'سيراتو', 'بيكانتو', 'سبورتاج'] },
-    { make: 'سيات', models: ['ليون', 'إبيزا', 'أرونا'] },
-    { make: 'سيتروين', models: ['C3', 'C-Elysée', 'C4', 'برلينغو'] },
-    { make: 'فورد', models: ['فييستا', 'فوكس'] },
-    { make: 'مرسيدس', models: ['Class A', 'Class C', 'GLA'] },
-    { make: 'BMW', models: ['الفئة 1', 'الفئة 3', 'X1'] },
-    { make: 'نيسان', models: ['صني', 'ميكرا', 'قشقاي'] },
-    { make: 'سكودا', models: ['أوكتافيا', 'فابيا'] }
-  ]
+  
+  if (prods.rows.length === 0 || models.rows.length === 0) return
 
   for (const prod of prods.rows) {
-    for (const group of POPULAR_MODELS) {
-      for (const modelName of group.models) {
-        const entry = modelLookup[`${group.make}::${modelName}`] || modelLookup[modelName]
-        if (entry) {
-          const exists = await query(
-            `SELECT id FROM part_compatibility WHERE product_id = $1 AND make_id = $2 AND model_id = $3`,
-            [prod.id, entry.makeId, entry.modelId]
-          )
-          if (exists.rows.length === 0) {
-            await query(
-              `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
-              [randomUUID(), prod.id, entry.makeId, entry.modelId]
-            )
-          }
-        }
+    for (const model of models.rows) {
+      const exists = await query(
+        `SELECT id FROM part_compatibility WHERE product_id = $1 AND model_id = $2`,
+        [prod.id, model.id]
+      )
+      if (exists.rows.length === 0) {
+        await query(
+          `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
+          [randomUUID(), prod.id, model.makeId, model.id]
+        )
       }
     }
   }
 
-  console.log('✅ Vehicle compatibility successfully linked for all products.')
+  const countRes = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
+  console.log(`✅ Total vehicle compatibility links: ${countRes.rows[0]?.count || 0}`)
 }

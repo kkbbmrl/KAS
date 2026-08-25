@@ -12,7 +12,6 @@ import {
   Search,
   Sparkles,
   Star,
-  Tag,
   Trash2,
   Upload,
   X,
@@ -419,10 +418,6 @@ export default function AdminProducts() {
     })
     setCustomModelText('')
     setVariantPriceInput('')
-  }
-
-  const handleAddVariant = () => {
-    handleAddCarVariant()
   }
 
   const handleRemoveVariant = (index: number) => {

@@ -62,22 +62,24 @@ router.post('/campaigns', async (req, res) => {
   }
 })
 
+let marketingColumnsEnsured = false
 async function ensureMarketingColumns() {
-  try {
-    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS theme_id TEXT DEFAULT 'oem-factory'`)
-  } catch {}
-  try {
-    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS fb_pixel_id TEXT`)
-  } catch {}
-  try {
-    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS tiktok_pixel_id TEXT`)
-  } catch {}
-  try {
-    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS google_tag_id TEXT`)
-  } catch {}
-  try {
-    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS snap_pixel_id TEXT`)
-  } catch {}
+  if (marketingColumnsEnsured) return
+  const columnsToAdd = [
+    `ALTER TABLE landing_offers ADD COLUMN theme_id TEXT DEFAULT 'oem-factory'`,
+    `ALTER TABLE landing_offers ADD COLUMN fb_pixel_id TEXT`,
+    `ALTER TABLE landing_offers ADD COLUMN tiktok_pixel_id TEXT`,
+    `ALTER TABLE landing_offers ADD COLUMN google_tag_id TEXT`,
+    `ALTER TABLE landing_offers ADD COLUMN snap_pixel_id TEXT`,
+  ]
+
+  for (const sql of columnsToAdd) {
+    try {
+      await query(sql)
+    } catch {
+      // Column already exists or handled safely
+    }
+  }
 
   try {
     await query(`
@@ -146,12 +148,14 @@ async function ensureMarketingColumns() {
   } catch (seedErr) {
     console.warn('Notice seeding initial landing offer:', seedErr)
   }
+  marketingColumnsEnsured = true
 }
 ensureMarketingColumns()
 
 // GET /api/v1/admin/marketing/landing-pages
 router.get('/landing-pages', async (_req, res) => {
   try {
+    await ensureMarketingColumns()
     const result = await query(
       `SELECT 
         l.id, l.slug, l.product_id AS "productId", l.title_ar AS title, l.title_ar AS "titleAr",

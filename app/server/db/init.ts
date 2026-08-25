@@ -178,6 +178,11 @@ export async function initDatabase() {
         custom_price REAL,
         custom_old_price REAL,
         hero_image_url TEXT,
+        theme_id TEXT DEFAULT 'oem-factory',
+        fb_pixel_id TEXT,
+        tiktok_pixel_id TEXT,
+        google_tag_id TEXT,
+        snap_pixel_id TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP

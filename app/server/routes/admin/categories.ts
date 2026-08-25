@@ -70,19 +70,85 @@ router.put('/:id', async (req, res) => {
   }
 })
 
+// PUT /api/v1/admin/categories/:id/toggle-available
+router.put('/:id/toggle-available', async (req, res) => {
+  try {
+    const { id } = req.params
+    const cat = await query(`SELECT is_available FROM categories WHERE id = $1`, [id])
+    if (cat.rows.length === 0) return res.status(404).json({ error: 'القسم غير موجود' })
+
+    const cur = cat.rows[0].is_available
+    const newStatus = cur === 1 || cur === true ? 0 : 1
+    await query(`UPDATE categories SET is_available = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [newStatus, id])
+    res.json({ success: true, isAvailable: Boolean(newStatus), message: newStatus ? 'تم تفعيل القسم' : 'تم تعطيل القسم' })
+  } catch (err: any) {
+    console.error('Error toggling category availability:', err)
+    res.status(500).json({ error: 'فشل تغيير حالة القسم' })
+  }
+})
+
+// POST /api/v1/admin/categories/sync-defaults
+router.post('/sync-defaults', async (_req, res) => {
+  try {
+    const { CATEGORIES } = await import('../../src/data/products.js')
+    let synced = 0
+    for (let i = 0; i < CATEGORIES.length; i++) {
+      const c = CATEGORIES[i]
+      const slug = c.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `cat-${i}`
+      const existing = await query(`SELECT id FROM categories WHERE slug = $1 OR name_ar = $2 OR name_fr = $3 LIMIT 1`, [slug, c.name, c.fr])
+      if (existing.rows.length > 0) {
+        await query(
+          `UPDATE categories SET name_ar = $1, name_fr = $2, icon_name = $3, is_available = $4, display_order = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
+          [c.name, c.fr, c.icon, c.available ? 1 : 0, i, existing.rows[0].id]
+        )
+      } else {
+        await query(
+          `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [randomUUID(), slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
+        )
+      }
+      synced++
+    }
+    res.json({ success: true, message: `تمت مزامنة واستعادة ${synced} قسم قياسي بنجاح` })
+  } catch (err: any) {
+    console.error('Error syncing categories:', err)
+    res.status(500).json({ error: 'فشل مزامنة الأقسام القياسية' })
+  }
+})
+
 // DELETE /api/v1/admin/categories/:id
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const prodsCount = await query(`SELECT COUNT(*) AS count FROM products WHERE category_id = $1`, [id])
-    if (Number(prodsCount.rows[0]?.count || 0) > 0) {
-      return res.status(400).json({ error: 'لا يمكن حذف الفئة لأنها تحتوي على منتجات مرتبطة' })
+    const { reassignTo, force } = req.query as { reassignTo?: string; force?: string }
+
+    const prodsCountRes = await query(`SELECT COUNT(*) AS count FROM products WHERE category_id = $1`, [id])
+    const count = Number(prodsCountRes.rows[0]?.count || 0)
+
+    if (count > 0) {
+      if (reassignTo) {
+        await query(`UPDATE products SET category_id = $1 WHERE category_id = $2`, [reassignTo, id])
+      } else if (force === 'true') {
+        const fallback = await query(`SELECT id FROM categories WHERE id != $1 ORDER BY display_order ASC LIMIT 1`, [id])
+        if (fallback.rows.length > 0) {
+          await query(`UPDATE products SET category_id = $1 WHERE category_id = $2`, [fallback.rows[0].id, id])
+        } else {
+          await query(`UPDATE products SET category_id = NULL WHERE category_id = $1`, [id])
+        }
+      } else {
+        return res.status(400).json({
+          error: `لا يمكن حذف هذا القسم مباشرة لأنه يحتوي على ${count} منتج مرتبط.`,
+          hasProducts: true,
+          productsCount: count,
+        })
+      }
     }
 
     await query(`DELETE FROM categories WHERE id = $1`, [id])
-    res.json({ success: true, message: 'تم حذف الفئة بنجاح' })
+    res.json({ success: true, message: 'تم حذف القسم بنجاح' })
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to delete category' })
+    console.error('Error deleting category:', err)
+    res.status(500).json({ error: 'فشل حذف القسم' })
   }
 })
 

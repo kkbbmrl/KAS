@@ -303,14 +303,47 @@ export async function updateAdminCategory(id: string, data: any) {
   return await res.json()
 }
 
-export async function deleteAdminCategory(id: string) {
-  const res = await fetch(`${API_BASE}/categories/${id}`, {
+export async function deleteAdminCategory(id: string, options?: { reassignTo?: string; force?: boolean }) {
+  let url = `${API_BASE}/categories/${id}`
+  const q: string[] = []
+  if (options?.reassignTo) q.push(`reassignTo=${encodeURIComponent(options.reassignTo)}`)
+  if (options?.force) q.push(`force=true`)
+  if (q.length > 0) url += `?${q.join('&')}`
+
+  const res = await fetch(url, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || 'Failed to delete category')
+    const error: any = new Error(err.error || 'Failed to delete category')
+    error.hasProducts = err.hasProducts
+    error.productsCount = err.productsCount
+    throw error
+  }
+  return await res.json()
+}
+
+export async function toggleAdminCategoryAvailable(id: string) {
+  const res = await fetch(`${API_BASE}/categories/${id}/toggle-available`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to toggle category availability')
+  }
+  return await res.json()
+}
+
+export async function syncAdminDefaultCategories() {
+  const res = await fetch(`${API_BASE}/categories/sync-defaults`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to sync default categories')
   }
   return await res.json()
 }

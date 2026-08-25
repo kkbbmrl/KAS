@@ -73,7 +73,7 @@ export default function FeaturedProducts() {
   }, [featuredProducts, activeCategory, inStockOnly])
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden bg-white py-16 sm:py-24" dir="rtl">
+    <section id="products" ref={sectionRef} className="relative scroll-mt-24 overflow-hidden bg-white py-16 sm:py-24" dir="rtl">
       {/* Subtle Background Glow */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-brand-50/50 to-transparent" />
 

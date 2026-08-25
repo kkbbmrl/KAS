@@ -356,6 +356,7 @@ export default function AdminMarketing() {
           googleTagId: details.googleTagId || '',
           snapPixelId: details.snapPixelId || '',
         })
+        setSelectedTheme(details.themeId || details.theme || 'oem-factory')
         if (details.productId) {
           const match = products.find((p) => p.id === details.productId)
           if (match) setSelectedProduct(match)
@@ -381,11 +382,17 @@ export default function AdminMarketing() {
       if (!form.slug.trim()) throw new Error('يرجى تحديد رابط فرعي Slug صالح')
       if (!form.customPrice || form.customPrice <= 0) throw new Error('يرجى تحديد سعر بيع صحيح')
 
+      const payload = {
+        ...form,
+        themeId: selectedTheme,
+        theme: selectedTheme,
+      }
+
       if (editOfferId) {
-        await updateAdminLandingPage(editOfferId, form)
+        await updateAdminLandingPage(editOfferId, payload)
         setBuilderSuccess('تم تحديث وحفظ صفحة الهبوط بنجاح!')
       } else {
-        await createAdminLandingPage(form)
+        await createAdminLandingPage(payload)
         setBuilderSuccess('تم إنشاء ونشر صفحة الهبوط الجديدة بنجاح!')
       }
       await loadData()

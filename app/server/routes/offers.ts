@@ -11,7 +11,10 @@ router.get('/', async (_req, res) => {
         o.id, o.slug, o.product_id AS "productId", o.title_ar AS title, o.subtitle_ar AS subtitle,
         o.title_fr AS "nameFr", o.badge_text AS badge, o.urgency_text AS "urgencyText",
         o.delivery_note AS "deliveryNote", o.custom_price AS price, o.custom_old_price AS "oldPrice",
-        o.hero_image_url AS image, p.base_part_number AS "partNumber", b.name AS brand
+        o.hero_image_url AS image, COALESCE(o.theme_id, 'oem-factory') AS theme,
+        o.fb_pixel_id AS "fbPixelId", o.tiktok_pixel_id AS "tiktokPixelId",
+        o.google_tag_id AS "googleTagId", o.snap_pixel_id AS "snapPixelId",
+        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
        FROM landing_offers o
        JOIN products p ON p.id = o.product_id
        JOIN brands b ON b.id = p.brand_id
@@ -51,7 +54,10 @@ router.get('/:slug', async (req, res) => {
         o.id, o.slug, o.product_id AS "productId", o.title_ar AS title, o.subtitle_ar AS subtitle,
         o.title_fr AS "nameFr", o.badge_text AS badge, o.urgency_text AS "urgencyText",
         o.delivery_note AS "deliveryNote", o.custom_price AS price, o.custom_old_price AS "oldPrice",
-        o.hero_image_url AS image, p.base_part_number AS "partNumber", b.name AS brand
+        o.hero_image_url AS image, COALESCE(o.theme_id, 'oem-factory') AS theme,
+        o.fb_pixel_id AS "fbPixelId", o.tiktok_pixel_id AS "tiktokPixelId",
+        o.google_tag_id AS "googleTagId", o.snap_pixel_id AS "snapPixelId",
+        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
        FROM landing_offers o
        JOIN products p ON p.id = o.product_id
        JOIN brands b ON b.id = p.brand_id

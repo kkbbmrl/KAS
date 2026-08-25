@@ -56,6 +56,11 @@ export interface AdCampaignConfig {
   deliveryNote: string
   primaryImage: string
   galleryImages: string[]
+  theme?: string
+  fbPixelId?: string
+  tiktokPixelId?: string
+  googleTagId?: string
+  snapPixelId?: string
   features: AdFeature[]
   compatibleVehicles: CompatibleVehicle[]
   specifications: { label: string; value: string }[]
@@ -74,9 +79,9 @@ const PLACEHOLDER_IMAGE =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f4f4f5'/%3E%3Cg fill='none' stroke='%23a1a1aa' stroke-width='6' stroke-linecap='round'%3E%3Ccircle cx='200' cy='140' r='42'/%3E%3Cpath d='M200 74v-16M200 222v-16M258 140h16M126 140h-16M243 97l11-11M146 183l-11 11M243 183l11 11M146 97l-11-11'/%3E%3C/g%3E%3C/svg%3E"
 
 /**
- * Builds an ad landing page configuration from a real product or landing offer.
+ * Convert any product from the catalog into a complete AdCampaignConfig.
  *
- * There are deliberately no bundled campaign presets: every campaign resolves
+ * Used exclusively to construct landing pages for campaigns dynamically loaded
  * from the owner's `landing_offers` table (Admin → Marketing → Landing Pages) via
  * GET /api/v1/offers/:slug. A dead link must render a not-found screen rather
  * than a sample campaign advertising a product the owner never listed.
@@ -86,7 +91,7 @@ export function buildCampaignFromProduct(product: Product | any, campaignSlug?: 
   const oldPrice = product.oldPrice ? Number(product.oldPrice) : undefined
   const diff = oldPrice && oldPrice > price ? oldPrice - price : 0
 
-  const primaryImg = product.image || product.images?.[0] || PLACEHOLDER_IMAGE
+  const primaryImg = product.image || product.hero_image_url || product.images?.[0] || PLACEHOLDER_IMAGE
 
   const gallery =
     Array.isArray(product.images) && product.images.length > 0 ? product.images : [primaryImg]
@@ -99,6 +104,16 @@ export function buildCampaignFromProduct(product: Product | any, campaignSlug?: 
 
   const displayName = product.name || product.nameAr || product.title || 'قطعة غيار'
 
+  const dynamicBullets =
+    Array.isArray(product.features) && product.features.length > 0
+      ? product.features.map((f: any) => f.text || f.title)
+      : [
+          product.brand ? `قطعة غيار أصلية ومضمونة من علامة ${product.brand}` : 'قطعة غيار أصلية ومضمونة',
+          'مطابقة لمقاسات الوكالة وتركيب مباشر بدون تعديل',
+          'توصيل سريع ومضمون لـ 58 ولاية خلال 24–48 ساعة',
+          'حق المعاينة والفحص عند الباب قبل دفع أي دينار',
+        ]
+
   return {
     slug: campaignSlug || product.slug || `product-${product.id}`,
     productId: product.productId ?? product.id,
@@ -108,19 +123,15 @@ export function buildCampaignFromProduct(product: Product | any, campaignSlug?: 
     partNumber: product.partNumber || product.base_part_number || product.sku || '',
     sku: product.sku || product.partNumber || '',
     category: product.category || 'قطع الغيار',
-    badge: product.badge || undefined,
+    badge: product.badge || product.badgeText || undefined,
     heroKicker: product.urgencyText || 'عرض ترويجي مع توصيل سريع',
-    heroTitle: product.title || `${displayName} الأصلية لسيارتك`,
+    heroTitle: product.title || product.titleAr || `${displayName} الأصلية لسيارتك`,
     heroSubtitle:
       product.subtitle ||
+      product.subtitleAr ||
       product.description ||
       'قطعة غيار عالية الجودة مطابقة لمواصفات الوكالة، تضمن الأداء والموثوقية لسيارتك.',
-    heroBullets: [
-      product.brand ? `قطعة غيار أصلية ومضمونة من علامة ${product.brand}` : 'قطعة غيار أصلية ومضمونة',
-      'مطابقة لمقاسات الوكالة وتركيب مباشر بدون تعديل',
-      'توصيل سريع ومضمون لـ 58 ولاية خلال 24–48 ساعة',
-      'حق المعاينة والفحص عند الباب قبل دفع أي دينار',
-    ],
+    heroBullets: dynamicBullets,
     price,
     oldPrice,
     savingsText: diff > 0 ? `وفر ${diff.toLocaleString('fr-FR')} دج اليوم` : undefined,
@@ -132,6 +143,11 @@ export function buildCampaignFromProduct(product: Product | any, campaignSlug?: 
       'توصيل مأمون لباب المنزل لجميع ولايات الجزائر مع الدفع عند الاستلام',
     primaryImage: primaryImg,
     galleryImages: gallery,
+    theme: product.theme || product.themeId || 'oem-factory',
+    fbPixelId: product.fbPixelId,
+    tiktokPixelId: product.tiktokPixelId,
+    googleTagId: product.googleTagId,
+    snapPixelId: product.snapPixelId,
     features:
       Array.isArray(product.features) && product.features.length > 0
         ? product.features.map((f: any) => ({

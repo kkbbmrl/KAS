@@ -62,19 +62,39 @@ router.post('/campaigns', async (req, res) => {
   }
 })
 
+async function ensureMarketingColumns() {
+  try {
+    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS theme_id TEXT DEFAULT 'oem-factory'`)
+    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS fb_pixel_id TEXT`)
+    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS tiktok_pixel_id TEXT`)
+    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS google_tag_id TEXT`)
+    await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS snap_pixel_id TEXT`)
+  } catch (e) {
+    // Ignore if not supported / already added
+  }
+}
+ensureMarketingColumns()
+
 // GET /api/v1/admin/marketing/landing-pages
 router.get('/landing-pages', async (_req, res) => {
   try {
     const result = await query(
       `SELECT 
-        l.id, l.slug, l.product_id AS "productId", l.title_ar AS title, l.subtitle_ar AS subtitle,
-        l.title_fr AS "nameFr", l.badge_text AS badge, l.urgency_text AS "urgencyText",
-        l.delivery_note AS "deliveryNote", l.custom_price AS price, l.custom_old_price AS "oldPrice",
-        l.hero_image_url AS image, (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
+        l.id, l.slug, l.product_id AS "productId", l.title_ar AS title, l.title_ar AS "titleAr",
+        l.subtitle_ar AS subtitle, l.subtitle_ar AS "subtitleAr",
+        l.title_fr AS "nameFr", l.badge_text AS badge, l.badge_text AS "badgeText",
+        l.urgency_text AS "urgencyText", l.delivery_note AS "deliveryNote",
+        l.custom_price AS price, l.custom_price AS "customPrice",
+        l.custom_old_price AS "oldPrice", l.custom_old_price AS "customOldPrice",
+        l.hero_image_url AS image, l.hero_image_url AS "heroImageUrl",
+        COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
+        l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
+        l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
+        (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
         l.created_at AS "createdAt",
         p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand,
         (SELECT COUNT(*) FROM orders o WHERE o.offer_id = l.id OR o.offer_id = l.slug) AS "ordersCount",
-        (SELECT COUNT(*) FROM campaign_visits v WHERE v.landing_slug = l.slug) AS "visitsCount"
+        (SELECT COUNT(*) FROM campaign_visits v WHERE v.landing_slug = l.slug) AS "viewsCount"
        FROM landing_offers l
        JOIN products p ON p.id = l.product_id
        LEFT JOIN brands b ON b.id = p.brand_id
@@ -87,8 +107,13 @@ router.get('/landing-pages', async (_req, res) => {
           `SELECT icon_name AS icon, text_ar AS text FROM offer_features WHERE offer_id = $1 ORDER BY display_order ASC`,
           [row.id]
         )
+        const orders = Number(row.ordersCount || 0)
+        const views = Number(row.viewsCount || 0)
+        const conversionRate = views > 0 ? Number(((orders / views) * 100).toFixed(1)) : 0
+
         return {
           ...row,
+          conversionRate,
           features: featRes.rows,
         }
       })
@@ -110,7 +135,11 @@ router.get('/landing-pages/:id', async (req, res) => {
         l.id, l.slug, l.product_id AS "productId", l.title_ar AS "titleAr", l.subtitle_ar AS "subtitleAr",
         l.title_fr AS "titleFr", l.badge_text AS "badgeText", l.urgency_text AS "urgencyText",
         l.delivery_note AS "deliveryNote", l.custom_price AS "customPrice", l.custom_old_price AS "customOldPrice",
-        l.hero_image_url AS "heroImageUrl", (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
+        l.hero_image_url AS "heroImageUrl",
+        COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
+        l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
+        l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
+        (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
         p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
        FROM landing_offers l
        JOIN products p ON p.id = l.product_id
@@ -153,6 +182,12 @@ router.post('/landing-pages', async (req, res) => {
       customPrice,
       customOldPrice,
       heroImageUrl,
+      themeId,
+      theme,
+      fbPixelId,
+      tiktokPixelId,
+      googleTagId,
+      snapPixelId,
       features = [],
     } = req.body
 
@@ -167,26 +202,58 @@ router.post('/landing-pages', async (req, res) => {
       .replace(/(^-|-$)/g, '') || `offer-${Date.now()}`
 
     const offerId = randomUUID()
-    await query(
-      `INSERT INTO landing_offers (
-        id, slug, product_id, title_ar, subtitle_ar, title_fr,
-        badge_text, urgency_text, delivery_note, custom_price, custom_old_price, hero_image_url, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)`,
-      [
-        offerId,
-        cleanSlug,
-        productId,
-        titleAr,
-        subtitleAr || '',
-        titleFr || '',
-        badgeText || 'أصلي ومضمون 100%',
-        urgencyText || 'الكمية محدودة — اطلب الآن!',
-        deliveryNote || 'توصيل سريع لـ 58 ولاية — الدفع بعد المعاينة',
-        Number(customPrice),
-        customOldPrice ? Number(customOldPrice) : null,
-        heroImageUrl || '',
-      ]
-    )
+    const chosenTheme = themeId || theme || 'oem-factory'
+
+    try {
+      await query(
+        `INSERT INTO landing_offers (
+          id, slug, product_id, title_ar, subtitle_ar, title_fr,
+          badge_text, urgency_text, delivery_note, custom_price, custom_old_price, hero_image_url,
+          theme_id, fb_pixel_id, tiktok_pixel_id, google_tag_id, snap_pixel_id, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 1)`,
+        [
+          offerId,
+          cleanSlug,
+          productId,
+          titleAr,
+          subtitleAr || '',
+          titleFr || '',
+          badgeText || 'أصلي ومضمون 100%',
+          urgencyText || 'الكمية محدودة — اطلب الآن!',
+          deliveryNote || 'توصيل سريع لـ 58 ولاية — الدفع بعد المعاينة',
+          Number(customPrice),
+          customOldPrice ? Number(customOldPrice) : null,
+          heroImageUrl || '',
+          chosenTheme,
+          fbPixelId || null,
+          tiktokPixelId || null,
+          googleTagId || null,
+          snapPixelId || null,
+        ]
+      )
+    } catch (insertErr) {
+      // Fallback if optional columns not yet added
+      await query(
+        `INSERT INTO landing_offers (
+          id, slug, product_id, title_ar, subtitle_ar, title_fr,
+          badge_text, urgency_text, delivery_note, custom_price, custom_old_price, hero_image_url, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 1)`,
+        [
+          offerId,
+          cleanSlug,
+          productId,
+          titleAr,
+          subtitleAr || '',
+          titleFr || '',
+          badgeText || 'أصلي ومضمون 100%',
+          urgencyText || 'الكمية محدودة — اطلب الآن!',
+          deliveryNote || 'توصيل سريع لـ 58 ولاية — الدفع بعد المعاينة',
+          Number(customPrice),
+          customOldPrice ? Number(customOldPrice) : null,
+          heroImageUrl || '',
+        ]
+      )
+    }
 
     if (Array.isArray(features)) {
       for (let idx = 0; idx < features.length; idx++) {
@@ -224,6 +291,12 @@ router.put('/landing-pages/:id', async (req, res) => {
       customPrice,
       customOldPrice,
       heroImageUrl,
+      themeId,
+      theme,
+      fbPixelId,
+      tiktokPixelId,
+      googleTagId,
+      snapPixelId,
       features = [],
     } = req.body
 
@@ -233,27 +306,83 @@ router.put('/landing-pages/:id', async (req, res) => {
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/(^-|-$)/g, '') || `offer-${Date.now()}`
 
-    await query(
-      `UPDATE landing_offers SET
-        slug = $1, product_id = $2, title_ar = $3, subtitle_ar = $4, title_fr = $5,
-        badge_text = $6, urgency_text = $7, delivery_note = $8, custom_price = $9,
-        custom_old_price = $10, hero_image_url = $11, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $12`,
-      [
-        cleanSlug,
-        productId,
-        titleAr,
-        subtitleAr || '',
-        titleFr || '',
-        badgeText || null,
-        urgencyText || null,
-        deliveryNote || null,
-        Number(customPrice),
-        customOldPrice ? Number(customOldPrice) : null,
-        heroImageUrl || '',
-        id,
-      ]
-    )
+    const chosenTheme = themeId || theme || 'oem-factory'
+
+    try {
+      await query(
+        `UPDATE landing_offers SET
+          slug = $1, product_id = $2, title_ar = $3, subtitle_ar = $4, title_fr = $5,
+          badge_text = $6, urgency_text = $7, delivery_note = $8, custom_price = $9,
+          custom_old_price = $10, hero_image_url = $11, theme_id = $12,
+          fb_pixel_id = $13, tiktok_pixel_id = $14, google_tag_id = $15, snap_pixel_id = $16,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = $17`,
+        [
+          cleanSlug,
+          productId,
+          titleAr,
+          subtitleAr || '',
+          titleFr || '',
+          badgeText || null,
+          urgencyText || null,
+          deliveryNote || null,
+          Number(customPrice),
+          customOldPrice ? Number(customOldPrice) : null,
+          heroImageUrl || '',
+          chosenTheme,
+          fbPixelId || null,
+          tiktokPixelId || null,
+          googleTagId || null,
+          snapPixelId || null,
+          id,
+        ]
+      )
+    } catch (updateErr) {
+      // Fallback
+      await query(
+        `UPDATE landing_offers SET
+          slug = $1, product_id = $2, title_ar = $3, subtitle_ar = $4, title_fr = $5,
+          badge_text = $6, urgency_text = $7, delivery_note = $8, custom_price = $9,
+          custom_old_price = $10, hero_image_url = $11, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $12`,
+        [
+          cleanSlug,
+          productId,
+          titleAr,
+          subtitleAr || '',
+          titleFr || '',
+          badgeText || null,
+          urgencyText || null,
+          deliveryNote || null,
+          Number(customPrice),
+          customOldPrice ? Number(customOldPrice) : null,
+          heroImageUrl || '',
+          id,
+        ]
+      )
+    }
+
+    // Re-sync features
+    await query(`DELETE FROM offer_features WHERE offer_id = $1`, [id])
+    if (Array.isArray(features)) {
+      for (let idx = 0; idx < features.length; idx++) {
+        const f = features[idx]
+        if (f && f.text) {
+          await query(
+            `INSERT INTO offer_features (id, offer_id, icon_name, text_ar, display_order)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [randomUUID(), id, f.icon || 'ShieldCheck', f.text, idx]
+          )
+        }
+      }
+    }
+
+    res.json({ success: true, message: 'تم تحديث صفحة الهبوط بنجاح' })
+  } catch (err: any) {
+    console.error('Error updating landing page:', err)
+    res.status(500).json({ error: err.message || 'فشل تحديث صفحة الهبوط' })
+  }
+})
 
     // Re-sync features
     await query(`DELETE FROM offer_features WHERE offer_id = $1`, [id])

@@ -87,6 +87,80 @@ export default function AdLandingPage() {
     return () => ac.abort()
   }, [activeSlug])
 
+  // Inject Ad Pixels dynamically if configured on the campaign
+  useEffect(() => {
+    if (!campaign) return
+
+    // Meta Pixel
+    if (campaign.fbPixelId && typeof window !== 'undefined') {
+      try {
+        const w = window as any
+        if (!w.fbq) {
+          const n: any = (w.fbq = function () {
+            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+          })
+          if (!w._fbq) w._fbq = n
+          n.push = n
+          n.loaded = true
+          n.version = '2.0'
+          n.queue = []
+          const t = document.createElement('script')
+          t.async = true
+          t.src = 'https://connect.facebook.net/en_US/fbevents.js'
+          const s = document.getElementsByTagName('script')[0]
+          s?.parentNode?.insertBefore(t, s)
+        }
+        w.fbq('init', campaign.fbPixelId)
+        w.fbq('track', 'PageView')
+        w.fbq('track', 'ViewContent', {
+          content_name: campaign.productName,
+          content_ids: [String(campaign.productId || campaign.slug)],
+          content_type: 'product',
+          value: campaign.price,
+          currency: 'DZD',
+        })
+      } catch (e) {
+        console.warn('Meta Pixel Init error:', e)
+      }
+    }
+
+    // TikTok Pixel
+    if (campaign.tiktokPixelId && typeof window !== 'undefined') {
+      try {
+        const w = window as any
+        if (!w.ttq) {
+          const ttq: any = (w.ttq = [])
+          ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie']
+          ttq.setAndDefer = function (t: any, e: any) {
+            t[e] = function () {
+              t.push([e].concat(Array.prototype.slice.call(arguments, 0)))
+            }
+          }
+          for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i])
+          const script = document.createElement('script')
+          script.type = 'text/javascript'
+          script.async = true
+          script.src = 'https://analytics.tiktok.com/i18n/pixel/events.js'
+          const first = document.getElementsByTagName('script')[0]
+          first?.parentNode?.insertBefore(script, first)
+        }
+        w.ttq.load(campaign.tiktokPixelId)
+        w.ttq.page()
+        w.ttq.track('ViewContent', {
+          content_id: String(campaign.productId || campaign.slug),
+          content_type: 'product',
+          content_name: campaign.productName,
+          quantity: 1,
+          price: campaign.price,
+          value: campaign.price,
+          currency: 'DZD',
+        })
+      } catch (e) {
+        console.warn('TikTok Pixel Init error:', e)
+      }
+    }
+  }, [campaign])
+
   const scrollToOrderForm = () => {
     const el = document.getElementById('order-form')
     if (el) {

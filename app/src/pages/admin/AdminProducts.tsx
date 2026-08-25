@@ -118,6 +118,7 @@ export default function AdminProducts() {
     images: [] as ImageItem[],
     specs: [{ label: '', value: '' }] as SpecItem[],
     variants: [] as VariantItem[],
+    compat: [] as string[],
   })
 
   const loadProducts = () => {
@@ -234,7 +235,10 @@ export default function AdminProducts() {
       }))
       const primaryUrl = imageList.find((i) => i.isPrimary)?.url || imageList[0]?.url || p.image || ''
 
-      const brandMatch = brands.find((b) => b.id === p.brandId || b.name?.toLowerCase() === p.brand?.toLowerCase())
+      const rawCompat = p.compat || []
+      const compatList: string[] = rawCompat
+        .map((c: any) => (typeof c === 'string' ? c : `${c.make || ''} ${c.model || ''}`.trim()))
+        .filter(Boolean)
 
       setCustomBrandActive(!brandMatch && Boolean(p.brand))
       setForm({
@@ -254,6 +258,7 @@ export default function AdminProducts() {
         images: imageList.length > 0 ? imageList : primaryUrl ? [{ url: primaryUrl, isPrimary: true }] : [],
         specs: (p.specs || []).map((s: any) => ({ label: s.label, value: s.value })),
         variants: extraVars,
+        compat: compatList,
       })
       setModalOpen(true)
     } catch (err: any) {
@@ -435,6 +440,51 @@ export default function AdminProducts() {
     })
   }
 
+  // Compatibility Management State (السيارات المتوافقة)
+  const [selectedMakeForCompat, setSelectedMakeForCompat] = useState('رينو')
+  const [selectedModelForCompat, setSelectedModelForCompat] = useState('كليو 4')
+  const [customCompatText, setCustomCompatText] = useState('')
+
+  const handleAddCompat = (carName?: string) => {
+    const nameToAdd = carName || (customCompatText.trim() ? customCompatText.trim() : `${selectedMakeForCompat} ${selectedModelForCompat}`)
+    if (!nameToAdd.trim()) return
+    setForm((prev) => {
+      if (prev.compat.includes(nameToAdd.trim())) return prev
+      return { ...prev, compat: [...prev.compat, nameToAdd.trim()] }
+    })
+    setCustomCompatText('')
+  }
+
+  const handleRemoveCompat = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      compat: prev.compat.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const handleAddMakeAllModels = (makeName: string) => {
+    const models = CAR_BRANDS[makeName] || []
+    setForm((prev) => {
+      const set = new Set(prev.compat)
+      models.forEach((m) => set.add(`${makeName} ${m}`))
+      return { ...prev, compat: Array.from(set) }
+    })
+  }
+
+  const handleSelectAllCars = () => {
+    setForm((prev) => {
+      const set = new Set(prev.compat)
+      Object.entries(CAR_BRANDS).forEach(([make, models]) => {
+        models.forEach((m) => set.add(`${make} ${m}`))
+      })
+      return { ...prev, compat: Array.from(set) }
+    })
+  }
+
+  const handleClearAllCompat = () => {
+    setForm((prev) => ({ ...prev, compat: [] }))
+  }
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -480,6 +530,7 @@ export default function AdminProducts() {
       images: form.images.filter((img) => img.url && img.url.trim()),
       specs: form.specs.filter((s) => s.label.trim() && s.value.trim()),
       variants: form.variants,
+      compat: form.compat,
     }
 
     try {
@@ -1422,10 +1473,174 @@ export default function AdminProducts() {
                 )}
               </div>
 
+              {/* Section 6: Compatible Vehicles (السيارات المتوافقة) */}
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Car className="h-4 w-4 text-emerald-600" />
+                      <h4 className="font-cairo text-sm font-black text-zinc-900">
+                        6. السيارات المتوافقة (توافق الموديلات والماركات)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">
+                      حدد جميع السيارات والموديلات التي تتوافق معها هذه القطعة لتظهر للزبائن عند البحث واختيار السيارة في المتجر.
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-auto rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[11px] font-black text-emerald-700">
+                    {form.compat.length} سيارة متوافقة
+                  </span>
+                </div>
+
+                {/* Bulk Actions & Presets */}
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-3.5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-black text-zinc-700">إضافة سريعة حسب الماركة:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllCars}
+                        className="rounded-lg bg-zinc-900 px-2.5 py-1 text-[11px] font-black text-white hover:bg-brand-600 transition-colors shadow-sm"
+                      >
+                        🌟 تحديد جميع السيارات (متوافقة عامة)
+                      </button>
+                      {form.compat.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllCompat}
+                          className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-100 transition-colors"
+                        >
+                          مسح الكل
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Make Batch Chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.keys(CAR_BRANDS).map((make) => (
+                      <button
+                        key={make}
+                        type="button"
+                        onClick={() => handleAddMakeAllModels(make)}
+                        className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/40 transition-all shadow-xs"
+                      >
+                        + كل سيارات {make}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Make & Model Selector */}
+                <div className="rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-4 space-y-3">
+                  <span className="text-xs font-black text-zinc-800 block">
+                    + أو أضف سيارة محددة بالماركة والموديل:
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-1">ماركة السيارة</label>
+                      <select
+                        value={selectedMakeForCompat}
+                        onChange={(e) => {
+                          const newMake = e.target.value
+                          setSelectedMakeForCompat(newMake)
+                          const models = CAR_BRANDS[newMake] || []
+                          if (models.length > 0) setSelectedModelForCompat(models[0])
+                        }}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2 text-xs font-bold text-zinc-900 focus:border-emerald-600 focus:outline-none"
+                      >
+                        {Object.keys(CAR_BRANDS).map((make) => (
+                          <option key={make} value={make}>
+                            {make}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-1">موديل السيارة</label>
+                      <select
+                        value={selectedModelForCompat}
+                        onChange={(e) => setSelectedModelForCompat(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2 text-xs font-bold text-zinc-900 focus:border-emerald-600 focus:outline-none"
+                      >
+                        {(CAR_BRANDS[selectedMakeForCompat] || []).map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => handleAddCompat()}
+                        className="w-full rounded-xl bg-emerald-600 p-2 text-xs font-black text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" /> + إضافة للسيارات المتوافقة
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Free text custom vehicle input */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-zinc-100">
+                    <input
+                      type="text"
+                      value={customCompatText}
+                      onChange={(e) => setCustomCompatText(e.target.value)}
+                      placeholder="أو اكتب سيارة مخصصة يدوياً (مثلاً: رينو ماستر 2022، بيجو 407)..."
+                      className="flex-1 rounded-xl border border-zinc-300 p-2 text-xs font-bold text-zinc-900 focus:border-emerald-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customCompatText.trim()}
+                      onClick={() => handleAddCompat(customCompatText.trim())}
+                      className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      + إضافة الموديل
+                    </button>
+                  </div>
+                </div>
+
+                {/* Badges List of Currently Compatible Cars */}
+                {form.compat.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-200 p-5 text-center bg-zinc-50/40">
+                    <p className="text-xs text-zinc-400 font-bold">
+                      لم يتم تحديد سيارات متوافقة بعد — انقر على أحد الأزرار بالأعلى أو حدد جميع السيارات!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <span className="text-xs font-black text-zinc-700">قائمة السيارات المتوافقة الحالية ({form.compat.length} سيارة):</span>
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 rounded-2xl border border-zinc-200 bg-white">
+                      {form.compat.map((car, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200/80 px-3 py-1.5 text-xs font-extrabold text-zinc-800 transition-colors"
+                        >
+                          <Car className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                          <span>{car}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCompat(idx)}
+                            className="mr-1 rounded-full p-0.5 text-zinc-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                            title="إزالة هذه السيارة"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Descriptions */}
               <div className="space-y-4 pt-4 border-t border-zinc-100">
                 <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
-                  6. الوصف والشرح التفصيلي
+                  7. الوصف والشرح التفصيلي
                 </h4>
 
                 <div>

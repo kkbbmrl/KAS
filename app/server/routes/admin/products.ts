@@ -85,7 +85,62 @@ async function resolveCategory(categoryIdentifier?: string): Promise<string> {
     return firstCat.rows[0].id
   }
 
-  throw new Error('لا توجد أقسام مسجلة في المتجر. يرجى إنشاء قسم أولاً.')
+/**
+ * Helper to resolve and link vehicle compatibility records.
+ */
+async function linkVehicleCompatibility(productId: string, compatItems: (string | { make?: string; model?: string })[]) {
+  if (!Array.isArray(compatItems) || compatItems.length === 0) return
+
+  const makes = await query(`SELECT id, slug, name_ar AS "nameAr" FROM vehicle_makes`)
+  const models = await query(`SELECT id, make_id AS "makeId", slug, name_ar AS "nameAr" FROM vehicle_models`)
+
+  for (const item of compatItems) {
+    let makeName = ''
+    let modelName = ''
+
+    if (typeof item === 'string') {
+      const clean = item.trim()
+      if (!clean) continue
+      const matchedMake = makes.rows.find((m: any) => clean.startsWith(m.nameAr))
+      if (matchedMake) {
+        makeName = matchedMake.nameAr
+        modelName = clean.replace(matchedMake.nameAr, '').trim()
+      } else {
+        const parts = clean.split(/\s+/)
+        makeName = parts[0]
+        modelName = parts.slice(1).join(' ') || parts[0]
+      }
+    } else if (item && typeof item === 'object') {
+      makeName = item.make || ''
+      modelName = item.model || ''
+    }
+
+    if (!makeName || !modelName) continue
+
+    let makeId = makes.rows.find((m: any) => m.nameAr === makeName || m.slug === makeName.toLowerCase())?.id
+    if (!makeId) {
+      makeId = randomUUID()
+      const slug = makeName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `make-${randomUUID().slice(0, 6)}`
+      await query(`INSERT INTO vehicle_makes (id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, 99)`, [makeId, slug, makeName, makeName])
+      makes.rows.push({ id: makeId, slug, nameAr: makeName })
+    }
+
+    let modelId = models.rows.find((m: any) => (m.makeId === makeId || !m.makeId) && (m.nameAr === modelName || m.slug.endsWith(modelName.toLowerCase())))?.id
+    if (!modelId) {
+      modelId = randomUUID()
+      const slug = `${makeName}-${modelName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `model-${randomUUID().slice(0, 6)}`
+      await query(`INSERT INTO vehicle_models (id, make_id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, $5, 99)`, [modelId, makeId, slug, modelName, modelName])
+      models.rows.push({ id: modelId, makeId, slug, nameAr: modelName })
+    }
+
+    const exists = await query(`SELECT id FROM part_compatibility WHERE product_id = $1 AND model_id = $2`, [productId, modelId])
+    if (exists.rows.length === 0) {
+      await query(
+        `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), productId, makeId, modelId]
+      )
+    }
+  }
 }
 
 // GET /api/v1/admin/products
@@ -271,6 +326,7 @@ router.post('/', async (req, res) => {
       images = [],
       specs = [],
       variants = [],
+      compat = [],
     } = req.body
 
     // Validation
@@ -414,6 +470,14 @@ router.post('/', async (req, res) => {
           }
         }
       }
+
+      // 6. Insert Vehicle Compatibility
+      if (Array.isArray(compat) && compat.length > 0) {
+        await linkVehicleCompatibility(productId, compat)
+      } else if (Array.isArray(variants) && variants.length > 0) {
+        const variantNames = variants.map((v: any) => v?.label).filter(Boolean)
+        await linkVehicleCompatibility(productId, variantNames)
+      }
     })
 
     res.status(201).json({
@@ -448,6 +512,7 @@ router.put('/:id', async (req, res) => {
       images,
       specs,
       variants,
+      compat,
     } = req.body
 
     const existing = await query(`SELECT id FROM products WHERE id = $1`, [id])
@@ -589,9 +654,20 @@ router.put('/:id', async (req, res) => {
           )
         }
       }
+
+      // 6. Update Vehicle Compatibility if provided
+      if (Array.isArray(compat)) {
+        await query(`DELETE FROM part_compatibility WHERE product_id = $1`, [id])
+        if (compat.length > 0) {
+          await linkVehicleCompatibility(id, compat)
+        } else if (Array.isArray(variants) && variants.length > 0) {
+          const variantNames = variants.map((v: any) => v?.label).filter(Boolean)
+          await linkVehicleCompatibility(id, variantNames)
+        }
+      }
     })
 
-    res.json({ success: true, message: 'تم تحديث بيانات المنتج وخيارات السيارات والأسعار بنجاح' })
+    res.json({ success: true, message: 'تم تحديث بيانات المنتج والسيارات المتوافقة والأسعار بنجاح' })
   } catch (err: any) {
     console.error('Error updating product:', err)
     res.status(500).json({ error: err.message || 'فشل تحديث المنتج' })

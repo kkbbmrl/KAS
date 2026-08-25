@@ -122,9 +122,6 @@ export async function seedDatabase() {
     'C3': 'c3', 'C-Elysée': 'c-elysee', 'C4': 'c4', 'برلينغو': 'berlingo',
   }
 
-  const makeIdMap: Record<string, string> = {}
-  const modelIdMap: Record<string, string> = {}
-
   for (const [makeName, models] of Object.entries(CAR_BRANDS)) {
     const meta = MAKE_METADATA[makeName] || { slug: `make-${randomUUID().slice(0, 6)}`, fr: makeName, displayOrder: 99 }
     const existingMake = await query(`SELECT id FROM vehicle_makes WHERE slug = $1`, [meta.slug])
@@ -136,7 +133,6 @@ export async function seedDatabase() {
         [makeId, meta.slug, makeName, meta.fr, meta.displayOrder]
       )
     }
-    makeIdMap[makeName] = makeId
 
     for (let i = 0; i < models.length; i++) {
       const modelName = models[i]
@@ -146,19 +142,16 @@ export async function seedDatabase() {
         `SELECT id FROM vehicle_models WHERE make_id = $1 AND slug = $2`,
         [makeId, modelSlug]
       )
-      let modelId = existingModel.rows[0]?.id
-      if (!modelId) {
-        modelId = randomUUID()
+      if (existingModel.rows.length === 0) {
         await query(
           `INSERT INTO vehicle_models (id, make_id, slug, name_ar, name_fr, display_order) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [modelId, makeId, modelSlug, modelName, modelName, i + 1]
+          [randomUUID(), makeId, modelSlug, modelName, modelName, i + 1]
         )
       }
-      modelIdMap[`${makeName}::${modelName}`] = modelId
     }
   }
 
-  // 5. Products — 33 authentic parts
+  // 5. Products — 19 authentic parts
   console.log('📦 Seeding Products Catalogue...')
   const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
   if (Number(checkProds.rows[0]?.count || 0) === 0) {
@@ -217,7 +210,10 @@ export async function seedDatabase() {
     }
   }
 
-  // 6. System settings
+  // 6. Populate vehicle compatibility links
+  await seedPartCompatibility()
+
+  // 7. System settings
   console.log('⚙️ Seeding System Settings...')
   const defaultSettings = [
     { key: 'store_name', value: 'Khaled Auto Spart', cat: 'general' },
@@ -245,6 +241,65 @@ export async function seedDatabase() {
   const { ensureAdminAccounts } = await import('./ensureAdmins.js')
   await ensureAdminAccounts()
 
-  console.log('✅ All reference data, products, categories, and admin accounts seeded.')
+  console.log('✅ All reference data, products, categories, vehicle compatibility, and admin accounts seeded.')
 }
 
+export async function seedPartCompatibility() {
+  console.log('🚗 Linking products with vehicle make and model compatibility...')
+  
+  const makes = await query(`SELECT id, slug, name_ar AS "nameAr" FROM vehicle_makes`)
+  const models = await query(`SELECT id, make_id AS "makeId", slug, name_ar AS "nameAr" FROM vehicle_models`)
+  
+  const modelLookup: Record<string, { makeId: string; modelId: string }> = {}
+  for (const m of models.rows) {
+    const mk = makes.rows.find((k: any) => k.id === m.makeId)
+    if (mk) {
+      modelLookup[`${mk.nameAr}::${m.nameAr}`] = { makeId: mk.id, modelId: m.id }
+      modelLookup[`${mk.slug}::${m.slug}`] = { makeId: mk.id, modelId: m.id }
+      modelLookup[m.nameAr] = { makeId: mk.id, modelId: m.id }
+      modelLookup[m.slug] = { makeId: mk.id, modelId: m.id }
+    }
+  }
+
+  const prods = await query(`SELECT id, name_ar AS name, category_id AS "categoryId" FROM products`)
+  if (prods.rows.length === 0) return
+
+  const POPULAR_MODELS = [
+    { make: 'رينو', models: ['كليو 4', 'كليو 5', 'سيمبول', 'ميغان 4', 'داستر', 'كابتور'] },
+    { make: 'بيجو', models: ['208', '301', '2008', '308', '3008'] },
+    { make: 'فولكسفاغن', models: ['غولف 7', 'غولف 8', 'بولو', 'باسات', 'كادي'] },
+    { make: 'داسيا', models: ['لوغان', 'سانديرو', 'ستيبواي', 'داستر'] },
+    { make: 'هيونداي', models: ['أكسنت', 'إلنترا', 'i20', 'i30', 'توسان'] },
+    { make: 'تويوتا', models: ['كورولا', 'ياريس', 'هيلوكس', 'راف 4'] },
+    { make: 'كيا', models: ['ريو', 'سيراتو', 'بيكانتو', 'سبورتاج'] },
+    { make: 'سيات', models: ['ليون', 'إبيزا', 'أرونا'] },
+    { make: 'سيتروين', models: ['C3', 'C-Elysée', 'C4', 'برلينغو'] },
+    { make: 'فورد', models: ['فييستا', 'فوكس'] },
+    { make: 'مرسيدس', models: ['Class A', 'Class C', 'GLA'] },
+    { make: 'BMW', models: ['الفئة 1', 'الفئة 3', 'X1'] },
+    { make: 'نيسان', models: ['صني', 'ميكرا', 'قشقاي'] },
+    { make: 'سكودا', models: ['أوكتافيا', 'فابيا'] }
+  ]
+
+  for (const prod of prods.rows) {
+    for (const group of POPULAR_MODELS) {
+      for (const modelName of group.models) {
+        const entry = modelLookup[`${group.make}::${modelName}`] || modelLookup[modelName]
+        if (entry) {
+          const exists = await query(
+            `SELECT id FROM part_compatibility WHERE product_id = $1 AND make_id = $2 AND model_id = $3`,
+            [prod.id, entry.makeId, entry.modelId]
+          )
+          if (exists.rows.length === 0) {
+            await query(
+              `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
+              [randomUUID(), prod.id, entry.makeId, entry.modelId]
+            )
+          }
+        }
+      }
+    }
+  }
+
+  console.log('✅ Vehicle compatibility successfully linked for all products.')
+}

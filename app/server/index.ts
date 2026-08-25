@@ -157,8 +157,15 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
     .then(async () => {
       const hasWilayas = await query(`SELECT COUNT(*) AS count FROM algeria_wilayas`)
       if (Number(hasWilayas.rows[0]?.count || 0) === 0) {
-        console.log('🌱 No reference data found. Seeding wilayas/categories/vehicles...')
+        console.log('🌱 No reference data found. Seeding reference data and catalog...')
         await seedDatabase()
+      }
+
+      const checkCompat = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
+      if (Number(checkCompat.rows[0]?.count || 0) < 50) {
+        console.log('🚗 Seeding vehicle compatibility links for catalog...')
+        const { seedPartCompatibility } = await import('./db/seed.js')
+        await seedPartCompatibility()
       }
 
       const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)

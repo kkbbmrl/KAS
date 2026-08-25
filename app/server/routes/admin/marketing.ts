@@ -103,7 +103,7 @@ async function ensureMarketingColumns() {
     const check = await query(`SELECT COUNT(*) AS count FROM landing_offers`)
     const count = Number(check.rows[0]?.count || 0)
     if (count === 0) {
-      const prodRes = await query(`SELECT id, name_ar, base_part_number, price FROM products LIMIT 1`)
+      const prodRes = await query(`SELECT id, name_ar, base_part_number FROM products LIMIT 1`)
       const prod = prodRes.rows[0]
       const prodId = prod?.id || 'prod-radiateur-clio4'
       const offerId = 'offer-valeo-clio4'

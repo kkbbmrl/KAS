@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
                 p.name_ar AS name, v.stock_quantity AS "stockQuantity"
          FROM product_variants v
          JOIN products p ON p.id = v.product_id
-         WHERE v.id = $1 OR v.product_id = $1 OR p.id = $1 OR p.sku = $1 OR p.slug = $1
+         WHERE v.id = $1 OR v.product_id = $1 OR p.id = $1 OR p.sku = $1 OR p.base_part_number = $1
          ORDER BY (v.id = $1) DESC, (v.product_id = $1) DESC
          LIMIT 1`,
         [String(requestedId || '')]
@@ -125,7 +125,7 @@ router.post('/', async (req, res) => {
         stockQty = Number(v.stockQuantity) || 0
       } else {
         const prodCheck = await query(
-          `SELECT id, name_ar, base_part_number, price FROM products WHERE id = $1 OR sku = $1 OR slug = $1 LIMIT 1`,
+          `SELECT id, name_ar, base_part_number, price FROM products WHERE id = $1 OR sku = $1 OR base_part_number = $1 LIMIT 1`,
           [String(requestedId || '')]
         )
         if (prodCheck.rows.length > 0) {

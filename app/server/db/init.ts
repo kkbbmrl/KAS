@@ -188,21 +188,6 @@ export async function initDatabase() {
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
-      // Safe migration for dynamic columns
-      for (const colDef of [
-        `theme_id TEXT DEFAULT 'oem-factory'`,
-        `fb_pixel_id TEXT`,
-        `tiktok_pixel_id TEXT`,
-        `google_tag_id TEXT`,
-        `snap_pixel_id TEXT`,
-      ]) {
-        try {
-          await query(`ALTER TABLE landing_offers ADD COLUMN ${colDef}`)
-        } catch {
-          // Column already exists
-        }
-      }
-
       CREATE TABLE IF NOT EXISTS offer_features (
         id TEXT PRIMARY KEY,
         offer_id TEXT NOT NULL REFERENCES landing_offers(id),

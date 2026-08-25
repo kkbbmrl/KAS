@@ -789,4 +789,16 @@ router.put('/:id/toggle-featured', async (req, res) => {
   }
 })
 
+// POST /api/v1/admin/products/reseed-compatibility
+router.post('/reseed-compatibility', async (req, res) => {
+  try {
+    const { seedPartCompatibility } = await import('../../db/seed.js')
+    await seedPartCompatibility(true)
+    res.json({ success: true, message: 'تم إعادة ضبط ومزامنة توافق السيارات بنجاح' })
+  } catch (err: any) {
+    res.status(500).json({ error: 'فشل مزامنة التوافق: ' + err.message })
+  }
+})
+
 export default router
+

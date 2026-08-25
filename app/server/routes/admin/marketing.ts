@@ -377,13 +377,6 @@ router.put('/landing-pages/:id', async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: 'تم تحديث صفحة الهبوط بنجاح' })
-  } catch (err: any) {
-    console.error('Error updating landing page:', err)
-    res.status(500).json({ error: err.message || 'فشل تحديث صفحة الهبوط' })
-  }
-})
-
     // Re-sync features
     await query(`DELETE FROM offer_features WHERE offer_id = $1`, [id])
     if (Array.isArray(features)) {

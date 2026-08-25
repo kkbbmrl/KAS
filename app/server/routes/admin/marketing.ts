@@ -164,7 +164,7 @@ router.get('/landing-pages', async (_req, res) => {
         COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
         l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
-        CASE WHEN l.is_active::text IN ('1', 'true', 't') THEN true ELSE false END AS "isActive",
+        CASE WHEN l.is_active = 1 OR CAST(l.is_active AS TEXT) = '1' OR CAST(l.is_active AS TEXT) = 'true' THEN 1 ELSE 0 END AS "isActive",
         l.created_at AS "createdAt",
         COALESCE(p.name_ar, l.title_ar) AS "productName",
         COALESCE(p.base_part_number, '') AS "partNumber",
@@ -189,6 +189,7 @@ router.get('/landing-pages', async (_req, res) => {
 
         return {
           ...row,
+          isActive: Boolean(row.isActive),
           conversionRate,
           features: featRes.rows,
         }
@@ -216,7 +217,7 @@ router.get('/landing-pages/:id', async (req, res) => {
         COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
         l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
-        CASE WHEN l.is_active::text IN ('1', 'true', 't') THEN true ELSE false END AS "isActive",
+        CASE WHEN l.is_active = 1 OR CAST(l.is_active AS TEXT) = '1' OR CAST(l.is_active AS TEXT) = 'true' THEN 1 ELSE 0 END AS "isActive",
         COALESCE(p.name_ar, l.title_ar) AS "productName",
         COALESCE(p.base_part_number, '') AS "partNumber",
         COALESCE(b.name, 'KAS') AS brand

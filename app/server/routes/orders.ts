@@ -201,7 +201,7 @@ router.post('/', async (req, res) => {
     })
   } catch (err: any) {
     console.error('Error placing order:', err)
-    res.status(500).json({ error: 'Failed to place order' })
+    res.status(500).json({ error: err.message || 'Failed to place order' })
   }
 })
 

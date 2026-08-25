@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
-  ArrowLeft,
   Car,
   CheckCircle2,
   ChevronLeft,
   ShieldCheck,
-  Sparkles,
   Truck,
   Wrench,
 } from 'lucide-react'

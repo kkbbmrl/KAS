@@ -268,6 +268,7 @@ export default function AdminMarketing() {
     const basePrice = p.price || 12000
     const oldPrice = p.oldPrice || p.old_price || Math.round(basePrice * 1.2)
     const rawName = p.name || p.nameAr || 'قطعة غيار أصلية'
+    const brand = p.brand || 'VALEO'
     const rawSlugBase = (p.nameFr || p.slug || p.partNumber || 'auto-part')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')

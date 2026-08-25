@@ -85,6 +85,9 @@ async function resolveCategory(categoryIdentifier?: string): Promise<string> {
     return firstCat.rows[0].id
   }
 
+  throw new Error('لا توجد أقسام مسجلة في المتجر. يرجى إنشاء قسم أولاً.')
+}
+
 /**
  * Helper to resolve and link vehicle compatibility records.
  */

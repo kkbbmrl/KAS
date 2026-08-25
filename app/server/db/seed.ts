@@ -244,7 +244,86 @@ export async function seedDatabase() {
   console.log('✅ All reference data, products, categories, vehicle compatibility, and admin accounts seeded.')
 }
 
-export async function seedPartCompatibility() {
+const PART_COMPATIBILITY_MAP: Record<string, { makes: string[]; models?: string[] }> = {
+  'مشعاع تبريد المحرك (Radiateur)': {
+    makes: ['رينو', 'داسيا'],
+    models: ['كليو 4', 'كليو 5', 'سيمبول', 'ميغان 4', 'كابتور', 'لوغان', 'سانديرو', 'ستيبواي'],
+  },
+  'مصباح أمامي LED كامل (Phare)': {
+    makes: ['بيجو', 'سيتروين'],
+    models: ['208', '301', '2008', '308', 'C3', 'C-Elysée'],
+  },
+  'غطاء المحرك الأمامي (Capot)': {
+    makes: ['فولكسفاغن', 'سيات', 'سكودا'],
+    models: ['غولف 7', 'غولف 8', 'بولو', 'كادي', 'ليون', 'إبيزا', 'أوكتافيا'],
+  },
+  'ترافرس أمامي سفلي (Traverse)': {
+    makes: ['رينو', 'داسيا'],
+    models: ['كليو 4', 'سيمبول', 'داستر', 'سانديرو', 'ستيبواي'],
+  },
+  'صدام أمامي مع فتحات شبك (Pare-chocs)': {
+    makes: ['بيجو', 'سيتروين'],
+    models: ['208', '301', '2008', 'C3'],
+  },
+  'مروحة تبريد المشعاع (Ventilateur)': {
+    makes: ['تويوتا', 'هيونداي', 'كيا'],
+    models: ['ياريس', 'كورولا', 'راف 4', 'أكسنت', 'i20', 'إلنترا', 'ريو', 'بيكانتو'],
+  },
+  'زجاج المصباح الأمامي (Verre de phare)': {
+    makes: ['فولكسفاغن', 'سكودا', 'سيات'],
+    models: ['غولف 7', 'بولو', 'أوكتافيا', 'فابيا', 'إبيزا'],
+  },
+  'غطاء غبار ممتص الصدمات (Cache poussière)': {
+    makes: ['تويوتا', 'نيسان'],
+    models: ['ياريس', 'كورولا', 'هيلوكس', 'كامري', 'راف 4', 'صني', 'ميكرا', 'قشقاي'],
+  },
+  'مقبض باب خارجي (Poignée de porte)': {
+    makes: ['هيونداي', 'كيا'],
+    models: ['أكسنت', 'إلنترا', 'i20', 'توسان', 'ريو', 'سيراتو', 'بيكانتو'],
+  },
+  'ماسحات الزجاج الأمامي Silencio (Essuie-glace)': {
+    makes: ['بيجو', 'رينو', 'سيتروين'],
+    models: ['208', '301', '2008', '308', 'كليو 4', 'كليو 5', 'ميغان 4', 'C3', 'C4', 'برلينغو'],
+  },
+  'ضوء خلفي LED كامل (Feu arrière)': {
+    makes: ['مرسيدس', 'BMW'],
+    models: ['Class A', 'Class C', 'GLA', 'الفئة 1', 'الفئة 3', 'X1'],
+  },
+  'بيرسو الهيكل الأمامي (Berceau)': {
+    makes: ['رينو', 'داسيا'],
+    models: ['كليو 4', 'كليو 5', 'سيمبول', 'لوغان', 'سانديرو', 'ستيبواي'],
+  },
+  'سيرسو عجلة القيادة ونظام التعليق (Cerceau)': {
+    makes: ['فورد'],
+    models: ['فييستا', 'فوكس', 'إيكوسبورت', 'رينجر'],
+  },
+  'حامل الصدام الأمامي (Support pare-chocs)': {
+    makes: ['فولكسفاغن', 'سيات', 'سكودا'],
+    models: ['غولف 7', 'غولف 8', 'بولو', 'كادي', 'ليون', 'إبيزا', 'فابيا'],
+  },
+  'الآرماتور وهيكل التثبيت (Armature)': {
+    makes: ['تويوتا', 'نيسان'],
+    models: ['كورولا', 'ياريس', 'هيلوكس', 'كامري', 'صني', 'ميكرا', 'قشقاي', 'جوك'],
+  },
+  'فلتر زيت أصلي عالي الكفاءة (Filtre à huile)': {
+    makes: ['تويوتا', 'هيونداي', 'كيا'],
+    models: ['كورولا', 'ياريس', 'هيلوكس', 'كامري', 'راف 4', 'أكسنت', 'إلنترا', 'i20', 'i30', 'توسان', 'ريو', 'سيراتو', 'بيكانتو', 'سبورتاج'],
+  },
+  'فلتر هواء المحرك الرياضي (Filtre à air)': {
+    makes: ['فولكسفاغن', 'سيات', 'سكودا'],
+    models: ['غولف 7', 'غولف 8', 'بولو', 'باسات', 'تيجوان', 'كادي', 'ليون', 'إبيزا', 'أوكتافيا'],
+  },
+  'أقراص فرامل مهواة (Disques de frein)': {
+    makes: ['مرسيدس', 'BMW'],
+    models: ['Class A', 'Class C', 'Class E', 'GLA', 'GLC', 'الفئة 1', 'الفئة 3', 'الفئة 5', 'X1', 'X3'],
+  },
+  'بطانات فرامل سيراميك (Plaquettes de frein)': {
+    makes: ['رينو', 'بيجو', 'داسيا', 'تويوتا'],
+    models: ['كليو 4', 'كليو 5', 'ميغان 4', '208', '308', '3008', 'داستر', 'ستيبواي', 'كورولا', 'ياريس'],
+  },
+}
+
+export async function seedPartCompatibility(forceClean = false) {
   console.log('🚗 Linking products with vehicle make and model compatibility...')
   
   const makes = await query(`SELECT id, slug, name_ar AS "nameAr" FROM vehicle_makes`)
@@ -253,17 +332,53 @@ export async function seedPartCompatibility() {
   
   if (prods.rows.length === 0 || models.rows.length === 0) return
 
+  // If forceClean is requested, clear previous links
+  if (forceClean) {
+    await query(`DELETE FROM part_compatibility`)
+  }
+
+  const makeMap: Record<string, string> = {}
+  makes.rows.forEach((m: any) => {
+    makeMap[m.nameAr] = m.id
+    makeMap[m.slug] = m.id
+  })
+
+  const modelMap: Record<string, { id: string; makeId: string }> = {}
+  models.rows.forEach((m: any) => {
+    modelMap[m.nameAr] = { id: m.id, makeId: m.makeId }
+    modelMap[m.slug] = { id: m.id, makeId: m.makeId }
+  })
+
   for (const prod of prods.rows) {
-    for (const model of models.rows) {
-      const exists = await query(
-        `SELECT id FROM part_compatibility WHERE product_id = $1 AND model_id = $2`,
-        [prod.id, model.id]
-      )
-      if (exists.rows.length === 0) {
-        await query(
-          `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
-          [randomUUID(), prod.id, model.makeId, model.id]
-        )
+    const config = PART_COMPATIBILITY_MAP[prod.name]
+    if (config) {
+      // Link specific configured models
+      for (const mName of config.models || []) {
+        const mObj = modelMap[mName]
+        if (mObj) {
+          const exists = await query(
+            `SELECT id FROM part_compatibility WHERE product_id = $1 AND model_id = $2`,
+            [prod.id, mObj.id]
+          )
+          if (exists.rows.length === 0) {
+            await query(
+              `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4)`,
+              [randomUUID(), prod.id, mObj.makeId, mObj.id]
+            )
+          }
+        }
+      }
+    } else {
+      // Default: Link to popular Renault, Peugeot, Toyota models
+      const defaultModels = ['كليو 4', '208', 'ياريس', 'غولف 7']
+      for (const dName of defaultModels) {
+        const mObj = modelMap[dName]
+        if (mObj) {
+          await query(
+            `INSERT INTO part_compatibility (id, product_id, make_id, model_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+            [randomUUID(), prod.id, mObj.makeId, mObj.id]
+          )
+        }
       }
     }
   }

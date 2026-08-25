@@ -101,12 +101,13 @@ router.get('/products', async (req, res) => {
   try {
     const { q, brand, model, cat, in_stock } = req.query as Record<string, string>
 
-    // Ensure compatibility records are seeded
+    // Ensure compatibility records are cleanly seeded
     try {
       const hasCompat = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
-      if (Number(hasCompat.rows[0]?.count || 0) < 50) {
+      const cNum = Number(hasCompat.rows[0]?.count || 0)
+      if (cNum === 0 || cNum > 300) {
         const { seedPartCompatibility } = await import('../db/seed.js')
-        await seedPartCompatibility()
+        await seedPartCompatibility(true)
       }
     } catch {}
 
@@ -140,7 +141,7 @@ router.get('/products', async (req, res) => {
       'تويوتا': ['تويوتا', 'toyota'],
       'رينو': ['رينو', 'renault'],
       'بيجو': ['بيجو', 'peugeot'],
-      'فولكسفاغن': ['فولكسفاغن', 'volkswagen', 'vw', 'golf'],
+      'فولكسفاغن': ['فولكسفاغن', 'volkswagen', 'vw'],
       'داسيا': ['داسيا', 'dacia'],
       'هيونداي': ['هيونداي', 'hyundai'],
       'كيا': ['كيا', 'kia'],
@@ -159,10 +160,10 @@ router.get('/products', async (req, res) => {
       'كامري': ['كامري', 'camry'],
       'هيلوكس': ['هيلوكس', 'هايلوكس', 'hilux'],
       'راف 4': ['راف 4', 'راف4', 'rav4'],
-      'كليو 4': ['كليو 4', 'كليو4', 'clio 4', 'clio4', 'كليو', 'clio'],
-      'كليو 5': ['كليو 5', 'كليو5', 'clio 5', 'clio5', 'كليو', 'clio'],
-      'سيمبول': ['سيمبول', 'symbole', 'symbol'],
-      'ميغان 4': ['ميغان 4', 'ميجان 4', 'megane 4', 'megane'],
+      'كليو 4': ['كليو 4', 'clio 4', 'clio4'],
+      'كليو 5': ['كليو 5', 'clio 5', 'clio5'],
+      'سيمبول': ['سيمبول', 'symbol'],
+      'ميغان 4': ['ميغان 4', 'megane 4', 'megane'],
       'داستر': ['داستر', 'duster'],
       'كابتور': ['كابتور', 'captur'],
       '208': ['208'],
@@ -171,17 +172,17 @@ router.get('/products', async (req, res) => {
       '308': ['308'],
       '3008': ['3008'],
       '508': ['508'],
-      'غولف 7': ['غولف 7', 'غولف7', 'جولف 7', 'golf 7', 'golf7', 'غولف', 'golf'],
-      'غولف 8': ['غولف 8', 'غولف8', 'جولف 8', 'golf 8', 'golf8', 'غولف', 'golf'],
+      'غولف 7': ['غولف 7', 'golf 7', 'golf7'],
+      'غولف 8': ['غولف 8', 'golf 8', 'golf8'],
       'بولو': ['بولو', 'polo'],
       'باسات': ['باسات', 'passat'],
       'تيجوان': ['تيجوان', 'tiguan'],
       'كادي': ['كادي', 'caddy'],
-      'لوغان': ['لوغان', 'لوجان', 'logan'],
+      'لوغان': ['لوغان', 'logan'],
       'سانديرو': ['سانديرو', 'sandero'],
       'ستيبواي': ['ستيبواي', 'stepway'],
-      'أكسنت': ['أكسنت', 'اكسنت', 'accent'],
-      'إلنترا': ['إلنترا', 'النترا', 'elantra'],
+      'أكسنت': ['أكسنت', 'accent'],
+      'إلنترا': ['إلنترا', 'elantra'],
       'i20': ['i20'],
       'i30': ['i30'],
       'توسان': ['توسان', 'tucson'],
@@ -191,14 +192,14 @@ router.get('/products', async (req, res) => {
       'بيكانتو': ['بيكانتو', 'picanto'],
       'سبورتاج': ['سبورتاج', 'sportage'],
       'سيلتوس': ['سيلتوس', 'seltos'],
-      'Class A': ['class a', 'classe a', 'الفئة a'],
-      'Class C': ['class c', 'classe c', 'الفئة c'],
-      'Class E': ['class e', 'classe e', 'الفئة e'],
+      'Class A': ['class a', 'classe a'],
+      'Class C': ['class c', 'classe c'],
+      'Class E': ['class e', 'classe e'],
       'GLA': ['gla'],
       'GLC': ['glc'],
-      'الفئة 1': ['الفئة 1', 'serie 1', 'series 1'],
-      'الفئة 3': ['الفئة 3', 'serie 3', 'series 3'],
-      'الفئة 5': ['الفئة 5', 'serie 5', 'series 5'],
+      'الفئة 1': ['الفئة 1', 'serie 1'],
+      'الفئة 3': ['الفئة 3', 'serie 3'],
+      'الفئة 5': ['الفئة 5', 'serie 5'],
       'X1': ['x1'],
       'X3': ['x3'],
       'صني': ['صني', 'sunny'],
@@ -207,9 +208,9 @@ router.get('/products', async (req, res) => {
       'جوك': ['جوك', 'juke'],
       'باترول': ['باترول', 'patrol'],
       'ليون': ['ليون', 'leon'],
-      'إبيزا': ['إبيزا', 'ابيزا', 'ibiza'],
-      'أرونا': ['أرونا', 'ارونا', 'arona'],
-      'أتيكا': ['أتيكا', 'اتيكا', 'ateca'],
+      'إبيزا': ['إبيزا', 'ibiza'],
+      'أرونا': ['أرونا', 'arona'],
+      'أتيكا': ['أتيكا', 'ateca'],
       'أوكتافيا': ['أوكتافيا', 'octavia'],
       'فابيا': ['فابيا', 'fabia'],
       'سوبرب': ['سوبرب', 'superb'],
@@ -218,7 +219,7 @@ router.get('/products', async (req, res) => {
       'إيكوسبورت': ['إيكوسبورت', 'ecosport'],
       'رينجر': ['رينجر', 'ranger'],
       'C3': ['c3'],
-      'C-Elysée': ['c-elysee', 'c elysee', 'c-elysée', 'elysee', 'إليزيه', 'اليزيه'],
+      'C-Elysée': ['c-elysee', 'c elysee', 'c-elysée', 'elysee', 'إليزيه'],
       'C4': ['c4'],
       'برلينغو': ['برلينغو', 'berlingo'],
     }
@@ -229,9 +230,8 @@ router.get('/products', async (req, res) => {
       for (const bTerm of brandTerms) {
         params.push(`%${bTerm}%`)
         const idx = params.length
-        let bSql = `(p.name_ar ILIKE $${idx} OR p.name_fr ILIKE $${idx} OR p.description_ar ILIKE $${idx}`
-        bSql += ` OR EXISTS (SELECT 1 FROM product_aliases pa WHERE pa.product_id = p.id AND pa.alias_term ILIKE $${idx})`
-        bSql += ` OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.label_ar ILIKE $${idx} OR pv.label_fr ILIKE $${idx} OR pv.extra_specs ILIKE $${idx} OR pv.part_number ILIKE $${idx}))`
+        let bSql = `(p.name_ar ILIKE $${idx} OR p.name_fr ILIKE $${idx}`
+        bSql += ` OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.label_ar ILIKE $${idx} OR pv.label_fr ILIKE $${idx}))`
         bSql += ` OR EXISTS (
           SELECT 1 FROM part_compatibility pc 
           JOIN vehicle_makes mk ON mk.id = pc.make_id 
@@ -250,8 +250,8 @@ router.get('/products', async (req, res) => {
       for (const mTerm of modelTerms) {
         params.push(`%${mTerm}%`)
         const idx = params.length
-        let mSql = `(p.name_ar ILIKE $${idx} OR p.name_fr ILIKE $${idx} OR p.description_ar ILIKE $${idx}`
-        mSql += ` OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.label_ar ILIKE $${idx} OR pv.label_fr ILIKE $${idx} OR pv.extra_specs ILIKE $${idx} OR pv.part_number ILIKE $${idx}))`
+        let mSql = `(p.name_ar ILIKE $${idx} OR p.name_fr ILIKE $${idx}`
+        mSql += ` OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.label_ar ILIKE $${idx} OR pv.label_fr ILIKE $${idx}))`
         mSql += ` OR EXISTS (
           SELECT 1 FROM part_compatibility pc 
           JOIN vehicle_models md ON md.id = pc.model_id 

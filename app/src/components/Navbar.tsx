@@ -9,8 +9,7 @@ import { PHONE_DISPLAY } from '@/data/products'
 // a bare "#brands" on /search or /ads resolves to nothing.
 const LINKS = [
   { href: '/#home', label: 'الرئيسية' },
-  { href: '/#search', label: 'البحث عن القطع' },
-  { href: '/#products', label: 'قطع الغيار' },
+  { href: '/#search', label: 'قطع الغيار' },
   { href: '/#brands', label: 'العلامات التجارية' },
   { href: '/#offers', label: 'العروض' },
   { href: '/#about', label: 'من نحن' },

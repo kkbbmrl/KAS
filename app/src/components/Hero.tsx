@@ -55,7 +55,7 @@ export default function Hero() {
 
           <div className="hero-up mt-8 flex flex-wrap items-center gap-4" style={{ animationDelay: '0.35s' }}>
             <Link
-              to="/themes"
+              to="/#search"
               className="btn-shine group inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-8 py-4 font-cairo text-base font-extrabold text-white shadow-xl shadow-brand-600/35 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-2xl hover:shadow-brand-600/45"
             >
               تصفح المنتجات

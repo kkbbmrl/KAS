@@ -158,11 +158,12 @@ router.post('/', async (req, res) => {
             const offerProd = await query(`SELECT product_id FROM landing_offers LIMIT 1`)
             if (offerProd.rows.length > 0 && offerProd.rows[0].product_id) {
               prodId = offerProd.rows[0].product_id
-            } else {
-              prodId = String(requestedId || randomUUID())
-            }
-          }
         }
+      }
+
+      if (!prodId) {
+        const anyP = await query(`SELECT id FROM products LIMIT 1`)
+        prodId = anyP.rows[0]?.id || String(requestedId || randomUUID())
       }
 
       const lineTotal = unitPrice * qty

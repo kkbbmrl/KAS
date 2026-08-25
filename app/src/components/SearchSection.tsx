@@ -48,6 +48,24 @@ export default function SearchSection() {
     if (q !== null && q !== undefined) setQuery(q)
   }, [searchParams])
 
+  useEffect(() => {
+    const handleVehicleSelect = (e: any) => {
+      const { brand: b, model: m, query: q } = e.detail || {}
+      if (b !== undefined) setBrand(b)
+      if (m !== undefined) setModel(m)
+      if (q !== undefined) setQuery(q)
+
+      // Smooth scroll to search
+      const el = document.getElementById('search')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+
+    window.addEventListener('kas:select-vehicle', handleVehicleSelect)
+    return () => window.removeEventListener('kas:select-vehicle', handleVehicleSelect)
+  }, [])
+
   // Live preview against the real catalogue.
   const [preview, setPreview] = useState<Product[]>([])
   const [previewing, setPreviewing] = useState(false)

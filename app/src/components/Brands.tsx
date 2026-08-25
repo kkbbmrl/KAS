@@ -145,6 +145,18 @@ export default function Brands() {
   const ref = useReveal<HTMLDivElement>()
   const [activeTab, setActiveTab] = useState<'cars' | 'oem'>('cars')
 
+  const handleSelectVehicle = (brand: string, model: string = '') => {
+    window.dispatchEvent(
+      new CustomEvent('kas:select-vehicle', {
+        detail: { brand, model },
+      })
+    )
+    const el = document.getElementById('search')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   const marqueeRow = [...CAR_BRANDS_LIST, ...CAR_BRANDS_LIST]
 
   return (
@@ -157,8 +169,8 @@ export default function Brands() {
           sub="نتعامل مع أفضل الشركات العالمية لضمان جودة كل قطعة نبيعها"
         />
 
-        {/* Brand Selector Tabs */}
-        <div className="mt-8 flex justify-center">
+        {/* Brand Selector Tabs & Quick Link to Search */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <div className="inline-flex rounded-2xl bg-zinc-100 p-1.5 shadow-inner">
             <button
               type="button"
@@ -186,19 +198,26 @@ export default function Brands() {
               <span>مصنعو قطع الغيار العالمية ({OEM_PARTS_MAKERS.length})</span>
             </button>
           </div>
+
+          <a
+            href="#search"
+            className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/80 px-4 py-2 text-xs font-black text-brand-700 transition-all hover:bg-brand-100 hover:shadow-xs"
+          >
+            <span>انتقل إلى محرك البحث 🔍</span>
+          </a>
         </div>
 
         {/* ─── TAB 1: CAR BRANDS GRID ─── */}
         {activeTab === 'cars' && (
           <div className="mt-10 grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {CAR_BRANDS_LIST.map((b) => (
-              <a
+              <div
                 key={b.nameEn}
-                href={`/#search?brand=${encodeURIComponent(b.nameAr)}`}
-                className={`group relative flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${b.accentColor}`}
+                onClick={() => handleSelectVehicle(b.nameAr, '')}
+                className={`group relative flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl cursor-pointer ${b.accentColor}`}
               >
                 {b.badge && (
-                  <span className="absolute left-3 top-3 rounded-full bg-brand-50 border border-brand-200 px-2 py-0.5 text-[9px] font-black text-brand-700">
+                  <span className="absolute left-3 top-3 rounded-full bg-brand-50 border border-brand-200 px-2 py-0.5 text-[9px] font-black text-brand-700 pointer-events-none">
                     {b.badge}
                   </span>
                 )}
@@ -222,15 +241,31 @@ export default function Brands() {
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-zinc-100">
-                  <p className="text-[10px] font-bold text-zinc-500 truncate mb-1">
-                    {b.popularModels.join(' • ')}
-                  </p>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-brand-600 group-hover:underline">
-                    <span>عرض القطع</span>
-                    <ChevronLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
-                  </span>
+                  <p className="text-[10px] font-bold text-zinc-400 mb-1.5">اختر الموديل:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {b.popularModels.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSelectVehicle(b.nameAr, m)
+                        }}
+                        className="rounded-lg bg-zinc-100 hover:bg-brand-600 hover:text-white px-2 py-0.5 text-[10px] font-extrabold text-zinc-700 transition-all active:scale-95"
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-brand-600 group-hover:underline">
+                      <span>عرض كل قطع {b.nameAr}</span>
+                      <ChevronLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
+                    </span>
+                  </div>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         )}

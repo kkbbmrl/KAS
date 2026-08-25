@@ -547,9 +547,51 @@ router.put('/:id', async (req, res) => {
           }
         }
       }
+
+      // 5. Update Car Brand / Model Variants if provided
+      if (Array.isArray(variants)) {
+        // Keep primary variant updated and recreate additional variants
+        const primaryRes = await query(`SELECT id FROM product_variants WHERE product_id = $1 ORDER BY created_at ASC LIMIT 1`, [id])
+        const primaryId = primaryRes.rows[0]?.id
+
+        if (primaryId) {
+          await query(`DELETE FROM product_variants WHERE product_id = $1 AND id != $2`, [id, primaryId])
+        }
+
+        const basePartNum = partNumber ? String(partNumber).trim() : 'PART'
+        const baseNameAr = nameAr ? String(nameAr).trim() : 'القطعة'
+
+        for (let idx = 0; idx < variants.length; idx++) {
+          const v = variants[idx]
+          if (!v) continue
+          const vStock = Math.max(0, Number(v.stockQuantity ?? 10))
+          const vStatus = vStock === 0 ? 'out_of_stock' : vStock <= 5 ? 'limited_stock' : 'in_stock'
+          const vPrice = Number(v.price || price || 0)
+          const vOldPrice = v.oldPrice ? Number(v.oldPrice) : null
+
+          await query(
+            `INSERT INTO product_variants (
+              id, product_id, variant_sku, part_number, label_ar, label_fr, price, old_price, stock_quantity, stock_status, extra_specs
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              randomUUID(),
+              id,
+              `${basePartNum}-VAR-${idx + 2}`,
+              v.partNumber || basePartNum,
+              v.label || `${baseNameAr} (موديل ${idx + 2})`,
+              v.labelFr || v.label || '',
+              vPrice,
+              vOldPrice && vOldPrice > 0 ? vOldPrice : null,
+              vStock,
+              vStatus,
+              JSON.stringify(v.extraSpecs || []),
+            ]
+          )
+        }
+      }
     })
 
-    res.json({ success: true, message: 'تم تحديث بيانات المنتج والمتغيرات بنجاح' })
+    res.json({ success: true, message: 'تم تحديث بيانات المنتج وخيارات السيارات والأسعار بنجاح' })
   } catch (err: any) {
     console.error('Error updating product:', err)
     res.status(500).json({ error: err.message || 'فشل تحديث المنتج' })

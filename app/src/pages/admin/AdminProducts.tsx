@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import {
   AlertCircle,
   Boxes,
+  Car,
   Check,
   Copy,
   Edit,
@@ -9,7 +10,9 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Star,
+  Tag,
   Trash2,
   Upload,
   X,
@@ -28,7 +31,7 @@ import {
   fetchAdminBrands,
   uploadAdminImage,
 } from '@/lib/adminApi'
-import { formatPrice, CATEGORIES } from '@/data/products'
+import { formatPrice, CATEGORIES, CAR_BRANDS } from '@/data/products'
 import { resolveImageUrl } from '@/lib/api'
 
 interface SpecItem {
@@ -365,20 +368,61 @@ export default function AdminProducts() {
     })
   }
 
+  // Car Model Variants State (اختر نوع المنتج المناسب لسيارتك)
+  const [selectedMakeForVariant, setSelectedMakeForVariant] = useState('رينو')
+  const [selectedModelForVariant, setSelectedModelForVariant] = useState('كليو 4')
+  const [customModelText, setCustomModelText] = useState('')
+  const [variantPriceInput, setVariantPriceInput] = useState<number | ''>('')
+
+  const POPULAR_CAR_PRESETS = [
+    'رينو كليو 4',
+    'رينو كليو 5',
+    'رينو سيمبول',
+    'بيجو 208',
+    'بيجو 301',
+    'فولكسفاغن غولف 7',
+    'فولكسفاغن بولو',
+    'داسيا ستيبواي',
+    'داسيا سانديرو',
+    'داسيا لوغان',
+    'هيونداي أكسنت',
+    'هيونداي i20',
+    'تويوتا ياريس',
+    'تويوتا كورولا',
+    'كيا ريو',
+    'كيا بيكانتو',
+    'سيات إبيزا',
+    'سيتروين C3',
+  ]
+
+  const handleAddCarVariant = (carName?: string) => {
+    const nameToAdd = carName || (customModelText.trim() ? customModelText.trim() : `${selectedMakeForVariant} ${selectedModelForVariant}`)
+    const priceToAdd = Number(variantPriceInput) > 0 ? Number(variantPriceInput) : form.price
+    setForm((prev) => {
+      if (prev.variants.some((v) => v.label?.trim().toLowerCase() === nameToAdd.trim().toLowerCase())) {
+        return prev
+      }
+      return {
+        ...prev,
+        variants: [
+          ...prev.variants,
+          {
+            label: nameToAdd,
+            sku: `${form.partNumber || 'VAR'}-${prev.variants.length + 2}`,
+            partNumber: `${form.partNumber || 'PART'}-${nameToAdd.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || (prev.variants.length + 2)}`,
+            price: priceToAdd,
+            oldPrice: form.oldPrice && form.oldPrice > priceToAdd ? form.oldPrice : null,
+            stockQuantity: form.stockQuantity || 10,
+          },
+        ],
+      }
+    })
+    setCustomModelText('')
+    setVariantPriceInput('')
+  }
+
   const handleAddVariant = () => {
-    setForm((prev) => ({
-      ...prev,
-      variants: [
-        ...prev.variants,
-        {
-          label: `متغير ${prev.variants.length + 2}`,
-          sku: `${form.partNumber || 'VAR'}-${prev.variants.length + 2}`,
-          price: form.price,
-          oldPrice: form.oldPrice,
-          stockQuantity: 10,
-        },
-      ],
-    }))
+    handleAddCarVariant()
   }
 
   const handleRemoveVariant = (index: number) => {
@@ -1138,72 +1182,247 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              {/* Additional Variants */}
+              {/* Car Model Variants (اختر نوع المنتج المناسب لسيارتك) */}
               <div className="space-y-4 pt-4 border-t border-zinc-100">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-cairo text-xs font-black text-zinc-400 uppercase tracking-wider">
-                    5. المتغيرات الإضافية (Variants)
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleAddVariant}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> إضافة متغير جديد
-                  </button>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Car className="h-4 w-4 text-brand-600" />
+                      <h4 className="font-cairo text-sm font-black text-zinc-900">
+                        5. نوع المنتج حسب السيارة (اختر نوع المنتج المناسب لسيارتك)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">
+                      أضف خيارات السيارات والموديلات المتوافقة مع هذا المنتج، وحدد السعر الخاص بكل موديل ليتمكن الزبون من اختيار سيارته في المتجر.
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-auto rounded-full bg-brand-50 border border-brand-200 px-3 py-1 text-[11px] font-black text-brand-700">
+                    {form.variants.length} سيارات محددة
+                  </span>
                 </div>
 
+                {/* Quick Popular Car Preset Chips */}
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-zinc-700">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>إضافة سريعة لموديلات السيارات الأكثر طلباً في الجزائر:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_CAR_PRESETS.map((carPreset) => {
+                      const isAlreadyAdded = form.variants.some(
+                        (v) => v.label?.trim().toLowerCase() === carPreset.trim().toLowerCase()
+                      )
+                      return (
+                        <button
+                          key={carPreset}
+                          type="button"
+                          disabled={isAlreadyAdded}
+                          onClick={() => handleAddCarVariant(carPreset)}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                            isAlreadyAdded
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 opacity-60 cursor-default'
+                              : 'bg-white text-zinc-700 border border-zinc-200 shadow-sm hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50/40'
+                          }`}
+                        >
+                          {isAlreadyAdded ? `✓ ${carPreset}` : `+ ${carPreset}`}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Interactive Car Make/Model Custom Selector */}
+                <div className="rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-4 space-y-3">
+                  <span className="text-xs font-black text-zinc-800 block">
+                    + أو اختر ماركة وموديل سيارة من القائمة لتحديد سعر خاص بها:
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                    {/* Make Select */}
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-1">ماركة السيارة</label>
+                      <select
+                        value={selectedMakeForVariant}
+                        onChange={(e) => {
+                          const newMake = e.target.value
+                          setSelectedMakeForVariant(newMake)
+                          const models = CAR_BRANDS[newMake] || []
+                          if (models.length > 0) setSelectedModelForVariant(models[0])
+                        }}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      >
+                        {Object.keys(CAR_BRANDS).map((make) => (
+                          <option key={make} value={make}>
+                            {make}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Model Select */}
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-1">موديل السيارة</label>
+                      <select
+                        value={selectedModelForVariant}
+                        onChange={(e) => setSelectedModelForVariant(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      >
+                        {(CAR_BRANDS[selectedMakeForVariant] || []).map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Price for this model */}
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-1">السعر المخصص (دج)</label>
+                      <input
+                        type="number"
+                        value={variantPriceInput}
+                        onChange={(e) => setVariantPriceInput(e.target.value ? Number(e.target.value) : '')}
+                        placeholder={`افتراضي: ${form.price} دج`}
+                        className="w-full rounded-xl border border-zinc-300 p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Add Button */}
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => handleAddCarVariant()}
+                        className="w-full rounded-xl bg-zinc-900 p-2 text-xs font-black text-white hover:bg-brand-600 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" /> إضافة هذا الموديل
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Free text custom vehicle input */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-zinc-100">
+                    <input
+                      type="text"
+                      value={customModelText}
+                      onChange={(e) => setCustomModelText(e.target.value)}
+                      placeholder="أو اكتب سيارة مخصصة يدوياً (مثلاً: رينو ماستر 3 أو شاحنة هيونداي HD)..."
+                      className="flex-1 rounded-xl border border-zinc-300 p-2 text-xs font-bold text-zinc-900 focus:border-brand-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customModelText.trim()}
+                      onClick={() => handleAddCarVariant(customModelText.trim())}
+                      className="rounded-xl bg-brand-50 border border-brand-200 px-4 py-2 text-xs font-black text-brand-700 hover:bg-brand-100 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      + إضافة الموديل المخصص
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Added Car Variants */}
                 {form.variants.length === 0 ? (
-                  <p className="text-xs text-zinc-400 font-bold">
-                    المنتج يحتوي على متغير قياسي رئيسي واحد تلقائياً. يمكنك إضافة متغيرات بمقاسات أو أسعار مختلفة هنا.
-                  </p>
+                  <div className="rounded-2xl border border-dashed border-zinc-200 p-6 text-center bg-zinc-50/50">
+                    <Car className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-500 font-bold">
+                      لم تتم إضافة موديلات سيارات مخصصة بعد — سيظهر هذا المنتج كقطعة قياسية بسعر {formatPrice(form.price)}.
+                    </p>
+                    <p className="text-[11px] text-zinc-400 font-medium mt-1">
+                      اضغط على أحد أزرار السيارات بالأعلى لإضافة أسعار مخصصة لكل سيارة!
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {form.variants.map((v, idx) => (
-                      <div key={idx} className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-cairo text-xs font-black text-zinc-800">
-                            متغير #{idx + 2}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveVariant(idx)}
-                            className="text-xs text-red-500 hover:text-red-700"
-                          >
-                            حذف المتغير
-                          </button>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-black text-zinc-700 px-1">
+                      <span>السيارات المحددة وأسعارها في المتجر:</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, variants: [] }))}
+                        className="text-[11px] text-red-500 hover:underline font-bold"
+                      >
+                        مسح جميع السيارات
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {form.variants.map((v, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-2xl border border-zinc-200 bg-white p-3.5 shadow-sm hover:border-brand-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-[200px]">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[11px] font-black text-brand-700">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1">
+                              <input
+                                value={v.label || ''}
+                                onChange={(e) => handleVariantChange(idx, 'label', e.target.value)}
+                                placeholder="اسم موديل السيارة..."
+                                className="w-full rounded-lg border border-zinc-200 p-1.5 font-cairo text-xs font-black text-zinc-900 focus:border-brand-600 focus:outline-none"
+                              />
+                              <input
+                                value={v.partNumber || ''}
+                                onChange={(e) => handleVariantChange(idx, 'partNumber', e.target.value)}
+                                placeholder="رقم القطعة الخاص بها (اختياري)"
+                                className="w-full rounded-lg border border-transparent p-1 text-[10px] font-bold text-zinc-500 focus:border-zinc-300 focus:outline-none mt-0.5"
+                                dir="ltr"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Price */}
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-zinc-500">السعر:</span>
+                              <input
+                                type="number"
+                                value={v.price}
+                                onChange={(e) => handleVariantChange(idx, 'price', Number(e.target.value))}
+                                className="w-24 rounded-lg border border-zinc-300 p-1.5 text-xs font-black text-brand-600 focus:border-brand-600 focus:outline-none"
+                              />
+                              <span className="text-[10px] font-bold text-zinc-400">دج</span>
+                            </div>
+
+                            {/* Old Price */}
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-zinc-400">سابقاً:</span>
+                              <input
+                                type="number"
+                                value={v.oldPrice || ''}
+                                onChange={(e) =>
+                                  handleVariantChange(idx, 'oldPrice', e.target.value ? Number(e.target.value) : null)
+                                }
+                                placeholder="اختياري"
+                                className="w-20 rounded-lg border border-zinc-200 p-1.5 text-xs font-bold text-zinc-400 focus:border-brand-600 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Stock */}
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-zinc-500">الكمية:</span>
+                              <input
+                                type="number"
+                                value={v.stockQuantity}
+                                onChange={(e) =>
+                                  handleVariantChange(idx, 'stockQuantity', Number(e.target.value))
+                                }
+                                className="w-16 rounded-lg border border-zinc-300 p-1.5 text-xs font-bold text-zinc-800 focus:border-brand-600 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVariant(idx)}
+                              className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                              title="حذف هذا الموديل"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                          <input
-                            value={v.label || ''}
-                            onChange={(e) => handleVariantChange(idx, 'label', e.target.value)}
-                            placeholder="اسم المتغير (مثلاً: 12V / 90A)"
-                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
-                          />
-                          <input
-                            value={v.partNumber || ''}
-                            onChange={(e) => handleVariantChange(idx, 'partNumber', e.target.value)}
-                            placeholder="رقم القطعة"
-                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
-                            dir="ltr"
-                          />
-                          <input
-                            type="number"
-                            value={v.price}
-                            onChange={(e) => handleVariantChange(idx, 'price', Number(e.target.value))}
-                            placeholder="السعر (دج)"
-                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
-                          />
-                          <input
-                            type="number"
-                            value={v.stockQuantity}
-                            onChange={(e) => handleVariantChange(idx, 'stockQuantity', Number(e.target.value))}
-                            placeholder="الكمية"
-                            className="rounded-lg border border-zinc-300 p-1.5 text-xs font-bold"
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

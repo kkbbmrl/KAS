@@ -131,24 +131,24 @@ const CAR_BRANDS_LIST: BrandItem[] = [
 ]
 
 const OEM_PARTS_MAKERS = [
-  { name: 'VALEO', country: 'فرنسا 🇫🇷', desc: 'أنظمة التبريد، الكهرباء، والمساحات', icon: '❄️' },
-  { name: 'BOSCH', country: 'ألمانيا 🇩🇪', desc: 'أنظمة الحقن، الفلاتر، وشمعات الإشعال', icon: '⚡' },
-  { name: 'BREMBO', country: 'إيطاليا 🇮🇹', desc: 'أقراص وبطانات الفرامل الرياضية', icon: '🛑' },
-  { name: 'MAHLE', country: 'ألمانيا 🇩🇪', desc: 'فلاتر الهواء والزيت وأجزاء المحرك', icon: '🌬️' },
-  { name: 'MANN-FILTER', country: 'ألمانيا 🇩🇪', desc: 'فلاتر أصلية معتمدة عالمياً', icon: '🫧' },
-  { name: 'DENSO', country: 'اليابان 🇯🇵', desc: 'المشعات، شمعات الإشعال ومكيفات الهواء', icon: '🔧' },
-  { name: 'MAGNETI MARELLI', country: 'إيطاليا 🇮🇹', desc: 'المصابيح والأنظمة الإلكترونية', icon: '💡' },
-  { name: 'CONTINENTAL', country: 'ألمانيا 🇩🇪', desc: 'سيور التوزيع ومضخات المياه', icon: '⚙️' },
+  { name: 'VALEO', country: 'فرنسا 🇫🇷', desc: 'أنظمة التبريد، الكهرباء، والمساحات', icon: '❄️', tags: ['المشعاع', 'ماسحة الزجاج', 'الصدام'] },
+  { name: 'BOSCH', country: 'ألمانيا 🇩🇪', desc: 'أنظمة الحقن، الفلاتر، وشمعات الإشعال', icon: '⚡', tags: ['فلاتر الهواء', 'الترافرس', 'بيرسو'] },
+  { name: 'BREMBO', country: 'إيطاليا 🇮🇹', desc: 'أقراص وبطانات الفرامل الرياضية', icon: '🛑', tags: ['أقراص الفرامل', 'بطانات الفرامل'] },
+  { name: 'MAHLE', country: 'ألمانيا 🇩🇪', desc: 'فلاتر الهواء والزيت وأجزاء المحرك', icon: '🌬️', tags: ['فلاتر الزيت', 'فلاتر الهواء'] },
+  { name: 'MANN-FILTER', country: 'ألمانيا 🇩🇪', desc: 'فلاتر أصلية معتمدة عالمياً', icon: '🫧', tags: ['فلاتر الزيت', 'فلتر زيت'] },
+  { name: 'DENSO', country: 'اليابان 🇯🇵', desc: 'المشعات، شمعات الإشعال ومكيفات الهواء', icon: '🔧', tags: ['المروحة', 'المشعاع'] },
+  { name: 'MAGNETI MARELLI', country: 'إيطاليا 🇮🇹', desc: 'المصابيح والأنظمة الإلكترونية', icon: '💡', tags: ['مقبض الباب', 'الضوء الخلفي'] },
+  { name: 'CONTINENTAL', country: 'ألمانيا 🇩🇪', desc: 'سيور التوزيع ومضخات المياه', icon: '⚙️', tags: ['سيور', 'مضخات'] },
 ]
 
 export default function Brands() {
   const ref = useReveal<HTMLDivElement>()
   const [activeTab, setActiveTab] = useState<'cars' | 'oem'>('cars')
 
-  const handleSelectVehicle = (brand: string, model: string = '') => {
+  const handleSelectVehicle = (brand: string = '', model: string = '', query: string = '') => {
     window.dispatchEvent(
       new CustomEvent('kas:select-vehicle', {
-        detail: { brand, model },
+        detail: { brand, model, query },
       })
     )
     const el = document.getElementById('search')
@@ -169,8 +169,8 @@ export default function Brands() {
           sub="نتعامل مع أفضل الشركات العالمية لضمان جودة كل قطعة نبيعها"
         />
 
-        {/* Brand Selector Tabs & Quick Link to Search */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+        {/* Brand Selector Tabs */}
+        <div className="mt-8 flex justify-center">
           <div className="inline-flex rounded-2xl bg-zinc-100 p-1.5 shadow-inner">
             <button
               type="button"
@@ -198,13 +198,6 @@ export default function Brands() {
               <span>مصنعو قطع الغيار العالمية ({OEM_PARTS_MAKERS.length})</span>
             </button>
           </div>
-
-          <a
-            href="#search"
-            className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/80 px-4 py-2 text-xs font-black text-brand-700 transition-all hover:bg-brand-100 hover:shadow-xs"
-          >
-            <span>انتقل إلى محرك البحث 🔍</span>
-          </a>
         </div>
 
         {/* ─── TAB 1: CAR BRANDS GRID ─── */}
@@ -213,7 +206,7 @@ export default function Brands() {
             {CAR_BRANDS_LIST.map((b) => (
               <div
                 key={b.nameEn}
-                onClick={() => handleSelectVehicle(b.nameAr, '')}
+                onClick={() => handleSelectVehicle(b.nameAr, '', '')}
                 className={`group relative flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl cursor-pointer ${b.accentColor}`}
               >
                 {b.badge && (
@@ -249,7 +242,7 @@ export default function Brands() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleSelectVehicle(b.nameAr, m)
+                          handleSelectVehicle(b.nameAr, m, '')
                         }}
                         className="rounded-lg bg-zinc-100 hover:bg-brand-600 hover:text-white px-2 py-0.5 text-[10px] font-extrabold text-zinc-700 transition-all active:scale-95"
                       >
@@ -274,10 +267,10 @@ export default function Brands() {
         {activeTab === 'oem' && (
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {OEM_PARTS_MAKERS.map((m) => (
-              <a
+              <div
                 key={m.name}
-                href={`/#search?q=${encodeURIComponent(m.name)}`}
-                className="group flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-500 hover:shadow-xl hover:shadow-brand-500/10"
+                onClick={() => handleSelectVehicle('', '', m.name)}
+                className="group flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-500 hover:shadow-xl hover:shadow-brand-500/10 cursor-pointer"
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -295,6 +288,22 @@ export default function Brands() {
                   <p className="mt-1 text-xs font-bold text-zinc-500 leading-relaxed">
                     {m.desc}
                   </p>
+
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {m.tags.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSelectVehicle('', '', t)
+                        }}
+                        className="rounded-lg bg-zinc-100 hover:bg-brand-600 hover:text-white px-2 py-0.5 text-[10px] font-extrabold text-zinc-600 transition-all active:scale-95"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-3">
@@ -302,11 +311,11 @@ export default function Brands() {
                     ✓ قطع أصلية 100%
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-black text-brand-600 group-hover:underline">
-                    <span>استعراض القطع</span>
+                    <span>استعراض قطع {m.name}</span>
                     <ChevronLeft className="h-3 w-3" />
                   </span>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         )}

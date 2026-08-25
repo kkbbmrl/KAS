@@ -217,6 +217,7 @@ export default function AdminProducts() {
         { label: 'الضمان', value: '24 شهرًا' },
       ],
       variants: [],
+      compat: [],
     })
     setModalOpen(true)
   }
@@ -239,6 +240,8 @@ export default function AdminProducts() {
       const compatList: string[] = rawCompat
         .map((c: any) => (typeof c === 'string' ? c : `${c.make || ''} ${c.model || ''}`.trim()))
         .filter(Boolean)
+
+      const brandMatch = brands.find((b) => b.id === p.brandId || b.name?.toLowerCase() === p.brand?.toLowerCase())
 
       setCustomBrandActive(!brandMatch && Boolean(p.brand))
       setForm({

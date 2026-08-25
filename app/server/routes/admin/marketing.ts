@@ -167,6 +167,33 @@ router.get('/landing-pages/:id', async (req, res) => {
   }
 })
 
+async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+  let clean = String(baseSlug || 'offer')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/(^-|-$)/g, '') || `offer-${Date.now().toString().slice(-5)}`
+
+  let candidate = clean
+  let counter = 1
+
+  while (true) {
+    let check
+    if (excludeId) {
+      check = await query(`SELECT id FROM landing_offers WHERE slug = $1 AND id != $2`, [candidate, excludeId])
+    } else {
+      check = await query(`SELECT id FROM landing_offers WHERE slug = $1`, [candidate])
+    }
+
+    if (check.rows.length === 0) {
+      return candidate
+    }
+
+    counter++
+    candidate = `${clean}-${counter}`
+  }
+}
+
 // POST /api/v1/admin/marketing/landing-pages
 router.post('/landing-pages', async (req, res) => {
   try {
@@ -191,16 +218,11 @@ router.post('/landing-pages', async (req, res) => {
       features = [],
     } = req.body
 
-    if (!slug || !productId || !titleAr || !customPrice) {
-      return res.status(400).json({ error: 'يرجى ملء الحقول الإلزامية لصفحة الهبوط (الرابط، المنتج، العنوان، والسعر)' })
+    if (!productId || !titleAr || !customPrice) {
+      return res.status(400).json({ error: 'يرجى ملء الحقول الإلزامية لصفحة الهبوط (المنتج، العنوان، والسعر)' })
     }
 
-    const cleanSlug = String(slug)
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/(^-|-$)/g, '') || `offer-${Date.now()}`
-
+    const cleanSlug = await ensureUniqueSlug(slug || titleAr || 'offer')
     const offerId = randomUUID()
     const chosenTheme = themeId || theme || 'oem-factory'
 
@@ -300,12 +322,7 @@ router.put('/landing-pages/:id', async (req, res) => {
       features = [],
     } = req.body
 
-    const cleanSlug = String(slug)
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/(^-|-$)/g, '') || `offer-${Date.now()}`
-
+    const cleanSlug = await ensureUniqueSlug(slug || titleAr || 'offer', id)
     const chosenTheme = themeId || theme || 'oem-factory'
 
     try {
@@ -377,22 +394,7 @@ router.put('/landing-pages/:id', async (req, res) => {
       }
     }
 
-    // Re-sync features
-    await query(`DELETE FROM offer_features WHERE offer_id = $1`, [id])
-    if (Array.isArray(features)) {
-      for (let idx = 0; idx < features.length; idx++) {
-        const f = features[idx]
-        if (f && f.text) {
-          await query(
-            `INSERT INTO offer_features (id, offer_id, icon_name, text_ar, display_order)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [randomUUID(), id, f.icon || 'ShieldCheck', f.text, idx]
-          )
-        }
-      }
-    }
-
-    res.json({ success: true, message: 'تم تحديث صفحة الهبوط بنجاح' })
+    res.json({ success: true, slug: cleanSlug, message: 'تم تحديث صفحة الهبوط بنجاح' })
   } catch (err: any) {
     console.error('Error updating landing page:', err)
     res.status(500).json({ error: err.message || 'فشل تحديث صفحة الهبوط' })
@@ -422,7 +424,7 @@ router.post('/landing-pages/:id/duplicate', async (req, res) => {
 
     const row = orig.rows[0]
     const newId = randomUUID()
-    const newSlug = `${row.slug}-copy-${Date.now().toString().slice(-4)}`
+    const newSlug = await ensureUniqueSlug(`${row.slug}-copy`)
 
     await query(
       `INSERT INTO landing_offers (

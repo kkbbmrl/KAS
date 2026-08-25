@@ -4,12 +4,12 @@ import Logo from './Logo'
 import { ADDRESS, EMAIL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
 const QUICK = [
-  { href: '#home', label: 'الرئيسية' },
+  { href: '/#home', label: 'الرئيسية' },
   { href: '/themes', label: 'كتالوج قطع الغيار' },
-  { href: '#brands', label: 'العلامات التجارية' },
-  { href: '#offers', label: 'العروض' },
-  { href: '#about', label: 'من نحن' },
-  { href: '#contact', label: 'اتصل بنا' },
+  { href: '/#brands', label: 'العلامات التجارية' },
+  { href: '/#offers', label: 'العروض' },
+  { href: '/#about', label: 'من نحن' },
+  { href: '/#contact', label: 'اتصل بنا' },
 ]
 
 const CATS = ['المشعاع', 'المصباح الأمامي', 'زجاج المصباح', 'الصدام', 'المروحة', 'غطاء الغبار', 'الغطاء الأمامي', 'ماسحة الزجاج']
@@ -53,17 +53,10 @@ export default function Footer() {
             <ul className="mt-5 space-y-2.5">
               {QUICK.map((l) => (
                 <li key={l.href}>
-                  {l.href.startsWith('/') ? (
-                    <Link to={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
-                      <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
-                      {l.label}
-                    </Link>
-                  ) : (
-                    <a href={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
-                      <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
-                      {l.label}
-                    </a>
-                  )}
+                  <Link to={l.href} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                    <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
+                    {l.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -75,7 +68,7 @@ export default function Footer() {
             <ul className="mt-5 grid grid-cols-1 gap-2.5">
               {CATS.map((c) => (
                 <li key={c}>
-                  <Link to="/themes" className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                  <Link to={`/themes?cat=${encodeURIComponent(c)}`} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
                     <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
                     {c}
                   </Link>

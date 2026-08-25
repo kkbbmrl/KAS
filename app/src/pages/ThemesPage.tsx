@@ -9,8 +9,9 @@ import {
   Search,
   Sparkles,
   Wrench,
+  X,
 } from 'lucide-react'
-import { CAR_BRANDS, type Product, PHONE_DISPLAY, PHONE_CALL } from '@/data/products'
+import { CAR_BRANDS, CATEGORIES, type Product, PHONE_DISPLAY, PHONE_CALL } from '@/data/products'
 import { fetchProducts } from '@/lib/api'
 import ProductCard from '@/components/ProductCard'
 import Navbar from '@/components/Navbar'
@@ -92,7 +93,12 @@ export default function ThemesPage() {
     return selectedBrand ? CAR_BRANDS[selectedBrand] ?? [] : []
   }, [selectedBrand])
 
-  // Sync state to URL
+  // Sync search input if query param changes outside
+  useEffect(() => {
+    setSearchInput(searchQuery)
+  }, [searchQuery])
+
+  // Update single search param in URL
   const updateParam = (key: string, val: string | undefined) => {
     const next = new URLSearchParams(params)
     if (val && val !== 'all' && val !== 'الكل') {
@@ -110,9 +116,9 @@ export default function ThemesPage() {
 
     fetchProducts(
       {
-        q: searchQuery,
-        brand: selectedBrand,
-        model: selectedModel,
+        q: searchQuery || undefined,
+        brand: selectedBrand || undefined,
+        model: selectedModel || undefined,
         cat: selectedCategory !== 'الكل' ? selectedCategory : undefined,
         in_stock: inStockOnly || undefined,
       },
@@ -135,13 +141,28 @@ export default function ThemesPage() {
     if (selectedSystem === 'all') return products
     const sys = AUTO_SYSTEMS.find((s) => s.id === selectedSystem)
     if (!sys) return products
-    return products.filter((p) => sys.categories.includes(p.category))
+    return products.filter((p) => {
+      if (!p.category) return false
+      return sys.categories.some(
+        (c) =>
+          p.category.toLowerCase().includes(c.toLowerCase()) ||
+          c.toLowerCase().includes(p.category.toLowerCase())
+      )
+    })
   }, [products, selectedSystem])
 
   const resetFilters = () => {
     setSearchInput('')
     setParams(new URLSearchParams(), { replace: true })
   }
+
+  const activeFiltersCount =
+    (selectedBrand ? 1 : 0) +
+    (selectedModel ? 1 : 0) +
+    (selectedCategory !== 'الكل' ? 1 : 0) +
+    (selectedSystem !== 'all' ? 1 : 0) +
+    (searchQuery ? 1 : 0) +
+    (inStockOnly ? 1 : 0)
 
   return (
     <div className="min-h-screen bg-zinc-50 font-tajawal text-zinc-900" dir="rtl">
@@ -153,7 +174,9 @@ export default function ThemesPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Breadcrumbs */}
             <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 mb-6">
-              <Link to="/" className="hover:text-brand-600 transition-colors">الرئيسية</Link>
+              <Link to="/" className="hover:text-brand-600 transition-colors">
+                الرئيسية
+              </Link>
               <span>/</span>
               <span className="text-brand-600 font-black">كتالوج ودليل قطع الغيار</span>
             </div>
@@ -187,6 +210,19 @@ export default function ThemesPage() {
                   placeholder="ابحث باسم القطعة (مشعاع، مصباح...) أو رقم القطعة (RAD-8800)..."
                   className="w-full bg-transparent px-2 text-sm font-bold text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
                 />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchInput('')
+                      updateParam('q', undefined)
+                    }}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                    title="مسح البحث"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="rounded-xl bg-brand-600 px-6 py-2.5 font-cairo text-xs font-black text-white hover:bg-brand-700 transition-colors shrink-0"
@@ -198,7 +234,7 @@ export default function ThemesPage() {
           </div>
         </section>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-10 space-y-10">
           {/* ─── STEP 1: Visual Vehicle Selector (المحدد التفاعلي للسيارة) ─── */}
           <div className="rounded-3xl border border-zinc-200/80 bg-white p-6 sm:p-8 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-100 pb-5">
@@ -208,7 +244,7 @@ export default function ThemesPage() {
                 </span>
                 <div>
                   <h3 className="font-cairo text-lg font-black text-zinc-900">
-                    اختر نوع السيارة وموديلها (Marque & Modèle)
+                    اختر ماركة وموديل سيارتك (Marque & Modèle)
                   </h3>
                   <p className="text-xs text-zinc-500">حدد ماركة سيارتك لعرض القطع المتوافقة بنسبة 100%</p>
                 </div>
@@ -216,6 +252,7 @@ export default function ThemesPage() {
 
               {(selectedBrand || selectedModel) && (
                 <button
+                  type="button"
                   onClick={() => {
                     updateParam('brand', undefined)
                     updateParam('model', undefined)
@@ -230,6 +267,7 @@ export default function ThemesPage() {
             {/* Car Brands Grid */}
             <div className="mt-5 flex flex-wrap gap-2 sm:gap-2.5">
               <button
+                type="button"
                 onClick={() => {
                   updateParam('brand', undefined)
                   updateParam('model', undefined)
@@ -248,8 +286,9 @@ export default function ThemesPage() {
                 return (
                   <button
                     key={b}
+                    type="button"
                     onClick={() => {
-                      updateParam('brand', b)
+                      updateParam('brand', active ? undefined : b)
                       updateParam('model', undefined)
                     }}
                     className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
@@ -273,9 +312,12 @@ export default function ThemesPage() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
+                    type="button"
                     onClick={() => updateParam('model', undefined)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                      !selectedModel ? 'bg-brand-600 text-white' : 'bg-white text-brand-800 border border-brand-200 hover:bg-brand-100'
+                      !selectedModel
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-white text-brand-800 border border-brand-200 hover:bg-brand-100'
                     }`}
                   >
                     كل موديلات {selectedBrand}
@@ -285,7 +327,8 @@ export default function ThemesPage() {
                     return (
                       <button
                         key={m}
-                        onClick={() => updateParam('model', m)}
+                        type="button"
+                        onClick={() => updateParam('model', active ? undefined : m)}
                         className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                           active
                             ? 'bg-brand-600 text-white shadow-md'
@@ -301,11 +344,73 @@ export default function ThemesPage() {
             )}
           </div>
 
-          {/* ─── STEP 2: Automotive Systems Navigator (تصفح أنظمة السيارة) ─── */}
-          <div className="mt-10">
+          {/* ─── STEP 2: Category Pills Bar (تصفية حسب صنف القطعة) ─── */}
+          <div className="rounded-3xl border border-zinc-200/80 bg-white p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-100 pb-5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white">
+                  2
+                </span>
+                <div>
+                  <h3 className="font-cairo text-lg font-black text-zinc-900">
+                    اختر صنف أو نوع القطعة (Catégories)
+                  </h3>
+                  <p className="text-xs text-zinc-500">اختر نوع القطعة المطلوبة لعرض المنتجات مباشرة</p>
+                </div>
+              </div>
+
+              {selectedCategory !== 'الكل' && (
+                <button
+                  type="button"
+                  onClick={() => updateParam('cat', undefined)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:underline"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> عرض كل الأصناف
+                </button>
+              )}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => updateParam('cat', undefined)}
+                className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
+                  selectedCategory === 'الكل'
+                    ? 'bg-zinc-900 text-white shadow-md'
+                    : 'border border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-brand-300 hover:bg-white hover:text-brand-600'
+                }`}
+              >
+                جميع الأصناف
+              </button>
+
+              {CATEGORIES.map((cat) => {
+                const active = selectedCategory === cat.name
+                return (
+                  <button
+                    key={cat.name}
+                    type="button"
+                    onClick={() => updateParam('cat', active ? undefined : cat.name)}
+                    className={`rounded-xl px-3.5 py-2 text-xs font-black transition-all flex items-center gap-1.5 ${
+                      active
+                        ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-2 ring-brand-600/20'
+                        : 'border border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-brand-300 hover:bg-white hover:text-brand-600'
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    <span className="text-[10px] opacity-70" dir="ltr">
+                      ({cat.fr})
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ─── STEP 3: Automotive Systems Navigator (تصفح أنظمة السيارة) ─── */}
+          <div>
             <div className="flex items-center gap-3 mb-6">
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white">
-                2
+                3
               </span>
               <div>
                 <h3 className="font-cairo text-xl font-black text-zinc-900">
@@ -319,9 +424,8 @@ export default function ThemesPage() {
               {AUTO_SYSTEMS.map((sys) => {
                 const active = selectedSystem === sys.id
                 return (
-                  <button
+                  <div
                     key={sys.id}
-                    onClick={() => updateParam('system', active ? 'all' : sys.id)}
                     className={`group rounded-3xl border-2 p-5 text-right transition-all duration-300 bg-white hover:-translate-y-1 hover:shadow-xl ${
                       active
                         ? 'border-brand-600 ring-4 ring-brand-600/10 shadow-lg shadow-brand-600/10'
@@ -329,36 +433,68 @@ export default function ThemesPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-2xl group-hover:scale-110 transition-transform">
+                      <button
+                        type="button"
+                        onClick={() => updateParam('system', active ? 'all' : sys.id)}
+                        className="grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-2xl group-hover:scale-110 transition-transform"
+                      >
                         {sys.icon}
-                      </div>
-                      <span className="text-[10px] font-black rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600" dir="ltr">
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateParam('system', active ? 'all' : sys.id)}
+                        className={`text-[10px] font-black rounded-full px-2.5 py-1 transition-colors ${
+                          active
+                            ? 'bg-brand-600 text-white'
+                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                        }`}
+                        dir="ltr"
+                      >
                         {sys.titleFr}
-                      </span>
+                      </button>
                     </div>
 
-                    <h4 className="mt-4 font-cairo text-lg font-black text-zinc-900 group-hover:text-brand-600 transition-colors">
-                      {sys.title}
-                    </h4>
-                    <p className="mt-1.5 text-xs text-zinc-500 line-clamp-2 leading-relaxed">
-                      {sys.description}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => updateParam('system', active ? 'all' : sys.id)}
+                      className="w-full text-right mt-4"
+                    >
+                      <h4 className="font-cairo text-lg font-black text-zinc-900 group-hover:text-brand-600 transition-colors">
+                        {sys.title}
+                      </h4>
+                      <p className="mt-1.5 text-xs text-zinc-500 line-clamp-2 leading-relaxed">
+                        {sys.description}
+                      </p>
+                    </button>
 
+                    {/* Clickable category pills inside system */}
                     <div className="mt-4 flex flex-wrap gap-1.5 pt-3 border-t border-zinc-100">
-                      {sys.categories.map((c) => (
-                        <span key={c} className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
-                          {c}
-                        </span>
-                      ))}
+                      {sys.categories.map((c) => {
+                        const isCatActive = selectedCategory === c
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => updateParam('cat', isCatActive ? undefined : c)}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                              isCatActive
+                                ? 'bg-brand-600 text-white shadow-sm'
+                                : 'bg-zinc-100 text-zinc-700 hover:bg-brand-50 hover:text-brand-600'
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        )
+                      })}
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
           </div>
 
-          {/* ─── STEP 3: Live Catalog Results (الكتالوج الحي) ─── */}
-          <div className="mt-14">
+          {/* ─── STEP 4: Live Catalog Results (الكتالوج الحي) ─── */}
+          <div className="pt-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-zinc-200">
               <div>
                 <h3 className="font-cairo text-2xl font-black text-zinc-900 flex items-center gap-2">
@@ -368,13 +504,18 @@ export default function ThemesPage() {
                   </span>
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">
-                  {selectedBrand ? `متوافقة مع ${selectedBrand} ${selectedModel}` : 'جميع القطع المتوفرة بالمتجر'}
+                  {selectedBrand
+                    ? `متوافقة مع ${selectedBrand} ${selectedModel || ''}`
+                    : selectedCategory !== 'الكل'
+                    ? `فئة ${selectedCategory}`
+                    : 'جميع القطع المتوفرة بالمتجر'}
                 </p>
               </div>
 
               {/* Active Filter Badges & Clear Button */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => updateParam('in_stock', inStockOnly ? undefined : 'true')}
                   className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
                     inStockOnly
@@ -382,16 +523,19 @@ export default function ThemesPage() {
                       : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
                   }`}
                 >
-                  <CheckCircle2 className={`h-3.5 w-3.5 ${inStockOnly ? 'text-emerald-600' : 'text-zinc-400'}`} />
+                  <CheckCircle2
+                    className={`h-3.5 w-3.5 ${inStockOnly ? 'text-emerald-600' : 'text-zinc-400'}`}
+                  />
                   <span>المتوفر بالمخزن</span>
                 </button>
 
-                {(selectedBrand || selectedModel || selectedSystem !== 'all' || searchQuery || inStockOnly) && (
+                {activeFiltersCount > 0 && (
                   <button
+                    type="button"
                     onClick={resetFilters}
                     className="inline-flex items-center gap-1 rounded-xl bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-200 transition-colors"
                   >
-                    <RotateCcw className="h-3 w-3" /> مسح كل الفلاتر
+                    <RotateCcw className="h-3 w-3" /> مسح كل الفلاتر ({activeFiltersCount})
                   </button>
                 )}
               </div>
@@ -401,17 +545,23 @@ export default function ThemesPage() {
             {loading ? (
               <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <div key={n} className="h-96 animate-pulse rounded-3xl border border-zinc-100 bg-white p-6" />
+                  <div
+                    key={n}
+                    className="h-96 animate-pulse rounded-3xl border border-zinc-100 bg-white p-6"
+                  />
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="mt-8 rounded-3xl border-2 border-dashed border-zinc-200 bg-white p-14 text-center">
                 <Boxes className="mx-auto h-12 w-12 text-zinc-300" />
-                <p className="mt-4 font-cairo text-xl font-black text-zinc-800">لا توجد قطع مطابقة للبحث المحدد</p>
+                <p className="mt-4 font-cairo text-xl font-black text-zinc-800">
+                  لا توجد قطع مطابقة للبحث المحدد
+                </p>
                 <p className="mt-2 text-sm text-zinc-500 max-w-md mx-auto">
-                  جرّب إزالة فلتر الموديل أو اختيار ماركة أخرى، أو تواصل معنا مباشرة لتوفير القطعة المطلوبة.
+                  جرّب إزالة فلتر الموديل أو اختيار فئة أخرى، أو تواصل معنا مباشرة لتوفير القطعة المطلوبة.
                 </p>
                 <button
+                  type="button"
                   onClick={resetFilters}
                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-2.5 font-cairo text-xs font-black text-white hover:bg-brand-700 shadow-md transition-all"
                 >
@@ -427,7 +577,7 @@ export default function ThemesPage() {
             )}
           </div>
 
-          {/* ─── STEP 4: VIN / WhatsApp Support Strip (مساعدة رقم الهيكل) ─── */}
+          {/* ─── STEP 5: VIN / WhatsApp Support Strip (مساعدة رقم الهيكل) ─── */}
           <div className="mt-16 rounded-3xl bg-gradient-to-br from-zinc-900 to-zinc-950 p-8 sm:p-10 text-white shadow-2xl">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
@@ -448,7 +598,7 @@ export default function ThemesPage() {
                   className="btn-shine inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-6 py-3.5 font-cairo text-sm font-black text-white shadow-xl shadow-brand-600/30 hover:bg-brand-700 transition-all active:scale-95"
                 >
                   <Phone className="h-4 w-4" />
-                  <span>اتصل بالدعم الفني: {PHONE_DISPLAY}</span>
+                  <span>اتصل بالفني: {PHONE_DISPLAY}</span>
                 </a>
               </div>
             </div>
@@ -460,3 +610,4 @@ export default function ThemesPage() {
     </div>
   )
 }
+

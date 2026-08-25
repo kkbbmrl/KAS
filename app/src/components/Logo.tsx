@@ -1,8 +1,9 @@
+import { Link } from 'react-router'
 import { Cog } from 'lucide-react'
 
 export default function Logo({ dark = false }: { dark?: boolean }) {
   return (
-    <a href="#home" className="group flex items-center gap-3" aria-label="Khaled Auto Spart">
+    <Link to="/" className="group flex items-center gap-3" aria-label="Khaled Auto Spart">
       <div className="relative">
         <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lg shadow-brand-600/30 transition-transform duration-500 group-hover:rotate-90">
           <Cog className="h-6 w-6 text-white" strokeWidth={2.2} />
@@ -19,6 +20,6 @@ export default function Logo({ dark = false }: { dark?: boolean }) {
           قطع غيار السيارات الأصلية
         </p>
       </div>
-    </a>
+    </Link>
   )
 }

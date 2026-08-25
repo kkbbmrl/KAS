@@ -146,21 +146,21 @@ export default function AdminLayout() {
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 px-4">
           {!collapsed ? (
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md shadow-brand-600/30">
+            <Link to="/" className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity" title="العودة للمتجر الرئيسي">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md shadow-brand-600/30 group-hover:scale-105 transition-transform">
                 KAS
               </div>
               <div>
                 <p className="font-cairo text-sm font-black leading-none text-zinc-900">
                   Khaled <span className="text-brand-600">Auto</span> Spares
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-zinc-400">Admin Control Center</p>
+                <p className="mt-1 text-[10px] font-bold text-zinc-400">Admin Control Center ↗</p>
               </div>
-            </div>
+            </Link>
           ) : (
-            <div className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md">
+            <Link to="/" className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md hover:scale-105 transition-transform" title="العودة للمتجر الرئيسي">
               K
-            </div>
+            </Link>
           )}
 
           <button

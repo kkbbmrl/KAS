@@ -65,13 +65,37 @@ router.post('/campaigns', async (req, res) => {
 async function ensureMarketingColumns() {
   try {
     await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS theme_id TEXT DEFAULT 'oem-factory'`)
+  } catch {}
+  try {
     await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS fb_pixel_id TEXT`)
+  } catch {}
+  try {
     await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS tiktok_pixel_id TEXT`)
+  } catch {}
+  try {
     await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS google_tag_id TEXT`)
+  } catch {}
+  try {
     await query(`ALTER TABLE landing_offers ADD COLUMN IF NOT EXISTS snap_pixel_id TEXT`)
-  } catch (e) {
-    // Ignore if not supported / already added
-  }
+  } catch {}
+
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS campaign_visits (
+        id TEXT PRIMARY KEY,
+        landing_slug TEXT,
+        utm_source TEXT,
+        utm_medium TEXT,
+        utm_campaign TEXT,
+        utm_content TEXT,
+        utm_term TEXT,
+        referrer TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+  } catch {}
 
   try {
     const check = await query(`SELECT COUNT(*) AS count FROM landing_offers`)
@@ -140,7 +164,7 @@ router.get('/landing-pages', async (_req, res) => {
         COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
         l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
-        (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
+        CASE WHEN l.is_active::text IN ('1', 'true', 't') THEN true ELSE false END AS "isActive",
         l.created_at AS "createdAt",
         COALESCE(p.name_ar, l.title_ar) AS "productName",
         COALESCE(p.base_part_number, '') AS "partNumber",
@@ -174,7 +198,7 @@ router.get('/landing-pages', async (_req, res) => {
     res.json(landingPages)
   } catch (err: any) {
     console.error('Error fetching landing pages:', err)
-    res.status(500).json({ error: 'Failed to fetch landing pages' })
+    res.status(500).json({ error: 'Failed to fetch landing pages', details: err?.message })
   }
 })
 
@@ -186,12 +210,13 @@ router.get('/landing-pages/:id', async (req, res) => {
       `SELECT 
         l.id, l.slug, l.product_id AS "productId", l.title_ar AS "titleAr", l.subtitle_ar AS "subtitleAr",
         l.title_fr AS "titleFr", l.badge_text AS "badgeText", l.urgency_text AS "urgencyText",
-        l.delivery_note AS "deliveryNote", l.custom_price AS "customPrice", l.custom_old_price AS "customOldPrice",
+        l.delivery_note AS "deliveryNote", l.custom_price AS "customPrice",
+        l.custom_old_price AS "customOldPrice",
         l.hero_image_url AS "heroImageUrl",
         COALESCE(l.theme_id, 'oem-factory') AS "themeId", COALESCE(l.theme_id, 'oem-factory') AS theme,
         l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
-        (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
+        CASE WHEN l.is_active::text IN ('1', 'true', 't') THEN true ELSE false END AS "isActive",
         COALESCE(p.name_ar, l.title_ar) AS "productName",
         COALESCE(p.base_part_number, '') AS "partNumber",
         COALESCE(b.name, 'KAS') AS brand
@@ -217,7 +242,7 @@ router.get('/landing-pages/:id', async (req, res) => {
       features: featRes.rows,
     })
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch landing page details' })
+    res.status(500).json({ error: 'Failed to fetch landing page details', details: err?.message })
   }
 })
 

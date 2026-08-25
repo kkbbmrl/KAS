@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router'
+import { Routes, Route, useLocation, Navigate } from 'react-router'
 import { useEffect } from 'react'
 import { ShopProvider } from './context/ShopContext'
 import { AdminAuthProvider } from './context/AdminAuthContext'
@@ -7,7 +7,6 @@ import CartDrawer from './components/CartDrawer'
 import Toast from './components/Toast'
 import Home from './pages/Home'
 import SearchPage from './pages/SearchPage'
-import ThemesPage from './pages/ThemesPage'
 import OfferPage from './pages/OfferPage'
 import AdLandingPage from './pages/AdLandingPage'
 import AdsCatalogPage from './pages/AdsCatalogPage'
@@ -51,7 +50,7 @@ export default function App() {
         <Routes>
           {/* Public Store Routes */}
           <Route path="/" element={<Home />} />
-          <Route path="/themes" element={<ThemesPage />} />
+          <Route path="/themes" element={<Navigate to="/#search" replace />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/offer/:slug" element={<OfferPage />} />
 

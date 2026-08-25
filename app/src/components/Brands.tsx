@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
 import {
   Car,
   CheckCircle2,
@@ -193,9 +192,9 @@ export default function Brands() {
         {activeTab === 'cars' && (
           <div className="mt-10 grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {CAR_BRANDS_LIST.map((b) => (
-              <Link
+              <a
                 key={b.nameEn}
-                to={`/themes?brand=${encodeURIComponent(b.nameAr)}`}
+                href={`/#search?brand=${encodeURIComponent(b.nameAr)}`}
                 className={`group relative flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${b.accentColor}`}
               >
                 {b.badge && (
@@ -231,7 +230,7 @@ export default function Brands() {
                     <ChevronLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
                   </span>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
         )}
@@ -240,9 +239,9 @@ export default function Brands() {
         {activeTab === 'oem' && (
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {OEM_PARTS_MAKERS.map((m) => (
-              <Link
+              <a
                 key={m.name}
-                to={`/search?q=${encodeURIComponent(m.name)}`}
+                href={`/#search?q=${encodeURIComponent(m.name)}`}
                 className="group flex flex-col justify-between rounded-3xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-500 hover:shadow-xl hover:shadow-brand-500/10"
               >
                 <div>
@@ -272,7 +271,7 @@ export default function Brands() {
                     <ChevronLeft className="h-3 w-3" />
                   </span>
                 </div>
-              </Link>
+              </a>
             ))}
           </div>
         )}
@@ -287,9 +286,9 @@ export default function Brands() {
           {[0, 1].map((half) => (
             <div key={half} className="flex items-center">
               {marqueeRow.map((b, i) => (
-                <Link
+                <a
                   key={`${half}-${i}`}
-                  to={`/themes?brand=${encodeURIComponent(b.nameAr)}`}
+                  href={`/#search?brand=${encodeURIComponent(b.nameAr)}`}
                   className="group mx-3 flex items-center gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 px-5 py-3 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-brand-400 hover:bg-white hover:shadow-md"
                 >
                   <img
@@ -301,7 +300,7 @@ export default function Brands() {
                   <span className="whitespace-nowrap font-cairo text-sm font-black tracking-wider text-zinc-600 transition-colors duration-300 group-hover:text-zinc-900">
                     {b.nameAr} ({b.nameEn})
                   </span>
-                </Link>
+                </a>
               ))}
             </div>
           ))}

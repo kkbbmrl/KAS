@@ -5,7 +5,8 @@ import { ADDRESS, EMAIL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 
 const QUICK = [
   { href: '/#home', label: 'الرئيسية' },
-  { href: '/themes', label: 'كتالوج قطع الغيار' },
+  { href: '/#search', label: 'البحث عن القطع' },
+  { href: '/#products', label: 'قطع الغيار' },
   { href: '/#brands', label: 'العلامات التجارية' },
   { href: '/#offers', label: 'العروض' },
   { href: '/#about', label: 'من نحن' },
@@ -68,10 +69,10 @@ export default function Footer() {
             <ul className="mt-5 grid grid-cols-1 gap-2.5">
               {CATS.map((c) => (
                 <li key={c}>
-                  <Link to={`/themes?cat=${encodeURIComponent(c)}`} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
+                  <a href={`/#search?cat=${encodeURIComponent(c)}`} className="group flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white">
                     <span className="h-px w-3 bg-brand-600 transition-all group-hover:w-5" />
                     {c}
-                  </Link>
+                  </a>
                 </li>
               ))}
             </ul>

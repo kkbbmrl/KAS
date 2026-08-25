@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   Car,
   ChevronDown,
@@ -31,12 +31,22 @@ const selectCls =
 
 export default function SearchSection() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const ref = useReveal<HTMLDivElement>()
-  const [brand, setBrand] = useState('')
-  const [model, setModel] = useState('')
-  const [query, setQuery] = useState('')
+  const [brand, setBrand] = useState(searchParams.get('brand') || '')
+  const [model, setModel] = useState(searchParams.get('model') || '')
+  const [query, setQuery] = useState(searchParams.get('q') || searchParams.get('cat') || '')
   const [showSugg, setShowSugg] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const b = searchParams.get('brand')
+    const m = searchParams.get('model')
+    const q = searchParams.get('q') || searchParams.get('cat')
+    if (b !== null && b !== undefined) setBrand(b)
+    if (m !== null && m !== undefined) setModel(m)
+    if (q !== null && q !== undefined) setQuery(q)
+  }, [searchParams])
 
   // Live preview against the real catalogue.
   const [preview, setPreview] = useState<Product[]>([])

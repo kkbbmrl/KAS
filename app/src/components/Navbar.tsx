@@ -9,8 +9,8 @@ import { PHONE_DISPLAY } from '@/data/products'
 // a bare "#brands" on /search or /ads resolves to nothing.
 const LINKS = [
   { href: '/#home', label: 'الرئيسية' },
-  { href: '/#search', label: 'البحث' },
-  { href: '/themes', label: 'كتالوج قطع الغيار' },
+  { href: '/#search', label: 'البحث عن القطع' },
+  { href: '/#products', label: 'قطع الغيار' },
   { href: '/#brands', label: 'العلامات التجارية' },
   { href: '/#offers', label: 'العروض' },
   { href: '/#about', label: 'من نحن' },
@@ -91,7 +91,7 @@ export default function Navbar() {
             )}
           </button>
           <Link
-            to="/themes"
+            to="/#search"
             className="btn-shine hidden rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-600/30 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/40 md:block"
           >
             تسوّق الآن

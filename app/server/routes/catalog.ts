@@ -84,10 +84,31 @@ router.get('/vehicle-models', async (req, res) => {
   }
 })
 
+// GET /api/v1/sync-compat (Sync vehicle taxonomy & compatibility)
+router.get('/sync-compat', async (_req, res) => {
+  try {
+    const { seedPartCompatibility } = await import('../db/seed.js')
+    await seedPartCompatibility()
+    const countRes = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
+    res.json({ success: true, count: Number(countRes.rows[0]?.count || 0), message: 'Vehicle compatibility synced.' })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/v1/products (Search & Filtering)
 router.get('/products', async (req, res) => {
   try {
     const { q, brand, model, cat, in_stock } = req.query as Record<string, string>
+
+    // Ensure compatibility records are seeded
+    try {
+      const hasCompat = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
+      if (Number(hasCompat.rows[0]?.count || 0) < 50) {
+        const { seedPartCompatibility } = await import('../db/seed.js')
+        await seedPartCompatibility()
+      }
+    } catch {}
 
     let sql = `
       SELECT 

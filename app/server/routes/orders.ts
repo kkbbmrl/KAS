@@ -153,14 +153,18 @@ router.post('/', async (req, res) => {
     for (const it of itemsToInsert) {
       if (it.varId) {
         await query(
-          `UPDATE product_variants SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE id = $2`,
+          `UPDATE product_variants SET stock_quantity = CASE WHEN stock_quantity > $1 THEN stock_quantity - $1 ELSE 0 END WHERE id = $2`,
           [it.qty, it.varId]
         )
-        await query(
-          `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_after, reason)
-           VALUES ($1, $2, 'order_reservation', $3, $4, $5, $6)`,
-          [randomUUID(), it.varId, orderId, -it.qty, Math.max(0, it.stockQty - it.qty), `Order placement ${orderRef}`]
-        )
+        try {
+          await query(
+            `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_after, reason)
+             VALUES ($1, $2, 'order_reservation', $3, $4, $5, $6)`,
+            [randomUUID(), it.varId, orderId, -it.qty, Math.max(0, it.stockQty - it.qty), `Order placement ${orderRef}`]
+          )
+        } catch (err: any) {
+          console.warn('Inventory log notice:', err.message)
+        }
       }
 
       await query(

@@ -302,25 +302,33 @@ export default function AdminMarketing() {
   // Open Builder for Creating New Landing Page
   const openNewBuilder = () => {
     setEditOfferId(null)
-    setSelectedProduct(null)
+    const initialProduct = products[0] || null
+    setSelectedProduct(initialProduct)
     setSelectedTheme('oem-factory')
     setEditorSubTab('blueprint')
     setBuilderError(null)
     setBuilderSuccess(null)
+
+    const basePrice = initialProduct?.price || 14500
+    const oldPrice = initialProduct?.oldPrice || Math.round(basePrice * 1.2)
+    const rawName = initialProduct?.name || initialProduct?.nameAr || 'عرض حصري — قطعة غيار أصلية'
+    const brand = initialProduct?.brand || 'VALEO'
+    const randomSuffix = Math.floor(Math.random() * 9000 + 1000)
+
     setForm({
-      productId: '',
-      titleAr: '',
-      subtitleAr: '',
+      productId: initialProduct?.id || '',
+      titleAr: rawName,
+      subtitleAr: initialProduct?.description || `قطعة أصلية مضمونة 100% مع ضمان رسمي وتوصيل سريع لباب منزلك لـ 58 ولاية.`,
       badgeText: '🛡️ قطعة أصلية 100% — ضمان صناعي 24 شهراً',
       urgencyText: '⚡ الكمية محدودة — توصيل فوري لـ 58 ولاية',
       deliveryNote: '🚚 دفع عند الاستلام والمعاينة — شحن لباب منزلك',
-      customPrice: 14500,
-      customOldPrice: 17500,
-      slug: `promo-${Math.floor(Math.random() * 9000 + 1000)}`,
-      heroImageUrl: '/img/parts/radiator.jpg',
+      customPrice: basePrice,
+      customOldPrice: oldPrice,
+      slug: `promo-${randomSuffix}`,
+      heroImageUrl: initialProduct?.image || '/img/parts/radiator.jpg',
       features: [
-        { icon: 'ShieldCheck', text: 'قطعة أصلية 100% مطابقة لمعايير المصنع' },
-        { icon: 'Truck', text: 'شحن سريع لـ 58 ولاية مع شركة ياليدين' },
+        { icon: 'ShieldCheck', text: `قطعة أصلية 100% معتمدة من مصانع ${brand}` },
+        { icon: 'Truck', text: 'شحن سريع لـ 58 ولاية مع الدفع عند الاستلام' },
         { icon: 'CheckCircle2', text: 'ضمان الاستبدال أو استرجاع المبلغ خلال 14 يوماً' },
         { icon: 'Wrench', text: 'تركيب مباشر ومطابقة تامة مع كتالوج الصانع' },
       ],

@@ -72,6 +72,56 @@ async function ensureMarketingColumns() {
   } catch (e) {
     // Ignore if not supported / already added
   }
+
+  try {
+    const check = await query(`SELECT COUNT(*) AS count FROM landing_offers`)
+    const count = Number(check.rows[0]?.count || 0)
+    if (count === 0) {
+      const prodRes = await query(`SELECT id, name_ar, base_part_number, price FROM products LIMIT 1`)
+      const prod = prodRes.rows[0]
+      const prodId = prod?.id || 'prod-radiateur-clio4'
+      const offerId = 'offer-valeo-clio4'
+      
+      try {
+        await query(
+          `INSERT INTO landing_offers (
+            id, slug, product_id, title_ar, subtitle_ar, title_fr,
+            badge_text, urgency_text, delivery_note, custom_price, custom_old_price, hero_image_url,
+            theme_id, is_active
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)`,
+          [
+            offerId,
+            'radiateur-valeo-clio4',
+            prodId,
+            'رادياتور تبريد المحرك الأصلي — Valeo (Renault Clio 4 / Dacia 1.5 dCi)',
+            'قطعة أصلية مضمونة 100% مطابقة لمواصفات المصنع ومصممة لضمان تبريد مثالي وحماية المحرك في أصعب الظروف المناخية.',
+            'Radiateur de Refroidissement Moteur Valeo Clio 4',
+            '🛡️ قطعة أصلية 100% — ضمان صناعي 24 شهراً',
+            '⚡ متوفر في المخزن — شحن فوري لـ 58 ولاية',
+            '🚚 توصيل سريع لباب منزلك مع الدفع بعد المعاينة والفحص',
+            14500,
+            17500,
+            '/img/parts/radiator.jpg',
+            'oem-factory',
+          ]
+        )
+
+        await query(
+          `INSERT INTO offer_features (id, offer_id, icon_name, text_ar, display_order)
+           VALUES 
+            ($1, $2, 'ShieldCheck', 'صناعة أصلية معتمدة من شركة Valeo العالمية مع ضمان 24 شهراً', 0),
+            ($3, $2, 'Truck', 'توصيل مأمون وسريع لباب منزلك لجميع ولايات الوطن خلال 24–48 ساعة', 1),
+            ($4, $2, 'CheckCircle2', 'حق المعاينة والفحص عند الباب قبل دفع أي دينار للناقل', 2),
+            ($5, $2, 'Wrench', 'تركيب مباشر ومطابقة تامة مع منافذ التثبيت بدون أي تعديل', 3)`,
+          [randomUUID(), offerId, randomUUID(), randomUUID(), randomUUID()]
+        )
+      } catch (innerErr) {
+        // Safe skip
+      }
+    }
+  } catch (seedErr) {
+    console.warn('Notice seeding initial landing offer:', seedErr)
+  }
 }
 ensureMarketingColumns()
 
@@ -92,11 +142,13 @@ router.get('/landing-pages', async (_req, res) => {
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
         (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
         l.created_at AS "createdAt",
-        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand,
+        COALESCE(p.name_ar, l.title_ar) AS "productName",
+        COALESCE(p.base_part_number, '') AS "partNumber",
+        COALESCE(b.name, 'KAS') AS brand,
         (SELECT COUNT(*) FROM orders o WHERE o.offer_id = l.id OR o.offer_id = l.slug) AS "ordersCount",
         (SELECT COUNT(*) FROM campaign_visits v WHERE v.landing_slug = l.slug) AS "viewsCount"
        FROM landing_offers l
-       JOIN products p ON p.id = l.product_id
+       LEFT JOIN products p ON p.id = l.product_id
        LEFT JOIN brands b ON b.id = p.brand_id
        ORDER BY l.created_at DESC`
     )
@@ -140,9 +192,11 @@ router.get('/landing-pages/:id', async (req, res) => {
         l.fb_pixel_id AS "fbPixelId", l.tiktok_pixel_id AS "tiktokPixelId",
         l.google_tag_id AS "googleTagId", l.snap_pixel_id AS "snapPixelId",
         (l.is_active = 1 OR l.is_active = TRUE) AS "isActive",
-        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
+        COALESCE(p.name_ar, l.title_ar) AS "productName",
+        COALESCE(p.base_part_number, '') AS "partNumber",
+        COALESCE(b.name, 'KAS') AS brand
        FROM landing_offers l
-       JOIN products p ON p.id = l.product_id
+       LEFT JOIN products p ON p.id = l.product_id
        LEFT JOIN brands b ON b.id = p.brand_id
        WHERE l.id = $1 OR l.slug = $1`,
       [id]
@@ -218,8 +272,14 @@ router.post('/landing-pages', async (req, res) => {
       features = [],
     } = req.body
 
-    if (!productId || !titleAr || !customPrice) {
-      return res.status(400).json({ error: 'يرجى ملء الحقول الإلزامية لصفحة الهبوط (المنتج، العنوان، والسعر)' })
+    if (!titleAr || !customPrice) {
+      return res.status(400).json({ error: 'يرجى ملء الحقول الإلزامية لصفحة الهبوط (العنوان والسعر)' })
+    }
+
+    let finalProductId = productId
+    if (!finalProductId) {
+      const prodRes = await query(`SELECT id FROM products LIMIT 1`)
+      finalProductId = prodRes.rows[0]?.id || 'prod-default'
     }
 
     const cleanSlug = await ensureUniqueSlug(slug || titleAr || 'offer')
@@ -236,7 +296,7 @@ router.post('/landing-pages', async (req, res) => {
         [
           offerId,
           cleanSlug,
-          productId,
+          finalProductId,
           titleAr,
           subtitleAr || '',
           titleFr || '',
@@ -263,7 +323,7 @@ router.post('/landing-pages', async (req, res) => {
         [
           offerId,
           cleanSlug,
-          productId,
+          finalProductId,
           titleAr,
           subtitleAr || '',
           titleFr || '',

@@ -14,10 +14,12 @@ router.get('/', async (_req, res) => {
         o.hero_image_url AS image, COALESCE(o.theme_id, 'oem-factory') AS theme,
         o.fb_pixel_id AS "fbPixelId", o.tiktok_pixel_id AS "tiktokPixelId",
         o.google_tag_id AS "googleTagId", o.snap_pixel_id AS "snapPixelId",
-        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
+        COALESCE(p.name_ar, o.title_ar) AS "productName",
+        COALESCE(p.base_part_number, '') AS "partNumber",
+        COALESCE(b.name, 'KAS') AS brand
        FROM landing_offers o
-       JOIN products p ON p.id = o.product_id
-       JOIN brands b ON b.id = p.brand_id
+       LEFT JOIN products p ON p.id = o.product_id
+       LEFT JOIN brands b ON b.id = p.brand_id
        WHERE (o.is_active = 1 OR o.is_active = TRUE)`
     )
 
@@ -57,10 +59,12 @@ router.get('/:slug', async (req, res) => {
         o.hero_image_url AS image, COALESCE(o.theme_id, 'oem-factory') AS theme,
         o.fb_pixel_id AS "fbPixelId", o.tiktok_pixel_id AS "tiktokPixelId",
         o.google_tag_id AS "googleTagId", o.snap_pixel_id AS "snapPixelId",
-        p.name_ar AS "productName", p.base_part_number AS "partNumber", b.name AS brand
+        COALESCE(p.name_ar, o.title_ar) AS "productName",
+        COALESCE(p.base_part_number, '') AS "partNumber",
+        COALESCE(b.name, 'KAS') AS brand
        FROM landing_offers o
-       JOIN products p ON p.id = o.product_id
-       JOIN brands b ON b.id = p.brand_id
+       LEFT JOIN products p ON p.id = o.product_id
+       LEFT JOIN brands b ON b.id = p.brand_id
        WHERE o.slug = $1 AND (o.is_active = 1 OR o.is_active = TRUE)`,
       [slug]
     )

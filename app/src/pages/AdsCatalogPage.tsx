@@ -218,6 +218,17 @@ export default function AdsCatalogPage() {
       {/* Footer */}
       <footer className="border-t border-zinc-200 bg-white py-8 text-center text-xs text-zinc-500 space-y-2">
         <p className="font-bold">جميع الحقوق محفوظة © {new Date().getFullYear()} KAS Auto Parts</p>
+        <p className="text-zinc-400">
+          تطوير وتصميم:{' '}
+          <a
+            href="https://github.com/kkbbmrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
+          >
+            kkbbmrl
+          </a>
+        </p>
       </footer>
     </div>
   )

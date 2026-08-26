@@ -384,12 +384,24 @@ export default function AdLandingPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4 text-[11px] text-zinc-500">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-zinc-500">
           <span>{ADDRESS}</span>
           <span>•</span>
           <span>{WORK_HOURS}</span>
           <span>•</span>
           <span>جميع الحقوق محفوظة © {new Date().getFullYear()} KAS Auto Parts</span>
+          <span>•</span>
+          <span>
+            تطوير:{' '}
+            <a
+              href="https://github.com/kkbbmrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
+            >
+              kkbbmrl
+            </a>
+          </span>
         </div>
       </footer>
 

@@ -15,12 +15,13 @@ const QUICK = [
 
 const CATS = ['المشعاع', 'المصباح الأمامي', 'زجاج المصباح', 'الصدام', 'المروحة', 'غطاء الغبار', 'الغطاء الأمامي', 'ماسحة الزجاج']
 
-const SOCIAL_PROFILE_URL = 'https://www.facebook.com/profile.php?id=61551072453312'
+const FACEBOOK_PROFILE_URL = 'https://www.facebook.com/profile.php?id=61551072453312'
+const INSTAGRAM_PROFILE_URL = 'https://www.instagram.com/khaledautosparts'
 
 const SOCIALS = [
-  { icon: Facebook, label: 'فيسبوك', href: SOCIAL_PROFILE_URL },
-  { icon: Instagram, label: 'إنستغرام', href: SOCIAL_PROFILE_URL },
-  { icon: Music2, label: 'تيك توك', href: SOCIAL_PROFILE_URL },
+  { icon: Facebook, label: 'فيسبوك', href: FACEBOOK_PROFILE_URL },
+  { icon: Instagram, label: 'إنستغرام', href: INSTAGRAM_PROFILE_URL },
+  { icon: Music2, label: 'تيك توك', href: FACEBOOK_PROFILE_URL },
 ]
 
 export default function Footer() {
@@ -113,11 +114,26 @@ export default function Footer() {
 
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-zinc-800/80 pt-7 sm:flex-row">
           <p className="text-sm text-zinc-500">© 2026 {storeName}. جميع الحقوق محفوظة.</p>
-          <p className="flex items-center gap-2 text-xs text-zinc-600">
-            صُنع بإتقان
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600" />
-            قطع أصلية — جودة مضمونة
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400">
+            <p className="flex items-center gap-1.5">
+              <span className="text-zinc-500">تطوير وتصميم:</span>
+              <a
+                href="https://github.com/kkbbmrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-brand-400 hover:text-brand-300 hover:underline transition-colors"
+                title="GitHub: kkbbmrl"
+              >
+                kkbbmrl
+              </a>
+            </p>
+            <span className="hidden sm:inline text-zinc-700">•</span>
+            <p className="flex items-center gap-2 text-zinc-600">
+              صُنع بإتقان
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600" />
+              قطع أصلية — جودة مضمونة
+            </p>
+          </div>
         </div>
       </div>
     </footer>

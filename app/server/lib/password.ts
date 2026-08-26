@@ -23,6 +23,20 @@ export function verifyPassword(password: string, stored: string) {
   return stored === password
 }
 
-export function isHashedPassword(stored: string) {
-  return stored.startsWith('scrypt:')
+export function validatePasswordStrength(password: string): { valid: boolean; error?: string } {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, error: 'كلمة المرور مطلوبة' }
+  }
+  if (password.length < 8) {
+    return { valid: false, error: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل' }
+  }
+  if (password.length > 128) {
+    return { valid: false, error: 'كلمة المرور طويلة جداً' }
+  }
+  return { valid: true }
 }
+
+export function isHashedPassword(stored: string) {
+  return typeof stored === 'string' && stored.startsWith('scrypt:')
+}
+

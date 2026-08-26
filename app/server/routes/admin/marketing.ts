@@ -65,20 +65,31 @@ router.post('/campaigns', async (req, res) => {
 let marketingColumnsEnsured = false
 async function ensureMarketingColumns() {
   if (marketingColumnsEnsured) return
-  const columnsToAdd = [
-    `ALTER TABLE landing_offers ADD COLUMN theme_id TEXT DEFAULT 'oem-factory'`,
-    `ALTER TABLE landing_offers ADD COLUMN fb_pixel_id TEXT`,
-    `ALTER TABLE landing_offers ADD COLUMN tiktok_pixel_id TEXT`,
-    `ALTER TABLE landing_offers ADD COLUMN google_tag_id TEXT`,
-    `ALTER TABLE landing_offers ADD COLUMN snap_pixel_id TEXT`,
-  ]
+  marketingColumnsEnsured = true
 
-  for (const sql of columnsToAdd) {
-    try {
-      await query(sql)
-    } catch {
-      // Column already exists or handled safely
+  try {
+    const checkColumns = await query(`PRAGMA table_info(landing_offers)`)
+    const existingCols = new Set(checkColumns.rows.map((r: any) => String(r.name).toLowerCase()))
+
+    const columnsToAdd: [string, string][] = [
+      ['theme_id', `ALTER TABLE landing_offers ADD COLUMN theme_id TEXT DEFAULT 'oem-factory'`],
+      ['fb_pixel_id', `ALTER TABLE landing_offers ADD COLUMN fb_pixel_id TEXT`],
+      ['tiktok_pixel_id', `ALTER TABLE landing_offers ADD COLUMN tiktok_pixel_id TEXT`],
+      ['google_tag_id', `ALTER TABLE landing_offers ADD COLUMN google_tag_id TEXT`],
+      ['snap_pixel_id', `ALTER TABLE landing_offers ADD COLUMN snap_pixel_id TEXT`],
+    ]
+
+    for (const [colName, sql] of columnsToAdd) {
+      if (!existingCols.has(colName)) {
+        try {
+          await query(sql)
+        } catch {
+          // safe skip
+        }
+      }
     }
+  } catch {
+    // safe skip
   }
 
   try {

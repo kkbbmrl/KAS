@@ -26,15 +26,25 @@ export async function ensureAdminAccounts() {
 
   if (existing.rows.length > 0) {
     const adminUser = existing.rows[0]
-    await query(
-      `UPDATE admin_users SET name = $1, username = $2, email = $3, role = 'super_admin', password_hash = $4, is_active = 1 WHERE id = $5`,
-      [adminName, cleanUsername, cleanEmail, hashedPassword, adminUser.id]
-    )
-    console.log(`🛡️ Admin account (${cleanUsername}) synchronized.`)
+    // If ADMIN_FORCE_RESET_PASSWORD=true is explicitly set in environment, sync the password
+    if (process.env.ADMIN_FORCE_RESET_PASSWORD === 'true' && process.env.ADMIN_PASSWORD) {
+      await query(
+        `UPDATE admin_users SET name = $1, username = $2, email = $3, role = 'super_admin', password_hash = $4, is_active = 1 WHERE id = $5`,
+        [adminName, cleanUsername, cleanEmail, hashedPassword, adminUser.id]
+      )
+      console.log(`🛡️ Admin account (${cleanUsername}) password reset from environment.`)
+    } else {
+      // Ensure super_admin role and active state without overwriting user's password
+      await query(
+        `UPDATE admin_users SET name = COALESCE($1, name), role = 'super_admin', is_active = 1 WHERE id = $2`,
+        [adminName, adminUser.id]
+      )
+      console.log(`🛡️ Admin account (${cleanUsername}) verified.`)
+    }
     return
   }
 
-  // Insert super admin account
+  // Insert super admin account if not found
   await query(
     `INSERT INTO admin_users (id, name, username, email, password_hash, role, is_active)
      VALUES ($1, $2, $3, $4, $5, 'super_admin', 1)`,
@@ -43,3 +53,4 @@ export async function ensureAdminAccounts() {
 
   console.log(`🛡️ Master Super Admin initialized: Username: ${cleanUsername}`)
 }
+

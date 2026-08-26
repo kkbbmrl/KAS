@@ -190,7 +190,8 @@ router.get('/:id', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params
-    const { status, note, adminName = 'Admin' } = req.body
+    const { status, note } = req.body
+    const adminName = req.adminUser?.name || 'مسؤول النظام'
 
     const statusTitles: Record<string, string> = {
       pending_confirmation: 'طلب قيد المراجعة',
@@ -265,7 +266,8 @@ router.put('/:id/notes', async (req, res) => {
 // POST /api/v1/admin/orders/bulk-status (Bulk update)
 router.post('/bulk-status', async (req, res) => {
   try {
-    const { orderIds, status, adminName = 'Admin' } = req.body
+    const { orderIds, status } = req.body
+    const adminName = req.adminUser?.name || 'مسؤول النظام'
     if (!Array.isArray(orderIds) || orderIds.length === 0 || !status) {
       return res.status(400).json({ error: 'الطلبات والحالة مطلوبان' })
     }

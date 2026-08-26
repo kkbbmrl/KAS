@@ -100,15 +100,20 @@ router.post('/track-visit', async (req, res) => {
     const id = (await import('node:crypto')).randomUUID()
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''
 
+    const cleanSlug = landingSlug ? String(landingSlug).trim().slice(0, 100) : ''
+    const cleanSource = utmSource ? String(utmSource).trim().slice(0, 100) : null
+    const cleanMedium = utmMedium ? String(utmMedium).trim().slice(0, 100) : null
+    const cleanCampaign = utmCampaign ? String(utmCampaign).trim().slice(0, 100) : null
+
     await query(
       `INSERT INTO campaign_visits (id, landing_slug, utm_source, utm_medium, utm_campaign, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, landingSlug || '', utmSource || '', utmMedium || '', utmCampaign || '', String(ip).slice(0, 45), String(userAgent || '').slice(0, 255)]
+      [id, cleanSlug, cleanSource, cleanMedium, cleanCampaign, String(ip).slice(0, 45), String(userAgent || '').slice(0, 255)]
     )
 
     res.json({ success: true })
-  } catch (err: any) {
-    // Non-blocking for client
+  } catch {
+    // Non-blocking for analytics telemetry
     res.json({ success: false })
   }
 })

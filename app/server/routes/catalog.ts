@@ -84,32 +84,10 @@ router.get('/vehicle-models', async (req, res) => {
   }
 })
 
-// GET /api/v1/sync-compat (Sync vehicle taxonomy & compatibility)
-router.get('/sync-compat', async (_req, res) => {
-  try {
-    const { seedPartCompatibility } = await import('../db/seed.js')
-    await seedPartCompatibility()
-    const countRes = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
-    res.json({ success: true, count: Number(countRes.rows[0]?.count || 0), message: 'Vehicle compatibility synced.' })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
 // GET /api/v1/products (Search & Filtering)
 router.get('/products', async (req, res) => {
   try {
     const { q, brand, model, cat, in_stock } = req.query as Record<string, string>
-
-    // Ensure compatibility records are cleanly seeded
-    try {
-      const hasCompat = await query(`SELECT COUNT(*) AS count FROM part_compatibility`)
-      const cNum = Number(hasCompat.rows[0]?.count || 0)
-      if (cNum === 0 || cNum > 300) {
-        const { seedPartCompatibility } = await import('../db/seed.js')
-        await seedPartCompatibility(true)
-      }
-    } catch {}
 
     let sql = `
       SELECT 
@@ -265,7 +243,7 @@ router.get('/products', async (req, res) => {
     }
 
     if (q) {
-      const tokens = q.trim().split(/\s+/).filter(Boolean)
+      const tokens = String(q).trim().slice(0, 100).split(/\s+/).filter(Boolean).slice(0, 6)
       for (const token of tokens) {
         params.push(`%${token}%`)
         const idx = params.length
@@ -291,7 +269,7 @@ router.get('/products', async (req, res) => {
       }
     }
 
-    sql += ` ORDER BY p.featured_home DESC, p.created_at DESC`
+    sql += ` ORDER BY p.featured_home DESC, p.created_at DESC LIMIT 120`
 
     const result = await query(sql, params)
 

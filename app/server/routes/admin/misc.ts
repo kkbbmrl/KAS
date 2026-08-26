@@ -7,26 +7,79 @@ import { requireSuperAdmin } from '../../middleware/adminAuth.js'
 
 const router = Router()
 
-// POST /api/v1/admin/upload (Image Upload handler)
+// Magic bytes validator for safe image formats
+function validateImageMagicBytes(buffer: Buffer): 'jpg' | 'png' | 'webp' | null {
+  if (buffer.length < 12) return null
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'jpg'
+  }
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return 'png'
+  }
+
+  // WebP: RIFF .... WEBP
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return 'webp'
+  }
+
+  return null
+}
+
+// POST /api/v1/admin/upload (Hardened Image Upload handler)
 router.post('/upload', async (req, res) => {
   try {
-    const { image, data, filename } = req.body
+    const { image, data } = req.body
     const rawData = image || data
     if (!rawData) {
       return res.status(400).json({ error: 'لم يتم إرسال أي صورة' })
     }
 
-    const matches = String(rawData).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/)
-    if (!matches || matches.length !== 3) {
-      // If it's already an HTTP URL, return it
-      if (/^https?:\/\//i.test(String(rawData))) {
-        return res.json({ success: true, url: rawData })
-      }
-      return res.status(400).json({ error: 'تنسيق الصورة غير صالح' })
+    // If it's already an existing HTTP/HTTPS URL, return it safely
+    if (/^https?:\/\//i.test(String(rawData))) {
+      return res.json({ success: true, url: rawData })
     }
 
-    const ext = matches[1].split('/')[1]?.replace('jpeg', 'jpg') || 'png'
-    const buffer = Buffer.from(matches[2], 'base64')
+    const matches = String(rawData).match(/^data:(image\/(jpeg|jpg|png|webp));base64,(.+)$/i)
+    if (!matches || matches.length < 4) {
+      return res.status(400).json({ error: 'نوع الملف غير مدعوم. يسمح فقط بصور من نوع JPG, PNG, WebP' })
+    }
+
+    const base64Data = matches[3]
+    const buffer = Buffer.from(base64Data, 'base64')
+
+    // Enforce 5MB size limit
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+    if (buffer.length > MAX_IMAGE_SIZE) {
+      return res.status(400).json({ error: 'حجم الصورة يتجاوز الحد المسموح به (5 ميجابايت كحد أقصى)' })
+    }
+
+    // Verify magic bytes
+    const detectedExt = validateImageMagicBytes(buffer)
+    if (!detectedExt) {
+      return res.status(400).json({ error: 'محتوى الصورة غير صالح أو تالف' })
+    }
 
     // Ensure uploads directory exists
     const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
@@ -34,8 +87,8 @@ router.post('/upload', async (req, res) => {
       fs.mkdirSync(uploadsDir, { recursive: true })
     }
 
-    const safeName = filename ? filename.replace(/[^a-zA-Z0-9_.-]/g, '_') : `img_${Date.now()}_${randomUUID().slice(0, 8)}.${ext}`
-    const finalFilename = safeName.endsWith(`.${ext}`) ? safeName : `${safeName}.${ext}`
+    // Cryptographically random filename with verified extension
+    const finalFilename = `img_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.${detectedExt}`
     const filePath = path.join(uploadsDir, finalFilename)
 
     fs.writeFileSync(filePath, buffer)
@@ -47,7 +100,6 @@ router.post('/upload', async (req, res) => {
     res.status(500).json({ error: 'فشل حفظ الصورة' })
   }
 })
-
 
 // GET /api/v1/admin/activity (Audit logs)
 router.get('/activity', async (_req, res) => {
@@ -87,8 +139,14 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'الاسم واسم المستخدم وكلمة المرور مطلوبة' })
     }
 
-    const cleanUsername = String(username).trim().toLowerCase()
-    const cleanEmail = email ? String(email).toLowerCase().trim() : `${cleanUsername}@kas.dz`
+    const { validatePasswordStrength, hashPassword } = await import('../../lib/password.js')
+    const passValidation = validatePasswordStrength(password)
+    if (!passValidation.valid) {
+      return res.status(400).json({ error: passValidation.error })
+    }
+
+    const cleanUsername = String(username).trim().toLowerCase().slice(0, 50)
+    const cleanEmail = email ? String(email).toLowerCase().trim().slice(0, 100) : `${cleanUsername}@kas.dz`
     const allowedRoles = ['admin', 'super_admin']
     const cleanRole = allowedRoles.includes(role) ? role : 'admin'
 
@@ -100,12 +158,11 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'اسم المستخدم أو البريد الإلكتروني مستخدم بالفعل' })
     }
 
-    const { hashPassword } = await import('../../lib/password.js')
     const id = randomUUID()
     await query(
       `INSERT INTO admin_users (id, name, username, email, password_hash, role, avatar_url, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 1)`,
-      [id, name.trim(), cleanUsername, cleanEmail, hashPassword(password), cleanRole, avatarUrl || null]
+      [id, String(name).trim().slice(0, 100), cleanUsername, cleanEmail, hashPassword(password), cleanRole, avatarUrl || null]
     )
 
     res.status(201).json({ success: true, id, message: 'تمت إضافة المسؤول بنجاح' })
@@ -126,14 +183,20 @@ router.put('/users/:id', requireSuperAdmin, async (req, res) => {
       return res.status(404).json({ error: 'المستخدم غير موجود' })
     }
 
-    const cleanUsername = username ? String(username).trim().toLowerCase() : undefined
-    const cleanEmail = email ? String(email).trim().toLowerCase() : undefined
+    const cleanUsername = username ? String(username).trim().toLowerCase().slice(0, 50) : undefined
+    const cleanEmail = email ? String(email).trim().toLowerCase().slice(0, 100) : undefined
     const cleanRole = role && ['admin', 'super_admin'].includes(role) ? role : undefined
 
+    let passwordChanged = false
     let passwordHash = existing.rows[0].password_hash
     if (password && String(password).trim().length > 0) {
-      const { hashPassword } = await import('../../lib/password.js')
+      const { validatePasswordStrength, hashPassword } = await import('../../lib/password.js')
+      const passValidation = validatePasswordStrength(String(password))
+      if (!passValidation.valid) {
+        return res.status(400).json({ error: passValidation.error })
+      }
       passwordHash = hashPassword(String(password))
+      passwordChanged = true
     }
 
     await query(
@@ -146,8 +209,13 @@ router.put('/users/:id', requireSuperAdmin, async (req, res) => {
            password_hash = $6,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7`,
-      [name?.trim() || null, cleanUsername || null, cleanEmail || null, cleanRole || null, avatarUrl || null, passwordHash, id]
+      [name ? String(name).trim().slice(0, 100) : null, cleanUsername || null, cleanEmail || null, cleanRole || null, avatarUrl || null, passwordHash, id]
     )
+
+    // Invalidate existing sessions if password or role changed
+    if (passwordChanged || cleanRole) {
+      await query(`DELETE FROM admin_sessions WHERE user_id = $1`, [id])
+    }
 
     res.json({ success: true, message: 'تم تحديث بيانات المسؤول بنجاح' })
   } catch (err: any) {
@@ -175,6 +243,11 @@ router.put('/users/:id/toggle-active', requireSuperAdmin, async (req, res) => {
     const newActive = currentActive ? 0 : 1
 
     await query(`UPDATE admin_users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [newActive, id])
+
+    // Invalidate active sessions immediately if account is deactivated
+    if (!newActive) {
+      await query(`DELETE FROM admin_sessions WHERE user_id = $1`, [id])
+    }
 
     res.json({ success: true, isActive: Boolean(newActive), message: 'تم تحديث حالة الحساب بنجاح' })
   } catch (err: any) {

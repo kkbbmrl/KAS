@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "start": "node dist-server/index.js",
-    "db:seed": "tsx server/db/seed.ts"
+    "db:seed": "tsx server/db/seed.ts",
+    "test:security": "tsx server/tests/security.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

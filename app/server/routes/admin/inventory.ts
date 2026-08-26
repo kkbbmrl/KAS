@@ -82,7 +82,8 @@ router.get('/', async (req, res) => {
 // POST /api/v1/admin/inventory/adjust
 router.post('/adjust', async (req, res) => {
   try {
-    const { variantId, quantityDelta, newQuantity, reason, adminName = 'Admin' } = req.body
+    const { variantId, quantityDelta, newQuantity, reason } = req.body
+    const adminName = req.adminUser?.name || 'مسؤول النظام'
     if (!variantId) {
       return res.status(400).json({ error: 'معرف المتغير مطلوب' })
     }

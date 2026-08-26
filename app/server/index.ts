@@ -24,6 +24,7 @@ import { seedDatabase } from './db/seed.js'
 import { query } from './db/db.js'
 import { ensureAdminAccounts } from './db/ensureAdmins.js'
 import { requireAdmin } from './middleware/adminAuth.js'
+import { apiGlobalRateLimiter } from './middleware/rateLimiter.js'
 
 dotenv.config()
 
@@ -41,9 +42,21 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN')
   res.setHeader('X-XSS-Protection', '1; mode=block')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+  
+  // Content Security Policy
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https:;"
+  )
   next()
 })
 
+// Strict CORS Configuration
 const rawOrigins = [
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : []),
@@ -51,29 +64,57 @@ const rawOrigins = [
   'https://kas-gamma-woad.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
 ]
-const configuredOrigins = rawOrigins.map((s) => s.trim()).filter(Boolean)
+const configuredOrigins = Array.from(new Set(rawOrigins.map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)))
 
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true)
+      
+      const cleanOrigin = origin.replace(/\/$/, '')
+      if (
+        configuredOrigins.includes(cleanOrigin) ||
+        cleanOrigin.endsWith('.vercel.app') ||
+        cleanOrigin.endsWith('.railway.app') ||
+        cleanOrigin.includes('localhost') ||
+        cleanOrigin.includes('127.0.0.1')
+      ) {
+        return callback(null, true)
+      }
+      
+      return callback(new Error('CORS policy: Not allowed by origin allowlist'))
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    maxAge: 86400, // 24 hours preflight cache
   })
 )
 
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+// Scoped Body Parsers with conservative default limits (Prevents memory exhaustion DoS)
+app.use(express.json({ limit: '2mb' }))
+app.use(express.urlencoded({ extended: true, limit: '2mb' }))
 
-// Static uploads folder
+// Static uploads folder with hardened headers (Prevent script execution from uploads)
 const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
 }
-app.use('/uploads', express.static(uploadsDir))
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Disposition', 'inline')
+    next()
+  },
+  express.static(uploadsDir)
+)
 
-// Request logger (in production only logs errors/warns, in dev logs request lines)
+// Request logger
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, _res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
@@ -82,18 +123,21 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Health check endpoints (handles /healthz, /health, /api/health)
-const healthHandler = (req, res) => {
+const healthHandler = (req: express.Request, res: express.Response) => {
   res.status(200).json({
     status: 'ok',
     service: 'KAS Auto Parts API',
-    version: '2026-08-24.3',
-    uptime: process.uptime(),
+    version: '2026-08-26.1',
+    uptime: Math.floor(process.uptime()),
     time: new Date().toISOString(),
   })
 }
 app.get('/healthz', healthHandler)
 app.get('/health', healthHandler)
 app.get('/api/health', healthHandler)
+
+// Apply Global Rate Limiter to API endpoints
+app.use('/api', apiGlobalRateLimiter)
 
 // Public API Routes
 app.use('/api/v1/wilayas', wilayasRouter)
@@ -102,7 +146,7 @@ app.use('/api/v1/orders', ordersRouter)
 app.use('/api/v1/contact', contactRouter)
 app.use('/api/v1', catalogRouter)
 
-// Admin API Routes — login is public; everything else requires an admin session
+// Admin API Routes — login is public with dedicated brute-force protection; everything else requires admin session
 app.use('/api/v1/admin/auth', adminAuthRouter)
 app.use('/api/v1/admin/analytics', requireAdmin, adminAnalyticsRouter)
 app.use('/api/v1/admin/orders', requireAdmin, adminOrdersRouter)
@@ -112,7 +156,8 @@ app.use('/api/v1/admin/categories', requireAdmin, adminCategoriesRouter)
 app.use('/api/v1/admin/inventory', requireAdmin, adminInventoryRouter)
 app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
 app.use('/api/v1/admin/marketing', requireAdmin, adminMarketingRouter)
-app.use('/api/v1/admin', requireAdmin, adminMiscRouter)
+// Admin misc route gets dedicated 10mb body parser for safe image base64 uploads
+app.use('/api/v1/admin', requireAdmin, express.json({ limit: '10mb' }), adminMiscRouter)
 
 // 404 handler for unmatched API routes
 app.use((req, res, next) => {
@@ -120,6 +165,22 @@ app.use((req, res, next) => {
     return res.status(404).json({ error: 'API endpoint not found' })
   }
   next()
+})
+
+// Centralized API Error Handling Middleware (Prevents stack trace / SQL detail leakage)
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled Application Error:', err)
+  if (res.headersSent) return
+
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'حجم البيانات المرسلة يتجاوز الحد المسموح به' })
+  }
+
+  if (err.message && err.message.includes('CORS policy')) {
+    return res.status(403).json({ error: 'غير مصرح بالوصول عبر هذا النطاق (CORS policy violation)' })
+  }
+
+  res.status(500).json({ error: 'حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً.' })
 })
 
 // Serve the built React frontend in production (if running unified)
@@ -145,7 +206,7 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('🔥 UNHANDLED REJECTION at:', promise, 'reason:', reason)
 })
 
-// Start server listening IMMEDIATELY so /healthz responds on the first probe
+// Start server listening
 const listenPort = Number(process.env.PORT) || 5000
 
 const server = app.listen(listenPort, '0.0.0.0', () => {
@@ -195,4 +256,5 @@ const gracefulShutdown = (signal: string) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
+export { app }
 export default server

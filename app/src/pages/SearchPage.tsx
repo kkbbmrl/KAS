@@ -24,7 +24,7 @@ import {
   productHaystack,
   type Product,
 } from '@/data/products'
-import { fetchProducts } from '@/lib/api'
+import { fetchProducts, fetchCategories } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
 
 const selectCls =
@@ -52,9 +52,22 @@ export default function SearchPage() {
   const [showSugg, setShowSugg] = useState(false)
 
   const [products, setProducts] = useState<Product[]>([])
+  const [liveCategories, setLiveCategories] = useState<{ name: string; fr: string; icon: string; available: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    fetchCategories()
+      .then((cats) => {
+        if (Array.isArray(cats) && cats.length > 0) {
+          setLiveCategories(cats)
+        }
+      })
+      .catch(() => {
+        // Safe fallback
+      })
+  }, [])
 
   const models = useMemo(() => (brand ? CAR_BRANDS[brand] ?? [] : []), [brand])
 
@@ -317,9 +330,9 @@ export default function SearchPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-8">
-        {/* Category pills — write straight to the URL, no setTimeout race */}
+        {/* Category pills — live dynamic categories from database */}
         <div className="mb-6 flex flex-wrap gap-2">
-          {['الكل', ...CATEGORIES.filter((c) => c.available).map((c) => c.name)].map((c) => {
+          {['الكل', ...(liveCategories.length > 0 ? liveCategories : CATEGORIES).filter((c) => c.available).map((c) => c.name)].map((c) => {
             const active = c === 'الكل' ? !cat : cat === c
             return (
               <button

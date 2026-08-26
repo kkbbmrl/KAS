@@ -61,6 +61,8 @@ app.use((_req, res, next) => {
 const rawOrigins = [
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : []),
+  'https://khaledauto.live',
+  'https://www.khaledauto.live',
   'https://kas-git-main-kkbbmrls-projects.vercel.app',
   'https://kas-gamma-woad.vercel.app',
   'http://localhost:3000',

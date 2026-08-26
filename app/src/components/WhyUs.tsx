@@ -11,15 +11,28 @@ const FEATURES = [
   { icon: BadgeCheck, t: 'خبرة في قطع الغيار', d: 'أكثر من 15 سنة من الخبرة الميدانية في سوق قطع غيار السيارات.' },
 ]
 
-function Stat({ value, suffix, label }: { value: number; suffix: string; label: string }) {
+function Stat({ value, prefix, suffix, label }: { value: number; prefix?: string; suffix?: string; label: string }) {
   const ref = useCountUp(value)
   return (
     <div className="reveal text-center" data-delay="60">
-      <p className="font-cairo text-4xl font-black text-white sm:text-5xl">
-        <span ref={ref}>0</span>
-        <span className="text-brand-500">{suffix}</span>
-      </p>
-      <p className="mt-2 text-sm font-semibold text-zinc-400">{label}</p>
+      <div className="flex items-center justify-center font-cairo text-4xl font-black text-white sm:text-5xl">
+        {suffix ? (
+          <span dir="rtl" className="inline-flex items-baseline justify-center gap-2">
+            <span dir="ltr" ref={ref} className="tabular-nums font-mono sm:font-cairo">
+              0
+            </span>
+            <span className="text-brand-500 font-bold text-2xl sm:text-3xl font-cairo">{suffix}</span>
+          </span>
+        ) : (
+          <span dir="ltr" className="inline-flex items-baseline justify-center gap-1.5">
+            <span className="text-brand-500 font-extrabold">{prefix || '+'}</span>
+            <span ref={ref} className="tabular-nums font-mono sm:font-cairo">
+              0
+            </span>
+          </span>
+        )}
+      </div>
+      <p className="mt-2.5 text-sm font-semibold text-zinc-400">{label}</p>
     </div>
   )
 }
@@ -31,7 +44,7 @@ export default function WhyUs() {
       <div className="mx-auto max-w-7xl px-4">
         <SectionHeading
           kicker="لماذا نحن؟"
-          title="لماذا Khaled Auto Spart؟"
+          title="لماذا Khaled Auto Parts؟"
           sub="لأن سيارتك تستحق الأفضل — نحن لا نبيع قطعًا فقط، بل نبيعك راحة البال"
         />
 
@@ -59,10 +72,10 @@ export default function WhyUs() {
           <div className="stripes absolute inset-0 opacity-50" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/25 blur-3xl" aria-hidden />
           <div className="relative grid grid-cols-2 gap-10 lg:grid-cols-4">
-            <Stat value={12000} suffix="+" label="قطعة متوفرة في المخزون" />
-            <Stat value={9000} suffix="+" label="عميل يثق بنا" />
-            <Stat value={15} suffix=" سنة" label="من الخبرة في المجال" />
-            <Stat value={40} suffix="+" label="علامة تجارية مدعومة" />
+            <Stat value={12000} prefix="+" label="قطعة متوفرة في المخزون" />
+            <Stat value={1000} prefix="+" label="عميل يثق بنا" />
+            <Stat value={15} suffix="سنة" label="من الخبرة في المجال" />
+            <Stat value={40} prefix="+" label="علامة تجارية مدعومة" />
           </div>
         </div>
       </div>

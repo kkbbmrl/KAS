@@ -216,10 +216,10 @@ export async function seedDatabase() {
   // 7. System settings
   console.log('⚙️ Seeding System Settings...')
   const defaultSettings = [
-    { key: 'store_name', value: 'Khaled Auto Spart', cat: 'general' },
-    { key: 'store_phone', value: '0555 12 34 56', cat: 'general' },
-    { key: 'store_email', value: 'contact@khaledautospart.dz', cat: 'general' },
-    { key: 'store_address', value: 'شارع الاستقلال رقم 42، الجزائر العاصمة', cat: 'general' },
+    { key: 'store_name', value: 'Khaled Auto Parts', cat: 'general' },
+    { key: 'store_phone', value: '0550 72 96 01', cat: 'general' },
+    { key: 'store_email', value: 'medbouhmoussa@yahoo.fr', cat: 'general' },
+    { key: 'store_address', value: 'شارع مجانة، عمارة زواوي، برج بوعريريج، 34000', cat: 'general' },
     { key: 'store_currency', value: 'DA', cat: 'general' },
     { key: 'default_courier', value: 'Yalidine Fast Logistics', cat: 'shipping' },
     { key: 'free_shipping_threshold', value: '15000', cat: 'shipping' },

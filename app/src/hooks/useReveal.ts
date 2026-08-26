@@ -48,7 +48,7 @@ export function useCountUp(target: number, duration = 1600) {
           const tick = (t: number) => {
             const p = Math.min((t - t0) / duration, 1)
             const eased = 1 - Math.pow(1 - p, 3)
-            el.textContent = Math.round(target * eased).toLocaleString('en-US').replace(/,/g, ' ')
+            el.textContent = Math.round(target * eased).toLocaleString('en-US').replace(/,/g, '\u00A0')
             if (p < 1) requestAnimationFrame(tick)
           }
           requestAnimationFrame(tick)

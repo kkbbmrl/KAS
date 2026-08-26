@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { Menu, Phone, ShoppingCart, X } from 'lucide-react'
 import Logo from './Logo'
 import { useShop } from '@/context/ShopContext'
-import { PHONE_DISPLAY } from '@/data/products'
+import { useStoreSettings } from '@/context/SettingsContext'
 
 // Hash targets live on the Home page, so they must be prefixed with "/" —
 // a bare "#brands" on /search or /ads resolves to nothing.
@@ -19,6 +19,7 @@ const LINKS = [
 
 export default function Navbar() {
   const { count, setCartOpen, lastAddedAt } = useShop()
+  const { phoneDisplay, phoneCall } = useStoreSettings()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
   const [pop, setPop] = useState(false)
@@ -50,8 +51,8 @@ export default function Navbar() {
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />
             توصيل سريع لجميع الولايات — الدفع عند الاستلام
           </p>
-          <a href="tel:+213555123456" dir="ltr" className="flex items-center gap-1.5 font-semibold transition-colors hover:text-brand-400">
-            <Phone className="h-3.5 w-3.5" /> {PHONE_DISPLAY}
+          <a href={`tel:${phoneCall}`} dir="ltr" className="flex items-center gap-1.5 font-semibold transition-colors hover:text-brand-400">
+            <Phone className="h-3.5 w-3.5" /> {phoneDisplay}
           </a>
         </div>
       </div>
@@ -78,13 +79,15 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setCartOpen(true)}
-            className="btn-shine relative grid h-11 w-11 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-800 shadow-sm transition-all hover:border-brand-300 hover:text-brand-600"
+            className="relative grid h-11 w-11 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-800 shadow-sm transition-all hover:border-brand-300 hover:text-brand-600 overflow-visible"
             aria-label="سلة التسوق"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
               <span
-                className={`absolute -left-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-[11px] font-bold text-white shadow-md shadow-brand-600/40 ${pop ? 'badge-pop' : ''}`}
+                className={`absolute -left-2 -top-2 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand-600 px-1 font-mono text-[11px] font-bold text-white shadow-md shadow-brand-600/40 ring-2 ring-white ${
+                  pop ? 'badge-pop' : ''
+                }`}
               >
                 {count}
               </span>

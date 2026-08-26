@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import {
+  AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
   Clock,
@@ -224,6 +225,45 @@ export default function AdminOverview() {
             <p className="mt-1 font-cairo text-xl font-black text-red-950">{kpis?.cancelledOrders ?? 0}</p>
           </div>
           <XCircle className="h-5 w-5 text-red-600" />
+        </Link>
+      </div>
+
+      {/* ─── 2.5 INVENTORY ALERTS QUICK TOGGLES ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link
+          to="/admin/inventory?status=low_stock"
+          className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/40 p-4 transition-all hover:bg-amber-50 hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-extrabold text-amber-900">تنبيهات مخزون منخفض (≤ 5)</p>
+              <p className="text-[11px] text-amber-700 font-bold">انقر لعرض الأصناف التي تحتاج إعادة طلب في المستودع</p>
+            </div>
+          </div>
+          <span className="font-cairo text-lg font-black text-amber-950 px-2.5 py-0.5 rounded-lg bg-amber-100/80">
+            {kpis?.lowStockCount ?? 0}
+          </span>
+        </Link>
+
+        <Link
+          to="/admin/inventory?status=out_of_stock"
+          className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50/40 p-4 transition-all hover:bg-red-50 hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-red-100 text-red-700">
+              <XCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-extrabold text-red-900">أصناف نفد مخزونها (0)</p>
+              <p className="text-[11px] text-red-700 font-bold">انقر لعرض الأصناف غير المتوفرة حالياً في المستودع</p>
+            </div>
+          </div>
+          <span className="font-cairo text-lg font-black text-red-950 px-2.5 py-0.5 rounded-lg bg-red-100/80">
+            {kpis?.outOfStockCount ?? 0}
+          </span>
         </Link>
       </div>
 

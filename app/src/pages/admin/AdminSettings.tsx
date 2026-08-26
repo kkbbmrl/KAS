@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Globe, Loader2, Save, Settings, ShieldCheck, Tag, Truck } from 'lucide-react'
 import { fetchAdminSettings, updateAdminSettings } from '@/lib/adminApi'
+import { useStoreSettings } from '@/context/SettingsContext'
 
 export default function AdminSettings() {
+  const { refreshSettings } = useStoreSettings()
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [tab, setTab] = useState<'general' | 'shipping' | 'tracking' | 'seo'>('general')
-
 
   useEffect(() => {
     fetchAdminSettings()
       .then((res) => setSettings(res || {}))
       .catch((err) => console.error(err))
   }, [])
-
 
   const handleChange = (key: string, val: string) => {
     setSettings((prev) => ({ ...prev, [key]: val }))
@@ -25,6 +25,7 @@ export default function AdminSettings() {
     setSaving(true)
     try {
       await updateAdminSettings(settings)
+      await refreshSettings()
       setSaved(true)
       setTimeout(() => setSaved(false), 4000)
     } catch (err) {
@@ -84,7 +85,7 @@ export default function AdminSettings() {
               <div>
                 <label className="text-xs font-black text-zinc-700 block mb-1">اسم المتجر</label>
                 <input
-                  value={settings['store_name'] || 'Khaled Auto Spart'}
+                  value={settings['store_name'] || 'Khaled Auto Parts'}
                   onChange={(e) => handleChange('store_name', e.target.value)}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
                 />
@@ -92,7 +93,7 @@ export default function AdminSettings() {
               <div>
                 <label className="text-xs font-black text-zinc-700 block mb-1">رقم الهاتف الرسمي</label>
                 <input
-                  value={settings['store_phone'] || '0555 12 34 56'}
+                  value={settings['store_phone'] || '0550 72 96 01'}
                   onChange={(e) => handleChange('store_phone', e.target.value)}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
                   dir="ltr"
@@ -101,7 +102,7 @@ export default function AdminSettings() {
               <div>
                 <label className="text-xs font-black text-zinc-700 block mb-1">البريد الإلكتروني للاتصال</label>
                 <input
-                  value={settings['store_email'] || 'contact@khaledautospart.dz'}
+                  value={settings['store_email'] || 'medbouhmoussa@yahoo.fr'}
                   onChange={(e) => handleChange('store_email', e.target.value)}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
                   dir="ltr"
@@ -110,7 +111,7 @@ export default function AdminSettings() {
               <div>
                 <label className="text-xs font-black text-zinc-700 block mb-1">عنوان المحل الفعلي</label>
                 <input
-                  value={settings['store_address'] || 'الجزائر العاصمة، الجزائر'}
+                  value={settings['store_address'] || 'شارع مجانة، عمارة زواوي، برج بوعريريج، 34000'}
                   onChange={(e) => handleChange('store_address', e.target.value)}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
                 />
@@ -179,7 +180,7 @@ export default function AdminSettings() {
               <div>
                 <label className="text-xs font-black text-zinc-700 block mb-1">عنوان الموقع الافتراضي (Meta Title)</label>
                 <input
-                  value={settings['seo_title'] || 'Khaled Auto Spares — قطع غيار السيارات الأصلية في الجزائر'}
+                  value={settings['seo_title'] || 'Khaled Auto Parts — قطع غيار السيارات الأصلية في الجزائر'}
                   onChange={(e) => handleChange('seo_title', e.target.value)}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900"
                 />

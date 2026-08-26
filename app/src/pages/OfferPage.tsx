@@ -24,6 +24,7 @@ import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import type { OfferProduct } from '@/data/offers'
 import Logo from '@/components/Logo'
 import { fetchOfferBySlug, fetchOffers, submitOrder } from '@/lib/api'
+import { useStoreSettings } from '@/context/SettingsContext'
 
 interface OrderForm {
   firstName: string
@@ -54,6 +55,7 @@ function getIcon(name: string): LucideIcon {
 
 export default function OfferPage() {
   const { slug } = useParams<{ slug: string }>()
+  const { phoneDisplay, phoneCall } = useStoreSettings()
 
   const [offer, setOffer] = useState<OfferProduct | null>(null)
   const [offerLoading, setOfferLoading] = useState(true)
@@ -177,7 +179,7 @@ export default function OfferPage() {
             <Logo />
           </Link>
           <a
-            href="tel:+213555123456"
+            href={`tel:${phoneCall}`}
             className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 font-cairo text-sm font-black text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 transition-colors"
           >
             <Phone className="h-4 w-4" />
@@ -409,7 +411,7 @@ export default function OfferPage() {
                       required
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="رقم الهاتف (0555 12 34 56)"
+                      placeholder={`رقم الهاتف (${phoneDisplay})`}
                       className={`${fieldCls} ps-11`}
                       dir="ltr"
                       inputMode="tel"

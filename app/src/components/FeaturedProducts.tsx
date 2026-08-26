@@ -192,6 +192,7 @@ export default function FeaturedProducts() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 to="/search"
+                onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
                 className="btn-shine inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-6 py-3.5 font-cairo text-sm font-black text-white shadow-xl shadow-brand-600/30 transition-all hover:bg-brand-700 active:scale-95"
               >
                 <span>الانتقال إلى صفحة البحث</span>

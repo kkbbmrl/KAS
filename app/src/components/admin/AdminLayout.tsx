@@ -146,20 +146,20 @@ export default function AdminLayout() {
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 px-4">
           {!collapsed ? (
-            <Link to="/" className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity" title="العودة للمتجر الرئيسي">
+            <Link to="/admin" className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity" title="الرئيسية - لوحة التحكم">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md shadow-brand-600/30 group-hover:scale-105 transition-transform">
                 KAS
               </div>
               <div>
                 <p className="font-cairo text-sm font-black leading-none text-zinc-900">
-                  Khaled <span className="text-brand-600">Auto</span> Spares
+                  Khaled <span className="text-brand-600">Auto</span> Parts
                 </p>
-                <p className="mt-1 text-[10px] font-bold text-zinc-400">Admin Control Center ↗</p>
+                <p className="mt-1 text-[10px] font-bold text-zinc-400">لوحة التحكم المركزية</p>
               </div>
             </Link>
           ) : (
-            <Link to="/" className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md hover:scale-105 transition-transform" title="العودة للمتجر الرئيسي">
-              K
+            <Link to="/admin" className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-xs font-black text-white shadow-md hover:scale-105 transition-transform" title="الرئيسية - لوحة التحكم">
+              KAS
             </Link>
           )}
 
@@ -243,22 +243,22 @@ export default function AdminLayout() {
         <div className="border-t border-zinc-100 p-3 bg-zinc-50/50">
           {!collapsed ? (
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <Link to="/admin/settings" className="flex items-center gap-2.5 min-w-0 group hover:opacity-85 transition-opacity" title="إعدادات الحساب والملف الشخصي">
                 {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="h-9 w-9 rounded-xl object-cover shrink-0" />
+                  <img src={user.avatarUrl} alt={user.name} className="h-9 w-9 rounded-xl object-cover shrink-0 ring-1 ring-zinc-200 group-hover:ring-brand-500 transition-all" />
                 ) : (
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 font-bold text-xs">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 font-bold text-xs group-hover:bg-brand-600 group-hover:text-white transition-colors">
                     {user?.name?.charAt(0) || 'A'}
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="font-cairo text-xs font-black text-zinc-900 truncate">{user?.name}</p>
+                  <p className="font-cairo text-xs font-black text-zinc-900 truncate group-hover:text-brand-600 transition-colors">{user?.name}</p>
                   <p className="text-[10px] text-zinc-400 font-mono truncate" dir="ltr">@{user?.username || 'admin'}</p>
                   <span className={`mt-0.5 inline-block rounded border px-1.5 py-0.2 text-[9px] font-bold ${roleBadgeColors[user?.role || 'admin']}`}>
                     {roleLabels[user?.role || 'admin']}
                   </span>
                 </div>
-              </div>
+              </Link>
 
               <button
                 onClick={logout}
@@ -355,15 +355,19 @@ export default function AdminLayout() {
             </div>
 
             {/* User Avatar */}
-            <div className="flex items-center gap-2 pr-2 border-r border-zinc-200">
+            <Link
+              to="/admin/settings"
+              className="flex items-center gap-2 pr-2 border-r border-zinc-200 group hover:opacity-80 transition-opacity"
+              title="إعدادات الحساب والملف الشخصي"
+            >
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-lg object-cover" />
+                <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-lg object-cover ring-1 ring-zinc-200 group-hover:ring-brand-500 transition-all" />
               ) : (
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-900 text-xs font-bold text-white">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-zinc-900 text-xs font-bold text-white group-hover:bg-brand-600 transition-colors">
                   {user?.name.charAt(0)}
                 </div>
               )}
-            </div>
+            </Link>
           </div>
         </header>
 

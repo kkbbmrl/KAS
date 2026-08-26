@@ -19,6 +19,7 @@ import {
 import { formatPrice } from '@/data/products'
 import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import { useShop, lineKey, unitPrice, type CheckoutDetails } from '@/context/ShopContext'
+import { useStoreSettings } from '@/context/SettingsContext'
 
 const emptyForm: CheckoutDetails = {
   firstName: '',
@@ -45,6 +46,7 @@ export default function CartDrawer() {
     lastOrder,
     dismissOrderSuccess,
   } = useShop()
+  const { phoneDisplay } = useStoreSettings()
 
   const [checkout, setCheckout] = useState(false)
   const [form, setForm] = useState<CheckoutDetails>(emptyForm)
@@ -78,7 +80,7 @@ export default function CartDrawer() {
 
     const cleanPhone = form.phone.replace(/\s+/g, '')
     if (!/^(0[5-7]\d{8}|\+?213[5-7]\d{8}|0[2-4]\d{7})$/.test(cleanPhone)) {
-      setError('يرجى إدخال رقم هاتف صحيح (مثال: 0555 12 34 56)')
+      setError(`يرجى إدخال رقم هاتف صحيح (مثال: ${phoneDisplay})`)
       return
     }
 
@@ -239,7 +241,7 @@ export default function CartDrawer() {
                   required
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="0555 12 34 56"
+                  placeholder={phoneDisplay}
                   className={fieldCls}
                   dir="ltr"
                   inputMode="tel"

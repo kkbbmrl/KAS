@@ -102,17 +102,71 @@ router.post('/upload', async (req, res) => {
 })
 
 // GET /api/v1/admin/activity (Audit logs)
-router.get('/activity', async (_req, res) => {
+router.get('/activity', async (req, res) => {
   try {
-    const result = await query(
-      `SELECT id, table_name AS "tableName", action_type AS "actionType", performed_by AS "performedBy", old_data AS "oldData", new_data AS "newData", created_at AS "createdAt"
-       FROM audit_logs
-       ORDER BY created_at DESC
-       LIMIT 50`
-    )
+    const { category, q, limit = '100' } = req.query as Record<string, string>
+    const limitNum = Math.max(1, Math.min(200, parseInt(limit, 10) || 100))
 
-    res.json(result.rows)
+    let sql = `
+      SELECT id, table_name AS "tableName", action_type AS "actionType", performed_by AS "performedBy", old_data AS "oldData", new_data AS "newData", ip_address AS "ipAddress", created_at AS "createdAt"
+      FROM audit_logs
+      WHERE 1=1
+    `
+    const params: any[] = []
+
+    if (category && category !== 'all') {
+      params.push(category)
+      sql += ` AND table_name = $${params.length}`
+    }
+
+    if (q) {
+      params.push(`%${q.trim()}%`)
+      const idx = params.length
+      sql += ` AND (performed_by ILIKE $${idx} OR action_type ILIKE $${idx} OR old_data ILIKE $${idx} OR new_data ILIKE $${idx} OR table_name ILIKE $${idx})`
+    }
+
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`
+    params.push(limitNum)
+
+    const result = await query(sql, params)
+
+    const formatted = result.rows.map((r: any) => {
+      let note = ''
+      try {
+        const newData = r.newData ? JSON.parse(r.newData) : {}
+
+        if (r.tableName === 'orders') {
+          if (r.actionType === 'CREATE') {
+            note = `إنشاء طلبية جديدة (${newData.orderRef || ''}) بقيمة ${newData.total ? `${Number(newData.total).toLocaleString('en-US')} دج` : ''} للعميل ${newData.customer || ''}`
+          } else if (r.actionType === 'STATUS_CHANGE') {
+            note = `تحديث حالة الطلب إلى "${newData.status || ''}"`
+          } else {
+            note = `تعديل على الطلبية ${newData.orderRef || ''}`
+          }
+        } else if (r.tableName === 'product_variants' || r.tableName === 'inventory') {
+          note = `تعديل يدوي للمخزون: ${newData.reason || 'تحديث الكمية'} (${newData.qty !== undefined ? `${newData.qty} قطعة` : ''})`
+        } else if (r.tableName === 'system_settings') {
+          note = 'تحديث إعدادات المتجر العامة والتوصيل'
+        } else if (r.tableName === 'admin_sessions' || r.actionType === 'LOGIN') {
+          note = `تسجيل دخول ناجح للمسؤول (${newData.username || r.performedBy})`
+        } else if (r.tableName === 'products') {
+          note = `تعديل بيانات المنتج ${newData.name || ''}`
+        } else if (r.tableName === 'admin_users') {
+          note = `تعديل صلاحيات وحساب المسؤول (${newData.username || ''})`
+        }
+      } catch {
+        // Safe fallback
+      }
+
+      return {
+        ...r,
+        note: note || `إجراء ${r.actionType} على ${r.tableName}`,
+      }
+    })
+
+    res.json(formatted)
   } catch (err: any) {
+    console.error('Failed to fetch activity logs:', err)
     res.status(500).json({ error: 'Failed to fetch activity logs' })
   }
 })

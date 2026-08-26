@@ -308,7 +308,10 @@ router.get('/products', async (req, res) => {
         )
 
         const primaryVariant = variants.rows[0]
-        const stockStatusArabic = primaryVariant?.stock === 'out_of_stock' ? 'غير متوفر' : primaryVariant?.stock === 'limited_stock' ? 'كمية محدودة' : 'متوفر'
+        const totalStock = variants.rows.reduce((sum, v) => sum + Math.max(0, Number(v.stockQuantity ?? 0)), 0)
+        const isOutOfStock = totalStock === 0 || (variants.rows.length > 0 && variants.rows.every(v => Number(v.stockQuantity ?? 0) === 0 || v.stock === 'out_of_stock'))
+        const isLimited = !isOutOfStock && totalStock <= 5
+        const overallStockArabic = isOutOfStock ? 'غير متوفر' : isLimited ? 'كمية محدودة' : 'متوفر'
 
         let compatList = compat.rows.map((c: any) => `${c.make} ${c.model}`.trim()).filter(Boolean)
         if (compatList.length === 0) {
@@ -331,19 +334,29 @@ router.get('/products', async (req, res) => {
           // computes NaN and formatPrice() renders garbage.
           price: Number(primaryVariant?.price ?? 0),
           oldPrice: primaryVariant?.oldPrice != null ? Number(primaryVariant.oldPrice) : undefined,
-          stock: stockStatusArabic,
-          stockQuantity: Number(primaryVariant?.stockQuantity ?? 0),
+          stock: overallStockArabic,
           compat: compatList,
           aliases: aliases.rows.map((a: any) => a.term),
           specs: specs.rows,
-          variants: variants.rows.map((v: any) => ({
-            ...v,
-            price: Number(v.price ?? 0),
-            oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
-            stockQuantity: Number(v.stockQuantity ?? 0),
-            stock: v.stock === 'out_of_stock' ? 'غير متوفر' : v.stock === 'limited_stock' ? 'كمية محدودة' : 'متوفر',
-            extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
-          })),
+          variants: variants.rows.map((v: any) => {
+            const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
+            const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
+              ? 'غير متوفر'
+              : vQty <= 5 || v.stock === 'limited_stock'
+              ? 'كمية محدودة'
+              : 'متوفر'
+
+            return {
+              id: v.id,
+              sku: v.sku,
+              partNumber: v.partNumber,
+              label: v.label,
+              price: Number(v.price ?? 0),
+              oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
+              stock: vStockArabic,
+              extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
+            }
+          }),
         }
       })
     )
@@ -381,7 +394,7 @@ router.get('/products/:id', async (req, res) => {
 
     const prod = prodRes.rows[0]
     const images = await query(`SELECT image_url AS url, is_primary FROM product_images WHERE product_id = $1 ORDER BY display_order ASC`, [prod.id])
-    const variants = await query(`SELECT id, variant_sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs" FROM product_variants WHERE product_id = $1`, [prod.id])
+    const variants = await query(`SELECT id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs" FROM product_variants WHERE product_id = $1`, [prod.id])
     const specs = await query(`SELECT label_ar AS label, value_ar AS value FROM product_specs WHERE product_id = $1 ORDER BY display_order ASC`, [prod.id])
 
     const compat = await query(
@@ -395,6 +408,10 @@ router.get('/products/:id', async (req, res) => {
     const aliases = await query(`SELECT alias_term AS term FROM product_aliases WHERE product_id = $1`, [prod.id])
 
     const primary = variants.rows[0]
+    const totalStock = variants.rows.reduce((sum, v) => sum + Math.max(0, Number(v.stockQuantity ?? 0)), 0)
+    const isOutOfStock = totalStock === 0 || (variants.rows.length > 0 && variants.rows.every(v => Number(v.stockQuantity ?? 0) === 0 || v.stock === 'out_of_stock'))
+    const isLimited = !isOutOfStock && totalStock <= 5
+    const overallStockArabic = isOutOfStock ? 'غير متوفر' : isLimited ? 'كمية محدودة' : 'متوفر'
 
     res.json({
       ...prod,
@@ -403,19 +420,29 @@ router.get('/products/:id', async (req, res) => {
       images: images.rows.map((i: any) => i.url),
       price: Number(primary?.price ?? 0),
       oldPrice: primary?.oldPrice != null ? Number(primary.oldPrice) : undefined,
-      stock: primary?.stock === 'out_of_stock' ? 'غير متوفر' : primary?.stock === 'limited_stock' ? 'كمية محدودة' : 'متوفر',
-      stockQuantity: Number(primary?.stockQuantity ?? 0),
+      stock: overallStockArabic,
       compat: compat.rows.map((c: any) => `${c.make} ${c.model}`.trim()),
       aliases: aliases.rows.map((a: any) => a.term),
       specs: specs.rows,
-      variants: variants.rows.map((v: any) => ({
-        ...v,
-        price: Number(v.price ?? 0),
-        oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
-        stockQuantity: Number(v.stockQuantity ?? 0),
-        stock: v.stock === 'out_of_stock' ? 'غير متوفر' : v.stock === 'limited_stock' ? 'كمية محدودة' : 'متوفر',
-        extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
-      })),
+      variants: variants.rows.map((v: any) => {
+        const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
+        const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
+          ? 'غير متوفر'
+          : vQty <= 5 || v.stock === 'limited_stock'
+          ? 'كمية محدودة'
+          : 'متوفر'
+
+        return {
+          id: v.id,
+          sku: v.sku,
+          partNumber: v.partNumber,
+          label: v.label,
+          price: Number(v.price ?? 0),
+          oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
+          stock: vStockArabic,
+          extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
+        }
+      }),
     })
   } catch (err: any) {
     console.error('Error fetching product details:', err)

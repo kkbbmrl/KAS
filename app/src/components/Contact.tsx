@@ -2,25 +2,26 @@ import { useState } from 'react'
 import { Clock3, Loader2, Mail, MapPin, Phone, Send } from 'lucide-react'
 import SectionHeading from './SectionHeading'
 import { useReveal } from '@/hooks/useReveal'
-import { ADDRESS, EMAIL, PHONE_CALL, PHONE_DISPLAY, WORK_HOURS } from '@/data/products'
 import { submitContactMessage } from '@/lib/api'
-
-const INFO = [
-  { icon: Phone, t: 'الهاتف', v: PHONE_DISPLAY, href: `tel:${PHONE_CALL}`, dir: 'ltr' as const },
-  { icon: Mail, t: 'البريد الإلكتروني', v: EMAIL, href: `mailto:${EMAIL}`, dir: 'ltr' as const },
-  { icon: MapPin, t: 'عنوان المحل', v: ADDRESS, href: 'https://maps.google.com/?q=Algiers', dir: 'rtl' as const },
-  { icon: Clock3, t: 'ساعات العمل', v: WORK_HOURS, href: undefined, dir: 'rtl' as const },
-]
+import { useStoreSettings } from '@/context/SettingsContext'
 
 const inputCls =
   'w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-semibold text-zinc-800 outline-none transition-all placeholder:text-zinc-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-600/20'
 
 export default function Contact() {
   const ref = useReveal<HTMLDivElement>()
+  const { phoneDisplay, phoneCall, email, address, mapsUrl, workHours } = useStoreSettings()
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', phone: '', msg: '' })
+
+  const infoList = [
+    { icon: Phone, t: 'الهاتف', v: phoneDisplay, href: `tel:${phoneCall}`, dir: 'ltr' as const },
+    { icon: Mail, t: 'البريد الإلكتروني', v: email, href: `mailto:${email}`, dir: 'ltr' as const },
+    { icon: MapPin, t: 'عنوان المحل', v: address, href: mapsUrl, dir: 'rtl' as const },
+    { icon: Clock3, t: 'ساعات العمل', v: workHours, href: undefined, dir: 'rtl' as const },
+  ]
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,7 +62,7 @@ export default function Contact() {
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              {INFO.map((i, idx) => {
+              {infoList.map((i, idx) => {
                 const Inner = (
                   <>
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-600 transition-all duration-300 group-hover:bg-brand-600 group-hover:text-white">
@@ -94,21 +95,24 @@ export default function Contact() {
                   </div>
                 )
               })}
-              <div className="reveal rounded-2xl bg-zinc-950 p-5 text-white" data-delay="320">
-                <p className="font-cairo text-sm font-extrabold">خدمة الطلب السريع</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
-                  أضف القطع إلى السلة وأتمم الطلب عبر النموذج، وسيتواصل معك فريقنا لتأكيد التوفر والتوصيل.
-                </p>
-              </div>
             </div>
 
-            <div className="reveal overflow-hidden rounded-3xl border border-zinc-100 shadow-lg shadow-zinc-900/5" data-delay="140">
+            <div className="reveal relative overflow-hidden rounded-3xl border border-zinc-100 shadow-lg shadow-zinc-900/5 group" data-delay="140">
               <iframe
-                title="موقع المحل على الخريطة"
-                src="https://maps.google.com/maps?q=Algiers%20Algeria&z=12&output=embed"
-                className="h-64 w-full grayscale-[35%] transition-all duration-700 hover:grayscale-0"
+                title="موقع المحل على الخريطة - برج بوعريريج"
+                src="https://maps.google.com/maps?q=36.068538,4.768815&hl=ar&z=15&output=embed"
+                className="h-64 w-full grayscale-[25%] transition-all duration-700 group-hover:grayscale-0"
                 loading="lazy"
               />
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-3 right-3 flex items-center gap-2 rounded-xl bg-zinc-900/90 px-3.5 py-2 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-brand-600 shadow-md"
+              >
+                <MapPin className="h-3.5 w-3.5 text-brand-400" />
+                <span>فتح في خرائط Google</span>
+              </a>
             </div>
           </div>
 

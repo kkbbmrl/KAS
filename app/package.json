@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist-server/index.js",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server": "tsx server/index.ts",
+    "server": "tsx watch server/index.ts",
     "start": "node dist-server/index.js",
     "db:seed": "tsx server/db/seed.ts",
     "test:security": "tsx server/tests/security.test.ts"

@@ -189,3 +189,8 @@ export async function submitContactMessage(payload: {
 export async function trackOrder(orderReference: string) {
   return request(`/orders/${encodeURIComponent(orderReference)}`)
 }
+
+export async function fetchPublicSettings(): Promise<Record<string, string>> {
+  return request<Record<string, string>>('/settings').catch(() => ({}))
+}
+

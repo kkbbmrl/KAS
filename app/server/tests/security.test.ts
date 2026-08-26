@@ -32,10 +32,14 @@ async function runTest(name: string, fn: () => Promise<void>) {
   }
 }
 
-async function request(path: string, options: { method?: string; headers?: Record<string, string>; body?: any } = {}) {
+let ipCounter = 100
+
+async function request(path: string, options: { method?: string; headers?: Record<string, string>; body?: any; ip?: string } = {}) {
   const url = `${baseUrl}${path}`
+  const clientIp = options.ip || `10.200.50.${ipCounter++}`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Forwarded-For': clientIp,
     ...(options.headers || {}),
   }
 
@@ -424,6 +428,7 @@ async function runAllSecurityTests() {
       for (let i = 0; i < 15; i++) {
         const res = await request('/api/v1/contact', {
           method: 'POST',
+          ip: '10.99.99.1',
           body: { name: 'RateTester', phone: '0555000000', message: 'Test rate limit message' },
         })
         if (res.status === 429) {
@@ -440,11 +445,474 @@ async function runAllSecurityTests() {
       }
     })
 
+    // 11. INVENTORY STOCK BOUNDARY & RECONNAISSANCE PROTECTION TEST
+    await runTest('11. Data Integrity: Rejection of Over-Ordering & Stock Count Masking', async () => {
+      // Find a variant with known stock
+      const varRes = await query(`SELECT id, stock_quantity, product_id FROM product_variants WHERE stock_quantity > 0 LIMIT 1`)
+      if (varRes.rows.length === 0) throw new Error('No variants found for stock boundary test')
+
+      const variant = varRes.rows[0]
+      const currentStock = Number(variant.stock_quantity)
+
+      // 11a: Attempt to order more than current stock (currentStock + 50)
+      const overStockQty = currentStock + 50
+      const overRes = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          source: 'cart_checkout',
+          firstName: 'Stock',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Stock Street 123',
+          items: [{ variantId: variant.id, productId: variant.product_id, qty: overStockQty }],
+        },
+      })
+
+      if (overRes.status === 201) {
+        throw new Error(`Server accepted order of ${overStockQty} items when stock is only ${currentStock}!`)
+      }
+      if (overRes.status !== 400) {
+        throw new Error(`Expected HTTP 400 for over-stock order, got ${overRes.status}: ${JSON.stringify(overRes.body)}`)
+      }
+
+      // Security check: Must NOT leak exact internal warehouse count (e.g., "3 remaining") to client
+      if (overRes.body?.error && overRes.body.error.includes(String(currentStock))) {
+        throw new Error(`Information Leakage: Order error leaked exact internal stock quantity (${currentStock}) in response message!`)
+      }
+
+      // 11b: Public catalog endpoints must NOT leak numeric stockQuantity
+      const catRes = await request('/api/v1/products')
+      if (catRes.status === 200 && Array.isArray(catRes.body) && catRes.body.length > 0) {
+        if ('stockQuantity' in catRes.body[0]) {
+          throw new Error('Information Leakage: GET /api/v1/products leaks numeric stockQuantity to public clients!')
+        }
+      }
+
+      // 11c: Split items attack (sending two items for same variant that together exceed stock)
+      const halfQty = Math.ceil(currentStock / 2) + 2
+      const splitRes = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          source: 'cart_checkout',
+          firstName: 'Split',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Stock Street 123',
+          items: [
+            { variantId: variant.id, productId: variant.product_id, qty: halfQty },
+            { variantId: variant.id, productId: variant.product_id, qty: halfQty },
+          ],
+        },
+      })
+
+      if (splitRes.status === 201) {
+        throw new Error(`Split item attack succeeded: Order accepted ${halfQty * 2} items when stock is only ${currentStock}!`)
+      }
+      if (splitRes.status !== 400 && splitRes.status !== 409) {
+        throw new Error(`Expected 400/409 for split item over-ordering, got ${splitRes.status}: ${JSON.stringify(splitRes.body)}`)
+      }
+    })
+
+    // 12. ATOMIC STOCK DECREMENT & ZERO BOUNDARY TEST
+    await runTest('12. Data Integrity: Accurate Decrement (10 - 3 = 7) & Zero-Stock Transition (7 - 7 = 0)', async () => {
+      // Create isolated test product & variant with exactly 10 stock
+      const pId = randomUUID()
+      const vId = randomUUID()
+      const sku = `SKU-DEC-${randomUUID().slice(0, 8)}`
+      await query(
+        `INSERT INTO products (id, sku, base_part_number, name_ar, name_fr, category_id, brand_id, description_ar, is_active)
+         VALUES ($1, $2, 'PART-DEC', 'قطعة اختبار الجرد', 'Piece Test Dec', (SELECT id FROM categories LIMIT 1), (SELECT id FROM brands LIMIT 1), 'Desc', 1)`,
+        [pId, sku]
+      )
+      await query(
+        `INSERT INTO product_variants (id, product_id, variant_sku, part_number, label_ar, label_fr, price, stock_quantity, stock_status, is_active)
+         VALUES ($1, $2, $3, 'PART-DEC', 'فئة تجريبية', 'Var Test', 1500, 10, 'in_stock', 1)`,
+        [vId, pId, `${sku}-VAR`]
+      )
+
+      // Buy 3 -> Expected 7
+      const order1 = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          firstName: 'Dec',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Test Street',
+          items: [{ variantId: vId, productId: pId, qty: 3 }],
+        },
+      })
+      if (order1.status !== 201) throw new Error(`Buy 3 failed: ${JSON.stringify(order1.body)}`)
+
+      const s1 = await query(`SELECT stock_quantity, stock_status FROM product_variants WHERE id = $1`, [vId])
+      if (Number(s1.rows[0].stock_quantity) !== 7) {
+        throw new Error(`Expected 7 stock remaining after buying 3 from 10, found: ${s1.rows[0].stock_quantity}`)
+      }
+
+      // Buy 7 -> Expected 0 and status 'out_of_stock'
+      const order2 = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          firstName: 'Dec',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Test Street',
+          items: [{ variantId: vId, productId: pId, qty: 7 }],
+        },
+      })
+      if (order2.status !== 201) throw new Error(`Buy remaining 7 failed: ${JSON.stringify(order2.body)}`)
+
+      const s2 = await query(`SELECT stock_quantity, stock_status FROM product_variants WHERE id = $1`, [vId])
+      if (Number(s2.rows[0].stock_quantity) !== 0) {
+        throw new Error(`Expected 0 stock remaining after buying remaining 7, found: ${s2.rows[0].stock_quantity}`)
+      }
+      if (s2.rows[0].stock_status !== 'out_of_stock') {
+        throw new Error(`Expected stock_status 'out_of_stock' when quantity is 0, got: ${s2.rows[0].stock_status}`)
+      }
+
+      // Cleanup
+      const order1Id = order1.body?.orderId
+      const order2Id = order2.body?.orderId
+      if (order1Id) await query(`DELETE FROM order_timeline WHERE order_id = $1`, [order1Id])
+      if (order1Id) await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [order1Id])
+      if (order1Id) await query(`DELETE FROM order_items WHERE order_id = $1`, [order1Id])
+      if (order1Id) await query(`DELETE FROM orders WHERE id = $1`, [order1Id])
+
+      if (order2Id) await query(`DELETE FROM order_timeline WHERE order_id = $1`, [order2Id])
+      if (order2Id) await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [order2Id])
+      if (order2Id) await query(`DELETE FROM order_items WHERE order_id = $1`, [order2Id])
+      if (order2Id) await query(`DELETE FROM orders WHERE id = $1`, [order2Id])
+
+      await query(`DELETE FROM inventory_transactions WHERE variant_id = $1`, [vId])
+      await query(`DELETE FROM product_variants WHERE id = $1`, [vId])
+      await query(`DELETE FROM products WHERE id = $1`, [pId])
+    })
+
+    // 13. STRICT QUANTITY VALIDATION (NEGATIVE, ZERO, OVERFLOW, NON-INTEGER)
+    await runTest('13. Input Validation: Rejection of Negative (-1), Zero (0), Overflow (999999), and Decimal Quantities', async () => {
+      const vRes = await query(`SELECT id, product_id FROM product_variants WHERE stock_quantity > 0 LIMIT 1`)
+      const v = vRes.rows[0]
+
+      const badQuantities = [-1, 0, 999999, 1.5, 'abc', null]
+      for (const badQty of badQuantities) {
+        const res = await request('/api/v1/orders', {
+          method: 'POST',
+          body: {
+            firstName: 'Bad',
+            lastName: 'Qty',
+            phone: '0551122334',
+            wilayaCode: '16',
+            address: 'Test Address',
+            items: [{ variantId: v.id, productId: v.product_id, qty: badQty }],
+          },
+        })
+
+        if (res.status === 201) {
+          throw new Error(`Server dangerously accepted invalid quantity (${badQty}) in order placement!`)
+        }
+        if (res.status !== 400 && res.status !== 409) {
+          throw new Error(`Expected 400/409 for bad quantity ${badQty}, got ${res.status}`)
+        }
+      }
+    })
+
+    // 14. CLIENT PRICE & STOCK TAMPERING ISOLATION
+    await runTest('14. Financial Integrity: Client-Supplied Fake Prices & Stock Counts are Ignored', async () => {
+      const vRes = await query(`SELECT id, product_id, price FROM product_variants WHERE price > 1000 LIMIT 1`)
+      const v = vRes.rows[0]
+      const realPrice = Number(v.price)
+
+      // Attacker attempts to buy with price = 1 DZD and fake stock = 99999
+      const tamperRes = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          firstName: 'Tamper',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Test Address',
+          items: [{
+            variantId: v.id,
+            productId: v.product_id,
+            qty: 1,
+            price: 1,
+            unitPrice: 1,
+            stockQuantity: 99999,
+            subtotal: 1,
+            total: 1,
+          }],
+        },
+      })
+
+      if (tamperRes.status !== 201) throw new Error(`Order placement failed: ${JSON.stringify(tamperRes.body)}`)
+      if (Number(tamperRes.body.subtotal) !== realPrice) {
+        throw new Error(`Price Tampering succeeded: Server charged client price ${tamperRes.body.subtotal} instead of authoritative DB price ${realPrice}!`)
+      }
+
+      // Cleanup
+      if (tamperRes.body?.orderId) {
+        await query(`DELETE FROM order_timeline WHERE order_id = $1`, [tamperRes.body.orderId])
+        await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [tamperRes.body.orderId])
+        await query(`DELETE FROM order_items WHERE order_id = $1`, [tamperRes.body.orderId])
+        await query(`DELETE FROM orders WHERE id = $1`, [tamperRes.body.orderId])
+      }
+    })
+
+    // 15. MISMATCHED PRODUCT / VARIANT RELATIONSHIP VALIDATION
+    await runTest('15. Relational Integrity: Rejection of Inactive Products & Mismatched Product/Variant IDs', async () => {
+      const vRes = await query(`SELECT id, product_id FROM product_variants LIMIT 1`)
+      if (vRes.rows.length === 0) return
+      const v1 = vRes.rows[0]
+      const fakeProductId = randomUUID()
+
+      // Attempt to order variant 1 with completely different product ID
+      const mismatchRes = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          firstName: 'Mismatch',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Mismatch Street',
+          items: [{ variantId: v1.id, productId: fakeProductId, qty: 1 }],
+        },
+      })
+
+      if (mismatchRes.status === 201) {
+        throw new Error('Server accepted order with mismatched productId and variantId!')
+      }
+      if (mismatchRes.status !== 400) {
+        throw new Error(`Expected 400 for mismatched product/variant, got ${mismatchRes.status}`)
+      }
+    })
+
+    // 16. ORDER IDEMPOTENCY PROTECTION
+    await runTest('16. Concurrency & Replay: Idempotency-Key Prevents Duplicate Orders and Double Stock Deduction', async () => {
+      const vRes = await query(`SELECT id, product_id, stock_quantity FROM product_variants WHERE stock_quantity > 5 LIMIT 1`)
+      const v = vRes.rows[0]
+      const stockBefore = Number(v.stock_quantity)
+      const idempotencyKey = `idemp-test-${randomUUID()}`
+
+      const payload = {
+        firstName: 'Idemp',
+        lastName: 'Tester',
+        phone: '0551122334',
+        wilayaCode: '16',
+        address: 'Idempotency Ave',
+        items: [{ variantId: v.id, productId: v.product_id, qty: 2 }],
+      }
+
+      // First submission
+      const res1 = await request('/api/v1/orders', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: payload,
+      })
+      if (res1.status !== 201) throw new Error(`First order failed: ${JSON.stringify(res1.body)}`)
+      const order1Id = res1.body.orderId
+
+      // Second submission (replayed request with same idempotency key)
+      const res2 = await request('/api/v1/orders', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: payload,
+      })
+      if (res2.status !== 200 && res2.status !== 201) {
+        throw new Error(`Idempotent replayed request failed with status ${res2.status}`)
+      }
+      if (res2.body.orderId !== order1Id) {
+        throw new Error(`Idempotency failure: Created new order (${res2.body.orderId}) instead of returning original (${order1Id})!`)
+      }
+
+      // Verify stock was decremented ONCE (by 2, not by 4)
+      const stockCheck = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [v.id])
+      const stockAfter = Number(stockCheck.rows[0].stock_quantity)
+      if (stockAfter !== stockBefore - 2) {
+        throw new Error(`Idempotency double-spending: Expected stock ${stockBefore - 2}, but found ${stockAfter}!`)
+      }
+
+      // Cleanup
+      await query(`DELETE FROM order_timeline WHERE order_id = $1`, [order1Id])
+      await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [order1Id])
+      await query(`DELETE FROM order_items WHERE order_id = $1`, [order1Id])
+      await query(`DELETE FROM orders WHERE id = $1`, [order1Id])
+      await query(`UPDATE product_variants SET stock_quantity = $1 WHERE id = $2`, [stockBefore, v.id])
+    })
+
+    // 17. CONCURRENT RACE-CONDITION SIMULATION
+    await runTest('17. Race-Condition Resilience: Concurrent Orders Competing for Last Stock Do Not Oversell', async () => {
+      // Create test variant with exactly 2 stock
+      const pId = randomUUID()
+      const vId = randomUUID()
+      const sku = `SKU-RACE-${randomUUID().slice(0, 8)}`
+      await query(
+        `INSERT INTO products (id, sku, base_part_number, name_ar, name_fr, category_id, brand_id, description_ar, is_active)
+         VALUES ($1, $2, 'PART-RACE', 'قطعة اختبار التسابق', 'Piece Race', (SELECT id FROM categories LIMIT 1), (SELECT id FROM brands LIMIT 1), 'Desc', 1)`,
+        [pId, sku]
+      )
+      await query(
+        `INSERT INTO product_variants (id, product_id, variant_sku, part_number, label_ar, label_fr, price, stock_quantity, stock_status, is_active)
+         VALUES ($1, $2, $3, 'PART-RACE', 'فئة تسابق', 'Var Race', 1000, 2, 'in_stock', 1)`,
+        [vId, pId, `${sku}-VAR`]
+      )
+
+      // Fire 5 simultaneous requests, each attempting to buy 2 units (Total requested = 10 units, available = 2)
+      const promises = Array.from({ length: 5 }).map((_, idx) =>
+        request('/api/v1/orders', {
+          method: 'POST',
+          body: {
+            firstName: `Race${idx}`,
+            lastName: 'Tester',
+            phone: `055112233${idx}`,
+            wilayaCode: '16',
+            address: 'Race Street',
+            items: [{ variantId: vId, productId: pId, qty: 2 }],
+          },
+        })
+      )
+
+      const results = await Promise.all(promises)
+      const successful = results.filter((r) => r.status === 201)
+      const rejected = results.filter((r) => r.status === 409 || r.status === 400)
+
+      if (successful.length !== 1) {
+        throw new Error(`Race condition oversell! Expected exactly 1 successful order, but got ${successful.length} successful orders!`)
+      }
+      if (rejected.length !== 4) {
+        throw new Error(`Expected exactly 4 rejected orders under stock exhaustion, got ${rejected.length}`)
+      }
+
+      // Check final stock is exactly 0, NEVER negative
+      const finalRes = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+      const finalStock = Number(finalRes.rows[0].stock_quantity)
+      if (finalStock !== 0) {
+        throw new Error(`Expected final stock to be exactly 0, found: ${finalStock}`)
+      }
+
+      // Cleanup
+      for (const r of successful) {
+        if (r.body?.orderId) {
+          await query(`DELETE FROM order_timeline WHERE order_id = $1`, [r.body.orderId])
+          await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [r.body.orderId])
+          await query(`DELETE FROM order_items WHERE order_id = $1`, [r.body.orderId])
+          await query(`DELETE FROM orders WHERE id = $1`, [r.body.orderId])
+        }
+      }
+      await query(`DELETE FROM inventory_transactions WHERE variant_id = $1`, [vId])
+      await query(`DELETE FROM product_variants WHERE id = $1`, [vId])
+      await query(`DELETE FROM products WHERE id = $1`, [pId])
+    })
+
+    // 18. IDEMPOTENT ORDER CANCELLATION RESTOCKING
+    await runTest('18. Order State Machine: Double Cancellation Restores Stock Exactly Once', async () => {
+      // Login admin
+      const loginRes = await request('/api/v1/admin/auth/login', {
+        method: 'POST',
+        body: { username: 'admin', password: 'adminpassword123' },
+      })
+      const adminToken = loginRes.body.token
+
+      // Create test variant with 5 stock
+      const pId = randomUUID()
+      const vId = randomUUID()
+      const sku = `SKU-CANCEL-${randomUUID().slice(0, 8)}`
+      await query(
+        `INSERT INTO products (id, sku, base_part_number, name_ar, name_fr, category_id, brand_id, description_ar, is_active)
+         VALUES ($1, $2, 'PART-CANCEL', 'قطعة اختبار الإلغاء', 'Piece Cancel', (SELECT id FROM categories LIMIT 1), (SELECT id FROM brands LIMIT 1), 'Desc', 1)`,
+        [pId, sku]
+      )
+      await query(
+        `INSERT INTO product_variants (id, product_id, variant_sku, part_number, label_ar, label_fr, price, stock_quantity, stock_status, is_active)
+         VALUES ($1, $2, $3, 'PART-CANCEL', 'فئة إلغاء', 'Var Cancel', 2000, 5, 'in_stock', 1)`,
+        [vId, pId, `${sku}-VAR`]
+      )
+
+      // Place order for 2 units (Stock becomes 3)
+      const orderRes = await request('/api/v1/orders', {
+        method: 'POST',
+        body: {
+          firstName: 'Cancel',
+          lastName: 'Tester',
+          phone: '0551122334',
+          wilayaCode: '16',
+          address: 'Cancel Street',
+          items: [{ variantId: vId, productId: pId, qty: 2 }],
+        },
+      })
+      const orderId = orderRes.body.orderId
+
+      const afterOrderStock = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+      if (Number(afterOrderStock.rows[0].stock_quantity) !== 3) {
+        throw new Error(`Expected 3 stock after ordering 2, got ${afterOrderStock.rows[0].stock_quantity}`)
+      }
+
+      // Cancel order 1st time (Stock should be restored to 5)
+      const cancel1 = await request(`/api/v1/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: { status: 'cancelled', note: 'Customer cancelled' },
+      })
+      if (cancel1.status !== 200) throw new Error(`First cancellation failed: ${JSON.stringify(cancel1.body)}`)
+
+      const stockAfterCancel1 = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+      if (Number(stockAfterCancel1.rows[0].stock_quantity) !== 5) {
+        throw new Error(`Expected stock restored to 5, got ${stockAfterCancel1.rows[0].stock_quantity}`)
+      }
+
+      // Cancel order 2nd time (Duplicate cancellation MUST NOT add stock again!)
+      const cancel2 = await request(`/api/v1/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: { status: 'cancelled', note: 'Duplicate cancel click' },
+      })
+      if (cancel2.status !== 200) throw new Error(`Second cancellation failed: ${JSON.stringify(cancel2.body)}`)
+
+      const stockAfterCancel2 = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+      if (Number(stockAfterCancel2.rows[0].stock_quantity) !== 5) {
+        throw new Error(`Ghost Stock Bug! Second cancellation increased stock to ${stockAfterCancel2.rows[0].stock_quantity} instead of staying 5!`)
+      }
+
+      // Cleanup
+      await query(`DELETE FROM order_timeline WHERE order_id = $1`, [orderId])
+      await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [orderId])
+      await query(`DELETE FROM order_items WHERE order_id = $1`, [orderId])
+      await query(`DELETE FROM orders WHERE id = $1`, [orderId])
+      await query(`DELETE FROM product_variants WHERE id = $1`, [vId])
+      await query(`DELETE FROM products WHERE id = $1`, [pId])
+    })
+
+    // 19. PROTECTED ADMIN INVENTORY API AUTHORIZATION
+    await runTest('19. Admin Endpoint Security: Direct Unauthenticated Inventory Mutation Rejected (401/403)', async () => {
+      const vRes = await query(`SELECT id, product_id FROM product_variants LIMIT 1`)
+      const v = vRes.rows[0]
+
+      // Attempt direct unauthenticated stock adjustment
+      const unauthAdjust = await request('/api/v1/admin/inventory/adjust', {
+        method: 'POST',
+        body: { variantId: v.id, newQuantity: 9999 },
+      })
+      if (unauthAdjust.status !== 401 && unauthAdjust.status !== 403) {
+        throw new Error(`Unauthenticated customer accessed /api/v1/admin/inventory/adjust! Got ${unauthAdjust.status}`)
+      }
+
+      // Attempt direct unauthenticated product stock PATCH
+      const unauthPatch = await request(`/api/v1/admin/products/${v.product_id}/stock`, {
+        method: 'PATCH',
+        body: { stockQuantity: 9999 },
+      })
+      if (unauthPatch.status !== 401 && unauthPatch.status !== 403) {
+        throw new Error(`Unauthenticated customer accessed /api/v1/admin/products/:id/stock! Got ${unauthPatch.status}`)
+      }
+    })
+
   } finally {
     try {
       await query(`DELETE FROM admin_sessions WHERE user_id IN (SELECT id FROM admin_users WHERE username IN ('sectest_admin', 'sectest_revoke'))`)
       await query(`DELETE FROM admin_users WHERE username IN ('sectest_admin', 'sectest_revoke')`)
-    } catch {}
+    } catch { }
 
     await new Promise<void>((resolve) => {
       server.close(() => {

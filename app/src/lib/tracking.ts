@@ -177,7 +177,7 @@ export function buildWhatsAppLink(options: {
   campaign?: string
   carDetails?: string
 }): string {
-  const phone = options.phone || import.meta.env.VITE_WHATSAPP_NUMBER || '+213555123456'
+  const phone = options.phone || import.meta.env.VITE_WHATSAPP_NUMBER || '+213550729601'
   const cleanPhone = phone.replace(/[^\d+]/g, '').replace(/^0/, '+213')
 
   const lines = [

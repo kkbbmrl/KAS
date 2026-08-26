@@ -382,8 +382,11 @@ export function formatPrice(n: number): string {
   }) + ' DA'
 }
 
-export const PHONE_DISPLAY = '0555 12 34 56'
-export const PHONE_CALL = '+213555123456'
-export const EMAIL = 'contact@khaledautospart.dz'
-export const ADDRESS = 'شارع الاستقلال رقم 42، الجزائر العاصمة'
+export const PHONE_DISPLAY = '0550 72 96 01'
+export const PHONE_CALL = '+213550729601'
+export const EMAIL = 'medbouhmoussa@yahoo.fr'
+export const ADDRESS = 'شارع مجانة، عمارة زواوي، برج بوعريريج، 34000'
+export const ADDRESS_FR = 'Rue de Medjana, Bâtiment Zouaoui, Bordj Bou Arreridj, 34000, Algeria'
+export const MAPS_URL = 'https://www.google.com/maps?q=36.068538,4.768815'
+export const MAPS_BING_URL = 'https://www.bing.com/maps?v=2&pc=FACEBK&mid=8100&mkt=fr-FR&FORM=FBKPL1&q=rue+de+medjana+b%C3%A2timent+zouaoui%2C+Bordj+Bou+Arreridj%2C+Algeria%2C+34000&cp=36.068538~4.768815&lvl=15&style=r'
 export const WORK_HOURS = 'السبت – الخميس: 8:30 – 18:00'

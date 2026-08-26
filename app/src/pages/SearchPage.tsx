@@ -58,6 +58,7 @@ export default function SearchPage() {
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     fetchCategories()
       .then((cats) => {
         if (Array.isArray(cats) && cats.length > 0) {

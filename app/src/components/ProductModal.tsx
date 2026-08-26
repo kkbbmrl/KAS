@@ -163,9 +163,8 @@ export default function ProductModal() {
                 <button
                   key={v}
                   onClick={() => setView(i)}
-                  className={`overflow-hidden rounded-2xl border-2 bg-zinc-50 p-2 transition-all ${
-                    view === i ? 'border-brand-600 shadow-md shadow-brand-600/20' : 'border-zinc-200/80 hover:border-brand-200'
-                  }`}
+                  className={`overflow-hidden rounded-2xl border-2 bg-zinc-50 p-2 transition-all ${view === i ? 'border-brand-600 shadow-md shadow-brand-600/20' : 'border-zinc-200/80 hover:border-brand-200'
+                    }`}
                 >
                   <img
                     src={effectiveImage}
@@ -213,11 +212,10 @@ export default function ProductModal() {
                 {/* Trigger */}
                 <button
                   onClick={() => setVariantOpen(!variantOpen)}
-                  className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-right transition-all ${
-                    selectedVariant
-                      ? 'border-brand-500 bg-brand-50 text-brand-800'
-                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-300'
-                  }`}
+                  className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 text-right transition-all ${selectedVariant
+                    ? 'border-brand-500 bg-brand-50 text-brand-800'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-300'
+                    }`}
                 >
                   <span className="font-cairo text-sm font-bold">
                     {selectedVariant ? selectedVariant.label : '— اختر السيارة / الموديل —'}
@@ -249,13 +247,12 @@ export default function ProductModal() {
                             if (!isOut) { setSelectedVariant(v); setVariantOpen(false) }
                           }}
                           disabled={isOut}
-                          className={`flex w-full items-center justify-between px-4 py-3 text-right transition-colors ${
-                            isSelected
-                              ? 'bg-brand-50 text-brand-800'
-                              : isOut
-                                ? 'cursor-not-allowed opacity-50'
-                                : 'text-zinc-800 hover:bg-zinc-50'
-                          }`}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-right transition-colors ${isSelected
+                            ? 'bg-brand-50 text-brand-800'
+                            : isOut
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'text-zinc-800 hover:bg-zinc-50'
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-600" />}
@@ -271,13 +268,12 @@ export default function ProductModal() {
                               {formatPrice(v.price ?? p.price)}
                             </span>
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                v.stock === 'متوفر'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : v.stock === 'كمية محدودة'
-                                    ? 'bg-amber-50 text-amber-700'
-                                    : 'bg-zinc-100 text-zinc-400'
-                              }`}
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${v.stock === 'متوفر'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : v.stock === 'كمية محدودة'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-zinc-100 text-zinc-400'
+                                }`}
                             >
                               {v.stock}
                             </span>
@@ -351,8 +347,9 @@ export default function ProductModal() {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex items-center justify-between rounded-xl border-2 border-zinc-200 bg-zinc-50 px-2 py-1">
                 <button
-                  onClick={() => setQtyLocal((q) => Math.min(q + 1, 99))}
-                  className="grid h-10 w-10 place-items-center text-zinc-700 transition-colors hover:text-brand-600"
+                  onClick={() => setQtyLocal((q) => Math.min(q + 1, out ? 0 : 10))}
+                  disabled={out || qty >= 10}
+                  className="grid h-10 w-10 place-items-center text-zinc-700 transition-colors hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="زيادة الكمية"
                 >
                   <Plus className="h-4 w-4" />
@@ -360,7 +357,8 @@ export default function ProductModal() {
                 <span className="w-10 text-center font-cairo text-lg font-black text-zinc-900">{qty}</span>
                 <button
                   onClick={() => setQtyLocal((q) => Math.max(q - 1, 1))}
-                  className="grid h-10 w-10 place-items-center text-zinc-700 transition-colors hover:text-brand-600"
+                  disabled={out || qty <= 1}
+                  className="grid h-10 w-10 place-items-center text-zinc-700 transition-colors hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="تقليل الكمية"
                 >
                   <Minus className="h-4 w-4" />

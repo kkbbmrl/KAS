@@ -9,6 +9,7 @@ import catalogRouter from './routes/catalog.js'
 import offersRouter from './routes/offers.js'
 import ordersRouter from './routes/orders.js'
 import contactRouter from './routes/contact.js'
+import settingsRouter from './routes/settings.js'
 import adminAuthRouter from './routes/admin/auth.js'
 import adminAnalyticsRouter from './routes/admin/analytics.js'
 import adminOrdersRouter from './routes/admin/orders.js'
@@ -43,11 +44,11 @@ app.use((_req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  
+
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   }
-  
+
   // Content Security Policy
   res.setHeader(
     'Content-Security-Policy',
@@ -74,7 +75,7 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true)
-      
+
       const cleanOrigin = origin.replace(/\/$/, '')
       if (
         configuredOrigins.includes(cleanOrigin) ||
@@ -85,7 +86,7 @@ app.use(
       ) {
         return callback(null, true)
       }
-      
+
       return callback(new Error('CORS policy: Not allowed by origin allowlist'))
     },
     credentials: true,
@@ -140,6 +141,7 @@ app.get('/api/health', healthHandler)
 app.use('/api', apiGlobalRateLimiter)
 
 // Public API Routes
+app.use('/api/v1/settings', settingsRouter)
 app.use('/api/v1/wilayas', wilayasRouter)
 app.use('/api/v1/offers', offersRouter)
 app.use('/api/v1/orders', ordersRouter)
@@ -183,18 +185,16 @@ app.use((err: any, req: express.Request, res: express.Response, _next: express.N
   res.status(500).json({ error: 'حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً.' })
 })
 
-// Serve the built React frontend in production (if running unified)
-if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '..', 'dist')
-  if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath))
-    app.use((req, res, next) => {
-      if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-        return res.sendFile(path.join(distPath, 'index.html'))
-      }
-      next()
-    })
-  }
+// Serve the built React frontend whenever dist folder exists
+const distPath = path.join(__dirname, '..', 'dist')
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath))
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+      return res.sendFile(path.join(distPath, 'index.html'))
+    }
+    next()
+  })
 }
 
 // Global Process Error Handlers (Prevents silent container exits)

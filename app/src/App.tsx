@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, Navigate } from 'react-router'
 import { useEffect } from 'react'
 import { ShopProvider } from './context/ShopContext'
 import { AdminAuthProvider } from './context/AdminAuthContext'
+import { SettingsProvider } from './context/SettingsContext'
 import ProductModal from './components/ProductModal'
 import CartDrawer from './components/CartDrawer'
 import Toast from './components/Toast'
@@ -31,65 +32,70 @@ export default function App() {
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
 
   /*
-   * react-router does not scroll to hash targets itself. The navbar links to
-   * "/#brands" etc. from any page, so resolve the target after the route renders.
+   * Handle scroll restoration:
+   * - If hash is present, scroll smoothly to the target anchor.
+   * - If no hash, scroll instantly to the top of the new page.
    */
   useEffect(() => {
-    if (!hash) return
-    const id = hash.slice(1)
-    // rAF lets the destination page paint before we look for the anchor.
-    const raf = requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-    return () => cancelAnimationFrame(raf)
+    if (hash) {
+      const id = hash.slice(1)
+      const raf = requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+      return () => cancelAnimationFrame(raf)
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    }
   }, [pathname, hash])
 
   return (
-    <ShopProvider>
-      <AdminAuthProvider>
-        <Routes>
-          {/* Public Store Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/themes" element={<Navigate to="/#search" replace />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/offer/:slug" element={<OfferPage />} />
+    <SettingsProvider>
+      <ShopProvider>
+        <AdminAuthProvider>
+          <Routes>
+            {/* Public Store Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/themes" element={<Navigate to="/#search" replace />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/offer/:slug" element={<OfferPage />} />
 
-          {/* Ad Landing Pages & Campaign System */}
-          <Route path="/ads" element={<AdsCatalogPage />} />
-          <Route path="/ads/:slug" element={<AdLandingPage />} />
-          <Route path="/ads/product/:idOrSlug" element={<AdLandingPage />} />
-          <Route path="/landing/:slug" element={<AdLandingPage />} />
+            {/* Ad Landing Pages & Campaign System */}
+            <Route path="/ads" element={<AdsCatalogPage />} />
+            <Route path="/ads/:slug" element={<AdLandingPage />} />
+            <Route path="/ads/product/:idOrSlug" element={<AdLandingPage />} />
+            <Route path="/landing/:slug" element={<AdLandingPage />} />
 
-          {/* Admin Authentication */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+            {/* Admin Authentication */}
+            <Route path="/admin/login" element={<AdminLogin />} />
 
-          {/* Enterprise Admin Dashboard */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminOverview />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="categories" element={<AdminCategories />} />
-            <Route path="inventory" element={<AdminInventory />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="marketing" element={<AdminMarketing />} />
-            <Route path="landing-pages" element={<AdminMarketing />} />
-            <Route path="activity" element={<AdminActivityLogs />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
-        </Routes>
+            {/* Enterprise Admin Dashboard */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="categories" element={<AdminCategories />} />
+              <Route path="inventory" element={<AdminInventory />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="marketing" element={<AdminMarketing />} />
+              <Route path="landing-pages" element={<AdminMarketing />} />
+              <Route path="activity" element={<AdminActivityLogs />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+          </Routes>
 
-        {/* Global storefront overlays — mounted once, outside <Routes>, so they
-            survive navigation and work on every customer page. */}
-        {!isAdmin && (
-          <>
-            <ProductModal />
-            <CartDrawer />
-            <Toast />
-          </>
-        )}
-      </AdminAuthProvider>
-    </ShopProvider>
+          {/* Global storefront overlays — mounted once, outside <Routes>, so they
+              survive navigation and work on every customer page. */}
+          {!isAdmin && (
+            <>
+              <ProductModal />
+              <CartDrawer />
+              <Toast />
+            </>
+          )}
+        </AdminAuthProvider>
+      </ShopProvider>
+    </SettingsProvider>
   )
 }
 

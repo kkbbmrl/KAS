@@ -72,16 +72,33 @@ export default function Hero() {
 
           {/* mini stats */}
           <div className="hero-up mt-10 flex flex-wrap gap-8" style={{ animationDelay: '0.45s' }}>
-            {[
-              { n: '000 12+', t: 'قطعة متوفرة' },
-              { n: '000 1+', t: 'عميل سعيد' },
-              { n: '15', t: 'سنة خبرة' },
-            ].map((s) => (
-              <div key={s.t} className="border-r-2 border-brand-600 pr-4">
-                <p className="font-cairo text-2xl font-black text-zinc-900">{s.n}</p>
-                <p className="text-sm font-medium text-zinc-500">{s.t}</p>
-              </div>
-            ))}
+            <div className="border-r-2 border-brand-600 pr-4">
+              <p className="font-cairo text-2xl font-black text-zinc-900">
+                <span dir="ltr" className="inline-flex items-baseline gap-1">
+                  <span className="text-brand-600 font-extrabold">+</span>
+                  <span>12 000</span>
+                </span>
+              </p>
+              <p className="text-sm font-medium text-zinc-500">قطعة متوفرة</p>
+            </div>
+            <div className="border-r-2 border-brand-600 pr-4">
+              <p className="font-cairo text-2xl font-black text-zinc-900">
+                <span dir="ltr" className="inline-flex items-baseline gap-1">
+                  <span className="text-brand-600 font-extrabold">+</span>
+                  <span>1 000</span>
+                </span>
+              </p>
+              <p className="text-sm font-medium text-zinc-500">عميل سعيد</p>
+            </div>
+            <div className="border-r-2 border-brand-600 pr-4">
+              <p className="font-cairo text-2xl font-black text-zinc-900">
+                <span dir="rtl" className="inline-flex items-baseline gap-1.5">
+                  <span dir="ltr">15</span>
+                  <span className="text-brand-600 font-bold text-lg">سنة</span>
+                </span>
+              </p>
+              <p className="text-sm font-medium text-zinc-500">من الخبرة</p>
+            </div>
           </div>
         </div>
 
@@ -91,7 +108,7 @@ export default function Hero() {
             <div className="stripes-dark absolute inset-0" aria-hidden />
             <img
               src="/img/hero-car.png"
-              alt="سيارة حديثة بقطع غيار أصلية من Khaled Auto Spart"
+              alt="سيارة حديثة بقطع غيار أصلية من Khaled Auto Parts"
               className="img-in relative w-full scale-[1.02] object-contain"
               loading="eager"
             />

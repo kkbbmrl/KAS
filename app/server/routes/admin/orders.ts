@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { randomUUID } from 'node:crypto'
-import { query } from '../../db/db.js'
+import { query, withTransaction } from '../../db/db.js'
 
 const router = Router()
 
@@ -51,8 +51,12 @@ router.get('/', async (req, res) => {
     const params: any[] = []
 
     if (status && status !== 'all') {
-      params.push(status)
-      sql += ` AND o.status = $${params.length}`
+      if (status === 'cancelled') {
+        sql += ` AND (o.status = 'cancelled' OR o.status = 'refused_returned')`
+      } else {
+        params.push(status)
+        sql += ` AND o.status = $${params.length}`
+      }
     }
 
     if (wilaya && wilaya !== 'all') {
@@ -186,7 +190,7 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// PUT /api/v1/admin/orders/:id/status (Update status + timeline event)
+// PUT /api/v1/admin/orders/:id/status (Idempotent status update + cancellation restock + timeline event)
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params
@@ -206,37 +210,138 @@ router.put('/:id/status', async (req, res) => {
 
     const title = statusTitles[status] || `تغيير الحالة إلى ${status}`
 
-    // Update order
-    await query(
-      `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 OR order_reference = $2`,
-      [status, id]
-    )
+    let responseMessage = 'تم تحديث حالة الطلب بنجاح'
 
-    // Grab actual order ID
-    const orderRes = await query(`SELECT id FROM orders WHERE id = $1 OR order_reference = $1`, [id])
-    const orderId = orderRes.rows[0]?.id
+    await withTransaction(async () => {
+      const orderRes = await query(
+        `SELECT id, order_reference AS "orderReference", status, (is_stock_restored = 1 OR is_stock_restored = TRUE) AS "isStockRestored"
+         FROM orders WHERE id = $1 OR order_reference = $1`,
+        [id]
+      )
 
-    if (orderId) {
+      if (orderRes.rows.length === 0) {
+        throw new Error('ORDER_NOT_FOUND')
+      }
+
+      const order = orderRes.rows[0]
+      const orderId = order.id
+      const orderRef = order.orderReference
+      const isAlreadyRestored = Boolean(order.isStockRestored)
+      const isCancelling = status === 'cancelled' || status === 'refused_returned'
+
+      // 1. If transitioning to CANCELLED and stock has NOT been restored yet -> Restock exactly once
+      if (isCancelling && !isAlreadyRestored) {
+        const items = await query(
+          `SELECT variant_id AS "variantId", quantity AS qty
+           FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL`,
+          [orderId]
+        )
+
+        for (const it of items.rows) {
+          const curRes = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [it.variantId])
+          const qtyBefore = Number(curRes.rows[0]?.stock_quantity ?? 0)
+          const qtyAfter = qtyBefore + Number(it.qty)
+
+          await query(
+            `UPDATE product_variants
+             SET stock_quantity = stock_quantity + $1,
+                 stock_status = CASE 
+                   WHEN (stock_quantity + $1) <= 0 THEN 'out_of_stock' 
+                   WHEN (stock_quantity + $1) <= 5 THEN 'limited_stock' 
+                   ELSE 'in_stock' 
+                 END,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [it.qty, it.variantId]
+          )
+
+          try {
+            await query(
+              `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_before, quantity_after, reason, created_by)
+               VALUES ($1, $2, 'order_cancellation_restock', $3, $4, $5, $6, $7, $8)`,
+              [randomUUID(), it.variantId, orderId, it.qty, qtyBefore, qtyAfter, `Order ${orderRef} cancelled/returned restock`, adminName]
+            )
+          } catch {}
+        }
+
+        await query(
+          `UPDATE orders
+           SET status = $1, is_stock_restored = 1, cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [status, orderId]
+        )
+        responseMessage = 'تم إلغاء الطلب واسترجاع المخزون للمستودع بنجاح'
+      } else if (!isCancelling && isAlreadyRestored) {
+        // 2. If transitioning back from cancelled to active -> Re-reserve stock atomically
+        const items = await query(
+          `SELECT variant_id AS "variantId", quantity AS qty
+           FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL`,
+          [orderId]
+        )
+
+        for (const it of items.rows) {
+          const curRes = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [it.variantId])
+          const qtyBefore = Number(curRes.rows[0]?.stock_quantity ?? 0)
+
+          const updateRes = await query(
+            `UPDATE product_variants
+             SET stock_quantity = stock_quantity - $1,
+                 stock_status = CASE 
+                   WHEN (stock_quantity - $1) <= 0 THEN 'out_of_stock' 
+                   WHEN (stock_quantity - $1) <= 5 THEN 'limited_stock' 
+                   ELSE 'in_stock' 
+                 END,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND stock_quantity >= $1`,
+            [it.qty, it.variantId]
+          )
+
+          if (updateRes.rowCount === 0) {
+            throw new Error('CANNOT_REACTIVATE_NO_STOCK')
+          }
+
+          const qtyAfter = qtyBefore - Number(it.qty)
+          try {
+            await query(
+              `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_before, quantity_after, reason, created_by)
+               VALUES ($1, $2, 'order_reactivation_reservation', $3, $4, $5, $6, $7, $8)`,
+              [randomUUID(), it.variantId, orderId, -it.qty, qtyBefore, qtyAfter, `Order ${orderRef} reactivated reservation`, adminName]
+            )
+          } catch {}
+        }
+
+        await query(
+          `UPDATE orders
+           SET status = $1, is_stock_restored = 0, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [status, orderId]
+        )
+      } else {
+        // 3. Normal status transition
+        await query(
+          `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [status, orderId]
+        )
+      }
+
       // Add timeline event
       await query(
         `INSERT INTO order_timeline (id, order_id, status, title_ar, note, created_by)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [randomUUID(), orderId, status, title, note || null, adminName]
       )
+    })
 
-      // If cancelled or returned, optionally restock
-      if (status === 'cancelled' || status === 'refused_returned') {
-        const items = await query(`SELECT variant_id, quantity FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL`, [orderId])
-        for (const it of items.rows) {
-          await query(`UPDATE product_variants SET stock_quantity = stock_quantity + $1 WHERE id = $2`, [it.quantity, it.variant_id])
-        }
-      }
-    }
-
-    res.json({ success: true, status, message: 'تم تحديث حالة الطلب بنجاح' })
+    res.json({ success: true, status, message: responseMessage })
   } catch (err: any) {
+    if (err.message === 'ORDER_NOT_FOUND') {
+      return res.status(404).json({ error: 'الطلب غير موجود' })
+    }
+    if (err.message === 'CANNOT_REACTIVATE_NO_STOCK') {
+      return res.status(409).json({ error: 'تعذر إعادة تفعيل الطلب لعدم كفاية المخزون الحالي في المستودع' })
+    }
     console.error('Error updating order status:', err)
-    res.status(500).json({ error: 'Failed to update order status' })
+    res.status(500).json({ error: 'فشل تحديث حالة الطلب' })
   }
 })
 

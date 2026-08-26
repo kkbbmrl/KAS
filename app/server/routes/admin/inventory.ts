@@ -82,14 +82,23 @@ router.get('/', async (req, res) => {
 // POST /api/v1/admin/inventory/adjust
 router.post('/adjust', async (req, res) => {
   try {
-    const { variantId, quantityDelta, newQuantity, reason } = req.body
+    const { variantId, productId, quantityDelta, newQuantity, reason } = req.body
     const adminName = req.adminUser?.name || 'مسؤول النظام'
-    if (!variantId) {
-      return res.status(400).json({ error: 'معرف المتغير مطلوب' })
+
+    let targetVariantId = variantId
+    if (!targetVariantId && productId) {
+      const vRes = await query(`SELECT id FROM product_variants WHERE product_id = $1 ORDER BY created_at ASC LIMIT 1`, [productId])
+      if (vRes.rows.length > 0) {
+        targetVariantId = vRes.rows[0].id
+      }
     }
 
-    const cur = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [variantId])
-    if (cur.rows.length === 0) return res.status(404).json({ error: 'Variant not found' })
+    if (!targetVariantId) {
+      return res.status(400).json({ error: 'معرف المتغير أو المنتج مطلوب' })
+    }
+
+    const cur = await query(`SELECT id, product_id, stock_quantity FROM product_variants WHERE id = $1`, [targetVariantId])
+    if (cur.rows.length === 0) return res.status(404).json({ error: 'لم يتم العثور على سجل المخزون المطلوب' })
 
     const curStock = Number(cur.rows[0].stock_quantity || 0)
     let finalStock = curStock
@@ -106,15 +115,20 @@ router.post('/adjust', async (req, res) => {
     // Update variant
     await query(
       `UPDATE product_variants SET stock_quantity = $1, stock_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
-      [finalStock, stockStatus, variantId]
+      [finalStock, stockStatus, targetVariantId]
     )
 
     // Log transaction
-    await query(
-      `INSERT INTO inventory_transactions (id, variant_id, delta_type, quantity_delta, quantity_after, reason, created_by)
-       VALUES ($1, $2, 'manual_correction_surplus', $3, $4, $5, $6)`,
-      [randomUUID(), variantId, delta, finalStock, reason || 'تعديل يدوي للمخزون', adminName]
-    )
+    const deltaType = delta >= 0 ? 'manual_correction_surplus' : 'manual_correction_loss'
+    try {
+      await query(
+        `INSERT INTO inventory_transactions (id, variant_id, delta_type, quantity_delta, quantity_before, quantity_after, reason, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [randomUUID(), targetVariantId, deltaType, delta, curStock, finalStock, reason || 'تعديل يدوي للمخزون', adminName]
+      )
+    } catch (txErr) {
+      console.warn('Could not write inventory transaction log:', txErr)
+    }
 
     res.json({
       success: true,
@@ -124,7 +138,7 @@ router.post('/adjust', async (req, res) => {
     })
   } catch (err: any) {
     console.error('Error adjusting inventory:', err)
-    res.status(500).json({ error: 'Failed to adjust inventory' })
+    res.status(500).json({ error: 'فشل تعديل المخزون' })
   }
 })
 

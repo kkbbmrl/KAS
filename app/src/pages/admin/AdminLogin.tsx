@@ -39,7 +39,7 @@ export default function AdminLogin() {
             <Cog className="h-9 w-9 text-white animate-spin-slow" />
           </div>
           <h1 className="mt-4 font-cairo text-2xl font-black tracking-tight text-white">
-            Khaled <span className="text-brand-500">Auto</span> Spares
+            Khaled <span className="text-brand-500">Auto</span> Parts
           </h1>
           <p className="mt-1 text-xs font-bold text-zinc-400">
             بوابة الإدارة المركزية والتحكم (Admin Portal)

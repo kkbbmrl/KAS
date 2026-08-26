@@ -561,16 +561,43 @@ router.put('/:id', async (req, res) => {
         const numPrice = price !== undefined ? Number(price) : null
         const numOldPrice = oldPrice !== undefined ? (Number(oldPrice) > 0 ? Number(oldPrice) : null) : undefined
 
-        await query(
-          `UPDATE product_variants SET
-            price = COALESCE($1, price),
-            old_price = COALESCE($2, old_price),
-            stock_quantity = COALESCE($3, stock_quantity),
-            stock_status = COALESCE($4, stock_status),
-            updated_at = CURRENT_TIMESTAMP
-           WHERE product_id = $5`,
-          [numPrice, numOldPrice, numStock, stockStatus, id]
-        )
+        const primaryRes = await query(`SELECT id FROM product_variants WHERE product_id = $1 ORDER BY created_at ASC LIMIT 1`, [id])
+        if (primaryRes.rows.length > 0) {
+          const primaryId = primaryRes.rows[0].id
+          await query(
+            `UPDATE product_variants SET
+              price = COALESCE($1, price),
+              old_price = COALESCE($2, old_price),
+              stock_quantity = COALESCE($3, stock_quantity),
+              stock_status = COALESCE($4, stock_status),
+              updated_at = CURRENT_TIMESTAMP
+             WHERE id = $5`,
+            [numPrice, numOldPrice, numStock, stockStatus, primaryId]
+          )
+        } else {
+          // If no variant existed, insert one
+          const pData = await query(`SELECT sku, base_part_number, name_ar, name_fr FROM products WHERE id = $1`, [id])
+          const p = pData.rows[0]
+          if (p) {
+            await query(
+              `INSERT INTO product_variants (
+                id, product_id, variant_sku, part_number, label_ar, label_fr, price, old_price, stock_quantity, stock_status
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              [
+                randomUUID(),
+                id,
+                `${p.sku || 'SKU'}-VAR-1`,
+                p.base_part_number || 'PART',
+                p.name_ar || 'قطعة غيار',
+                p.name_fr || p.name_ar || '',
+                numPrice ?? 0,
+                numOldPrice && numOldPrice > 0 ? numOldPrice : null,
+                numStock ?? 10,
+                stockStatus ?? 'in_stock',
+              ]
+            )
+          }
+        }
       }
 
       // 3. Update Images
@@ -797,6 +824,55 @@ router.post('/reseed-compatibility', async (req, res) => {
     res.json({ success: true, message: 'تم إعادة ضبط ومزامنة توافق السيارات بنجاح' })
   } catch (err: any) {
     res.status(500).json({ error: 'فشل مزامنة التوافق: ' + err.message })
+  }
+})
+
+// PATCH /api/v1/admin/products/:id/stock (Quick stock update)
+router.patch('/:id/stock', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { stockQuantity, stockStatus: customStatus } = req.body
+    const adminName = req.adminUser?.name || 'مسؤول النظام'
+
+    const numStock = Math.max(0, Number(stockQuantity) || 0)
+    const stockStatus = customStatus || (numStock === 0 ? 'out_of_stock' : numStock <= 5 ? 'limited_stock' : 'in_stock')
+
+    const varCheck = await query(`SELECT id, stock_quantity FROM product_variants WHERE product_id = $1 ORDER BY created_at ASC LIMIT 1`, [id])
+    let targetVarId: string
+    let qtyBefore = 0
+
+    if (varCheck.rows.length > 0) {
+      targetVarId = varCheck.rows[0].id
+      qtyBefore = Number(varCheck.rows[0].stock_quantity || 0)
+      await query(
+        `UPDATE product_variants SET stock_quantity = $1, stock_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+        [numStock, stockStatus, targetVarId]
+      )
+    } else {
+      const prodRes = await query(`SELECT sku, base_part_number, name_ar, name_fr FROM products WHERE id = $1`, [id])
+      if (prodRes.rows.length === 0) return res.status(404).json({ error: 'المنتج غير موجود' })
+      const p = prodRes.rows[0]
+      targetVarId = randomUUID()
+      await query(
+        `INSERT INTO product_variants (id, product_id, variant_sku, part_number, label_ar, label_fr, price, stock_quantity, stock_status)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8)`,
+        [targetVarId, id, `${p.sku}-VAR-1`, p.base_part_number, p.name_ar, p.name_fr, numStock, stockStatus]
+      )
+    }
+
+    const delta = numStock - qtyBefore
+    try {
+      await query(
+        `INSERT INTO inventory_transactions (id, variant_id, delta_type, quantity_delta, quantity_before, quantity_after, reason, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [randomUUID(), targetVarId, delta >= 0 ? 'manual_correction_surplus' : 'manual_correction_loss', delta, qtyBefore, numStock, 'تعديل سريع للمخزون عبر لوحة المنتجات', adminName]
+      )
+    } catch {}
+
+    res.json({ success: true, stockQuantity: numStock, stockStatus, message: `تم تحديث المخزون إلى ${numStock} بنجاح` })
+  } catch (err: any) {
+    console.error('Error updating product stock:', err)
+    res.status(500).json({ error: 'فشل تحديث المخزون' })
   }
 })
 

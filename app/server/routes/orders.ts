@@ -5,6 +5,9 @@ import { orderPlacementRateLimiter, orderTrackingRateLimiter } from '../middlewa
 
 const router = Router()
 
+const MAX_LINE_QUANTITY = 10
+const MAX_ORDER_UNITS = 30
+
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 6) return '05*****000'
   return `${phone.slice(0, 2)}*****${phone.slice(-3)}`
@@ -17,7 +20,7 @@ function maskName(name: string): string {
   return `${trimmed.charAt(0)}***`
 }
 
-// POST /api/v1/orders (Place COD Order)
+// POST /api/v1/orders (Place COD Order with Authoritative Stock, Pricing, Idempotency & Concurrency Locks)
 router.post('/', orderPlacementRateLimiter, async (req, res) => {
   try {
     const {
@@ -31,9 +34,54 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       address,
       notes,
       items,
+      idempotencyKey: bodyIdempotencyKey,
     } = req.body
 
-    // 1. Strict Validation
+    // 0. Idempotency Check: Prevent duplicate order placement and double stock decrements
+    const idempotencyKey = String(req.headers['idempotency-key'] || bodyIdempotencyKey || '').trim().slice(0, 120) || null
+    if (idempotencyKey) {
+      const existingOrder = await query(
+        `SELECT id, order_reference AS "orderReference", customer_first_name AS "firstName", customer_last_name AS "lastName",
+                customer_phone AS phone, delivery_address AS address, commune, wilaya_code AS "wilayaCode",
+                subtotal, shipping_fee AS "shippingFee", total_amount AS "totalAmount", created_at AS "createdAt"
+         FROM orders WHERE idempotency_key = $1 LIMIT 1`,
+        [idempotencyKey]
+      )
+      if (existingOrder.rows.length > 0) {
+        const o = existingOrder.rows[0]
+        const itemsRes = await query(
+          `SELECT id, product_name_snapshot AS name, part_number_snapshot AS "partNumber", unit_price AS price, quantity AS qty, line_total AS "lineTotal"
+           FROM order_items WHERE order_id = $1`,
+          [o.id]
+        )
+        return res.status(200).json({
+          success: true,
+          orderId: o.id,
+          orderReference: o.orderReference,
+          firstName: o.firstName,
+          lastName: o.lastName,
+          phone: o.phone,
+          address: o.address,
+          commune: o.commune,
+          wilayaCode: o.wilayaCode,
+          subtotal: Number(o.subtotal),
+          shippingFee: Number(o.shippingFee),
+          totalAmount: Number(o.totalAmount),
+          items: itemsRes.rows.map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            partNumber: it.partNumber,
+            price: Number(it.price),
+            qty: Number(it.qty),
+            lineTotal: Number(it.lineTotal),
+          })),
+          createdAt: o.createdAt,
+          idempotentReplay: true,
+        })
+      }
+    }
+
+    // 1. Strict Delivery Fields Validation
     if (!firstName || !String(firstName).trim() || !lastName || !String(lastName).trim() || !phone || !address) {
       return res.status(400).json({ error: 'يرجى ملء جميع بيانات التوصيل المطلوبة (الاسم، اللقب، رقم الهاتف، العنوان)' })
     }
@@ -63,7 +111,7 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
     if (wilayaRes.rows.length > 0) {
       shippingFee = Math.max(0, Number(wilayaRes.rows[0].shippingFee) || 500)
     } else {
-      finalWilayaCode = '16' // Alger fallback
+      finalWilayaCode = '16'
       const algerRes = await query(`SELECT shipping_fee AS "shippingFee" FROM algeria_wilayas WHERE code = '16'`)
       shippingFee = Math.max(0, Number(algerRes.rows[0]?.shippingFee) || 500)
     }
@@ -81,90 +129,125 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       }
     }
 
-    // 4. Validate and resolve line items with AUTHORITATIVE SERVER PRICING
+    // 4. Validate and resolve line items
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'السلة فارغة — لا يمكن إنشاء طلب بدون قطع' })
     }
 
     if (items.length > 30) {
-      return res.status(400).json({ error: 'عدد القطع في الطلب الواحد يتجاوز الحد الأقصى المسموح به' })
+      return res.status(400).json({ error: 'عدد بنود السلة يتجاوز الحد الأقصى المسموح به' })
     }
 
     let subtotal = 0
     const itemsToInsert: any[] = []
+    const totalQtyByVariant: Record<string, { qty: number; name: string }> = {}
 
     for (const item of items) {
-      const qty = Math.max(1, Math.min(50, Math.floor(Number(item.quantity || item.qty || 1))))
-      const requestedId = String(item.variantId || item.productId || item.id || '').trim()
+      // Strict Quantity Validation: Must be a positive integer <= MAX_LINE_QUANTITY
+      const rawQty = item.quantity ?? item.qty
+      const numQty = Number(rawQty)
+      if (!Number.isInteger(numQty) || numQty < 1 || numQty > MAX_LINE_QUANTITY || isNaN(numQty) || !isFinite(numQty)) {
+        return res.status(400).json({ error: `الكمية المطلوبة لكل صنف يجب أن تكون رقماً صحيحاً بين 1 و ${MAX_LINE_QUANTITY} قطع.` })
+      }
+      const qty = numQty
 
-      if (!requestedId) continue
+      const requestedVariantId = item.variantId ? String(item.variantId).trim() : null
+      const requestedProductId = item.productId ? String(item.productId).trim() : null
+      const requestedId = requestedVariantId || requestedProductId || String(item.id || '').trim()
 
-      // Authoritative DB lookup
-      const varRes = await query(
-        `SELECT v.id AS "variantId", v.product_id AS "productId", v.price, v.part_number AS "partNumber",
-                p.name_ar AS name, v.stock_quantity AS "stockQuantity"
-         FROM product_variants v
-         JOIN products p ON p.id = v.product_id
-         WHERE v.id = $1 OR v.product_id = $1 OR p.id = $1 OR p.sku = $1 OR p.base_part_number = $1
-         ORDER BY (v.id = $1) DESC, (v.product_id = $1) DESC
-         LIMIT 1`,
-        [requestedId]
-      )
+      if (!requestedId) {
+        return res.status(400).json({ error: 'معرف المنتج أو الصنف غير صالح' })
+      }
 
       let prodId: string
-      let varId: string | null = null
+      let varId: string
       let prodName = 'قطعة غيار'
       let partNum = 'PART-AUTO'
       let authoritativeUnitPrice = 0
-      let stockQty = 10
+      let stockQty = 0
 
-      if (varRes.rows.length > 0) {
-        const v = varRes.rows[0]
-        prodId = v.productId
-        varId = v.variantId
+      // Case A: Explicit variantId provided -> Validate relationship with productId if provided
+      if (requestedVariantId) {
+        const vRes = await query(
+          `SELECT v.id AS "variantId", v.product_id AS "productId", v.price, v.part_number AS "partNumber",
+                  p.name_ar AS name, v.stock_quantity AS "stockQuantity",
+                  (v.is_active = 1 OR v.is_active = TRUE) AS "isVariantActive",
+                  (p.is_active = 1 OR p.is_active = TRUE) AS "isProductActive"
+           FROM product_variants v
+           JOIN products p ON p.id = v.product_id
+           WHERE v.id = $1`,
+          [requestedVariantId]
+        )
+
+        if (vRes.rows.length === 0) {
+          return res.status(400).json({ error: 'الصنف أو المتغير المطلوب غير موجود' })
+        }
+
+        const v = vRes.rows[0]
+        const returnedProdId = String(v.productId || v.product_id || '').trim()
+        const returnedVarId = String(v.variantId || v.variant_id || v.id || '').trim()
+        const isVarActive = Boolean(v.isVariantActive ?? v.isvariantactive ?? v.is_active ?? true)
+        const isProdActive = Boolean(v.isProductActive ?? v.isproductactive ?? true)
+
+        if (!isVarActive || !isProdActive) {
+          return res.status(400).json({ error: `عذراً، القطعة "${v.name}" غير متوفرة للشراء حالياً.` })
+        }
+
+        // Mismatched Product/Variant Validation
+        if (requestedProductId && requestedProductId !== returnedProdId) {
+          return res.status(400).json({ error: 'بيانات المنتج والمتغير غير متطابقة' })
+        }
+
+        prodId = returnedProdId
+        varId = returnedVarId
         prodName = v.name || 'قطعة غيار'
-        partNum = v.partNumber || 'PART-AUTO'
-        // If an offer is applied with a valid custom price, use offer price; otherwise database variant price
+        partNum = v.partNumber || v.partnumber || v.part_number || 'PART-AUTO'
         authoritativeUnitPrice = offerCustomPrice !== null && source === 'landing_offer' ? offerCustomPrice : Number(v.price) || 0
-        stockQty = Math.max(0, Number(v.stockQuantity) || 0)
+        stockQty = Math.max(0, Number(v.stockQuantity ?? v.stockquantity ?? v.stock_quantity) || 0)
       } else {
-        const prodCheck = await query(
-          `SELECT p.id, p.name_ar, p.base_part_number, COALESCE(v.price, 0) AS price, v.id AS "variantId"
-           FROM products p
-           LEFT JOIN product_variants v ON v.product_id = p.id
+        // Case B: Lookup by productId or SKU
+        const pRes = await query(
+          `SELECT v.id AS "variantId", v.product_id AS "productId", v.price, v.part_number AS "partNumber",
+                  p.name_ar AS name, v.stock_quantity AS "stockQuantity",
+                  (v.is_active = 1 OR v.is_active = TRUE) AS "isVariantActive",
+                  (p.is_active = 1 OR p.is_active = TRUE) AS "isProductActive"
+           FROM product_variants v
+           JOIN products p ON p.id = v.product_id
            WHERE p.id = $1 OR p.sku = $1 OR p.base_part_number = $1
+           ORDER BY v.created_at ASC
            LIMIT 1`,
           [requestedId]
         )
-        if (prodCheck.rows.length > 0) {
-          const p = prodCheck.rows[0]
-          prodId = p.id
-          varId = p.variantId || null
-          prodName = p.name_ar || 'قطعة غيار'
-          partNum = p.base_part_number || 'PART-AUTO'
-          authoritativeUnitPrice = offerCustomPrice !== null && source === 'landing_offer' ? offerCustomPrice : Number(p.price) || 0
-        } else {
-          // Fallback to first available product
-          const firstProd = await query(
-            `SELECT p.id, p.name_ar, p.base_part_number, COALESCE(v.price, 0) AS price, v.id AS "variantId"
-             FROM products p
-             LEFT JOIN product_variants v ON v.product_id = p.id
-             LIMIT 1`
-          )
-          if (firstProd.rows.length > 0) {
-            const p = firstProd.rows[0]
-            prodId = p.id
-            varId = p.variantId || null
-            prodName = p.name_ar || 'قطعة غيار'
-            partNum = p.base_part_number || 'PART-AUTO'
-            authoritativeUnitPrice = offerCustomPrice !== null && source === 'landing_offer' ? offerCustomPrice : Number(p.price) || 0
-          } else {
-            return res.status(400).json({ error: 'المنتج المطلوب غير متوفر حالياً' })
-          }
+
+        if (pRes.rows.length === 0) {
+          return res.status(400).json({ error: 'المنتج المطلوب غير موجود' })
         }
+
+        const v = pRes.rows[0]
+        const returnedProdId = String(v.productId || v.product_id || '').trim()
+        const returnedVarId = String(v.variantId || v.variant_id || v.id || '').trim()
+        const isVarActive = Boolean(v.isVariantActive ?? v.isvariantactive ?? v.is_active ?? true)
+        const isProdActive = Boolean(v.isProductActive ?? v.isproductactive ?? true)
+
+        if (!isVarActive || !isProdActive) {
+          return res.status(400).json({ error: `عذراً، القطعة "${v.name}" غير متوفرة للشراء حالياً.` })
+        }
+
+        prodId = returnedProdId
+        varId = returnedVarId
+        prodName = v.name || 'قطعة غيار'
+        partNum = v.partNumber || v.partnumber || v.part_number || 'PART-AUTO'
+        authoritativeUnitPrice = offerCustomPrice !== null && source === 'landing_offer' ? offerCustomPrice : Number(v.price) || 0
+        stockQty = Math.max(0, Number(v.stockQuantity ?? v.stockquantity ?? v.stock_quantity) || 0)
       }
 
-      // Security check: Unit price cannot be negative
+      // Track aggregated total quantity per variant for multi-line / split cart normalization
+      if (!totalQtyByVariant[varId]) {
+        totalQtyByVariant[varId] = { qty: 0, name: prodName }
+      }
+      totalQtyByVariant[varId].qty += qty
+
+      // Authoritative Price Security: Never trust client price or totals
       authoritativeUnitPrice = Math.max(0, authoritativeUnitPrice)
       const lineTotal = authoritativeUnitPrice * qty
       subtotal += lineTotal
@@ -186,12 +269,36 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'لم يتم العثور على قطع صالحة لإتمام الطلب' })
     }
 
+    // Total Order Quantity Cap
+    const totalOrderUnits = Object.values(totalQtyByVariant).reduce((s, v) => s + v.qty, 0)
+    if (totalOrderUnits > MAX_ORDER_UNITS) {
+      return res.status(400).json({ error: `إجمالي عدد القطع في الطلب الواحد يتجاوز الحد الأقصى المسموح به (${MAX_ORDER_UNITS} قطعة)` })
+    }
+
+    // 5. Pre-Check Aggregated Stock vs Warehouse Stock
+    for (const [vId, info] of Object.entries(totalQtyByVariant)) {
+      const stockCheck = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+      const available = stockCheck.rows.length > 0 ? Math.max(0, Number(stockCheck.rows[0].stock_quantity) || 0) : 0
+
+      if (available <= 0) {
+        return res.status(409).json({
+          error: `عذراً، القطعة "${info.name}" غير متوفرة في المخزون حالياً.`
+        })
+      }
+
+      if (info.qty > available) {
+        return res.status(409).json({
+          error: `الكمية المطلوبة من القطعة "${info.name}" غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية أو التواصل معنا.`
+        })
+      }
+    }
+
     const totalAmount = subtotal + shippingFee
     const orderRef = `KAS-${Math.floor(100000 + Math.random() * 900000)}`
     const orderId = randomUUID()
     let customerId = randomUUID()
 
-    // 5. Atomic Execution inside Transaction
+    // 6. Atomic Transaction: Customer Upsert + Order Insertion + Atomic Conditional Stock Decrement + Ledger Logging
     await withTransaction(async () => {
       // Upsert customer
       const existingCust = await query(`SELECT id FROM customers WHERE phone = $1`, [cleanPhone])
@@ -212,14 +319,15 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
         )
       }
 
-      // Insert Order Header
+      // Insert Order Header with Idempotency Key & Stock Reservation Status
       await query(
         `INSERT INTO orders (
           id, order_reference, order_source, offer_id, customer_id,
           customer_first_name, customer_last_name, customer_phone,
           wilaya_code, commune, delivery_address, customer_notes,
-          subtotal, shipping_fee, total_amount, status, payment_status, payment_method, courier_company
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending_confirmation', 'unpaid', 'COD', 'Yalidine')`,
+          subtotal, shipping_fee, total_amount, status, payment_status, payment_method, courier_company,
+          idempotency_key, is_stock_restored
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending_confirmation', 'unpaid', 'COD', 'Yalidine', $16, 0)`,
         [
           orderId,
           orderRef,
@@ -236,34 +344,58 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
           subtotal,
           shippingFee,
           totalAmount,
+          idempotencyKey,
         ]
       )
 
-      // Insert timeline event
+      // Insert Order Timeline Event
       await query(
         `INSERT INTO order_timeline (id, order_id, status, title_ar, note)
          VALUES ($1, $2, 'pending_confirmation', 'تم إنشاء الطلب', $3)`,
         [randomUUID(), orderId, `طلب جديد عبر ${source === 'landing_offer' ? 'صفحة الهبوط' : 'المتجر'}`]
       )
 
-      // Insert Line items & reserve inventory
-      for (const it of itemsToInsert) {
-        if (it.varId) {
-          await query(
-            `UPDATE product_variants SET stock_quantity = CASE WHEN stock_quantity > $1 THEN stock_quantity - $1 ELSE 0 END WHERE id = $2`,
-            [it.qty, it.varId]
-          )
-          try {
-            await query(
-              `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_after, reason)
-               VALUES ($1, $2, 'order_reservation', $3, $4, $5, $6)`,
-              [randomUUID(), it.varId, orderId, -it.qty, Math.max(0, it.stockQty - it.qty), `Order placement ${orderRef}`]
-            )
-          } catch {
-            // Inventory transaction log notice non-fatal
-          }
+      // Atomic Inventory Decrement with Strict WHERE Condition
+      for (const [vId, info] of Object.entries(totalQtyByVariant)) {
+        const curRes = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+        const qtyBefore = Number(curRes.rows[0]?.stock_quantity ?? 0)
+
+        const updateRes = await query(
+          `UPDATE product_variants
+           SET stock_quantity = stock_quantity - $1,
+               stock_status = CASE 
+                 WHEN (stock_quantity - $1) <= 0 THEN 'out_of_stock' 
+                 WHEN (stock_quantity - $1) <= 5 THEN 'limited_stock' 
+                 ELSE 'in_stock' 
+               END,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2 AND stock_quantity >= $1`,
+          [info.qty, vId]
+        )
+
+        // If rowCount === 0, stock was insufficient or modified concurrently!
+        if (updateRes.rowCount === 0) {
+          const err = new Error('INSUFFICIENT_STOCK_LOCK')
+          ;(err as any).productName = info.name
+          throw err
         }
 
+        const afterRes = await query(`SELECT stock_quantity FROM product_variants WHERE id = $1`, [vId])
+        const qtyAfter = Number(afterRes.rows[0]?.stock_quantity ?? 0)
+
+        try {
+          await query(
+            `INSERT INTO inventory_transactions (id, variant_id, delta_type, order_id, quantity_delta, quantity_before, quantity_after, reason, created_by)
+             VALUES ($1, $2, 'order_reservation', $3, $4, $5, $6, $7, 'STORE_CHECKOUT')`,
+            [randomUUID(), vId, orderId, -info.qty, qtyBefore, qtyAfter, `Order placement ${orderRef}`]
+          )
+        } catch {
+          // Non-fatal logging
+        }
+      }
+
+      // Insert Line Items
+      for (const it of itemsToInsert) {
         await query(
           `INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, part_number_snapshot, unit_price, quantity, line_total)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
@@ -296,6 +428,12 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       createdAt: new Date().toISOString(),
     })
   } catch (err: any) {
+    if (err.message === 'INSUFFICIENT_STOCK_LOCK') {
+      const pName = err.productName || 'إحدى القطع المطلوبة'
+      return res.status(409).json({
+        error: `الكمية المطلوبة من "${pName}" غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية والمحاولة مرة أخرى.`
+      })
+    }
     console.error('Error placing order:', err)
     res.status(500).json({ error: 'فشل إتمام الطلب، يرجى المحاولة لاحقاً' })
   }

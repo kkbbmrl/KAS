@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import {
   AlertTriangle,
   Boxes,
@@ -20,6 +21,7 @@ import { formatPrice } from '@/data/products'
 import { resolveImageUrl } from '@/lib/api'
 
 export default function AdminInventory() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 30, pages: 1 })
@@ -27,9 +29,30 @@ export default function AdminInventory() {
 
   // Filters
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all')
   const [page, setPage] = useState(1)
   const [tab, setTab] = useState<'stock' | 'ledger'>('stock')
+
+  // Synchronize statusFilter with URL query params
+  useEffect(() => {
+    const urlStatus = searchParams.get('status') || 'all'
+    if (urlStatus !== statusFilter) {
+      setStatusFilter(urlStatus)
+      setPage(1)
+    }
+  }, [searchParams])
+
+  const handleFilterChange = (newFilter: string) => {
+    setStatusFilter(newFilter)
+    setPage(1)
+    const nextParams = new URLSearchParams(searchParams)
+    if (newFilter === 'all') {
+      nextParams.delete('status')
+    } else {
+      nextParams.set('status', newFilter)
+    }
+    setSearchParams(nextParams)
+  }
 
   // Stock Adjustment Modal
   const [adjustModalOpen, setAdjustModalOpen] = useState(false)
@@ -136,11 +159,19 @@ export default function AdminInventory() {
         </div>
       </div>
 
-      {/* ─── QUICK METRICS ─── */}
+      {/* ─── QUICK METRICS (Clickable Filter Toggles) ─── */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => handleFilterChange('all')}
+          className={`text-right rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
+            statusFilter === 'all'
+              ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/30'
+              : 'border-zinc-200/80 bg-white hover:border-zinc-300'
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="font-cairo text-xs font-extrabold text-zinc-500">إجمالي القطع في المستودع</span>
+            <span className="font-cairo text-xs font-extrabold text-zinc-600">إجمالي القطع في المستودع</span>
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
               <Warehouse className="h-5 w-5" />
             </span>
@@ -148,9 +179,17 @@ export default function AdminInventory() {
           <p className="mt-3 font-cairo text-2xl font-black text-zinc-900">
             {totalStockItems.toLocaleString('en-US')} <span className="text-xs text-zinc-400">قطعة جاهزة للشحن</span>
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => handleFilterChange('low_stock')}
+          className={`text-right rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
+            statusFilter === 'low_stock'
+              ? 'border-amber-500 bg-amber-50/80 ring-2 ring-amber-500/40'
+              : 'border-amber-200 bg-amber-50/30 hover:bg-amber-50/60'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="font-cairo text-xs font-extrabold text-amber-800">تنبيهات مخزون منخفض (≤ 5)</span>
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-700">
@@ -160,9 +199,17 @@ export default function AdminInventory() {
           <p className="mt-3 font-cairo text-2xl font-black text-amber-950">
             {lowStockCount} <span className="text-xs font-bold text-amber-700">أصناف تحتاج إعادة طلب</span>
           </p>
-        </div>
+        </button>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50/40 p-5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => handleFilterChange('out_of_stock')}
+          className={`text-right rounded-2xl border p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
+            statusFilter === 'out_of_stock'
+              ? 'border-red-500 bg-red-50/80 ring-2 ring-red-500/40'
+              : 'border-red-200 bg-red-50/30 hover:bg-red-50/60'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="font-cairo text-xs font-extrabold text-red-800">أصناف نفد مخزونها (0)</span>
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-red-100 text-red-700">
@@ -172,7 +219,7 @@ export default function AdminInventory() {
           <p className="mt-3 font-cairo text-2xl font-black text-red-950">
             {outOfStockCount} <span className="text-xs font-bold text-red-700">غير متوفرة حالياً</span>
           </p>
-        </div>
+        </button>
       </div>
 
       {tab === 'stock' ? (
@@ -211,10 +258,7 @@ export default function AdminInventory() {
               ].map((st) => (
                 <button
                   key={st.id}
-                  onClick={() => {
-                    setStatusFilter(st.id)
-                    setPage(1)
-                  }}
+                  onClick={() => handleFilterChange(st.id)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                     statusFilter === st.id
                       ? 'bg-zinc-900 text-white font-black shadow-sm'

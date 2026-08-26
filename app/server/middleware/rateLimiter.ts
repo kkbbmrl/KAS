@@ -32,6 +32,12 @@ export function createRateLimiter(options: RateLimitOptions) {
     const now = Date.now()
     const rawIp = req.headers['x-forwarded-for']
     const ip = (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : req.socket.remoteAddress) || 'unknown'
+
+    // Allow unlimited requests from localhost in development to prevent developer lockouts
+    if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip === '::ffff:127.0.0.1' || ip.startsWith('127.')) {
+      return next()
+    }
+
     const key = keyGenerator ? keyGenerator(req) : `${ip}:${req.baseUrl || ''}${req.path || ''}`
 
     let record = store.get(key)

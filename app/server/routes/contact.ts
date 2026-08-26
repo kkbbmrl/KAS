@@ -27,6 +27,21 @@ router.post('/', contactRateLimiter, async (req, res) => {
       [id, cleanName, cleanPhone, cleanEmail, cleanBody]
     )
 
+    // Trigger admin notification bell
+    try {
+      await query(
+        `INSERT INTO notifications (id, type, title, message, link, is_read)
+         VALUES ($1, 'contact_message', $2, $3, '/admin', 0)`,
+        [
+          randomUUID(),
+          `رسالة جديدة من ${cleanName}`,
+          `${cleanBody.slice(0, 100)} (هاتف: ${cleanPhone || 'غير محدد'})`,
+        ]
+      )
+    } catch {
+      // Non-blocking notification
+    }
+
     res.json({
       success: true,
       id,

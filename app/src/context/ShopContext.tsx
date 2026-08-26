@@ -125,15 +125,22 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const addToCart = useCallback(
     (p: Product, qty = 1, variant?: ProductVariant) => {
+      const isOut = (variant?.stock ?? p.stock) === 'غير متوفر'
+      if (isOut) {
+        showToast(`عذراً، "${p.name}" غير متوفر في المخزون حالياً`)
+        return
+      }
+
       const key = lineKey(p.id, variant?.id)
       setCart((prev) => {
         const found = prev.find((i) => lineKey(i.product.id, i.variant?.id) === key)
         if (found) {
+          const newQty = Math.min(found.qty + qty, 10)
           return prev.map((i) =>
-            lineKey(i.product.id, i.variant?.id) === key ? { ...i, qty: i.qty + qty } : i
+            lineKey(i.product.id, i.variant?.id) === key ? { ...i, qty: newQty } : i
           )
         }
-        return [...prev, { product: p, qty, variant }]
+        return [...prev, { product: p, qty: Math.min(qty, 10), variant }]
       })
       setLastAddedAt(Date.now())
       showToast(`تمت إضافة "${p.name}" إلى السلة`)
@@ -150,8 +157,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       qty <= 0
         ? prev.filter((i) => lineKey(i.product.id, i.variant?.id) !== key)
         : prev.map((i) =>
-            lineKey(i.product.id, i.variant?.id) === key ? { ...i, qty: Math.min(qty, 99) } : i
-          )
+          lineKey(i.product.id, i.variant?.id) === key ? { ...i, qty: Math.min(qty, 10) } : i
+        )
     )
   }, [])
 

@@ -237,6 +237,8 @@ export async function initDatabase() {
         call_center_notes TEXT,
         tracking_number TEXT,
         courier_company TEXT DEFAULT 'Yalidine',
+        idempotency_key TEXT UNIQUE,
+        is_stock_restored INTEGER NOT NULL DEFAULT 0,
         client_ip TEXT,
         client_user_agent TEXT,
         confirmed_at TEXT,
@@ -266,6 +268,7 @@ export async function initDatabase() {
         delta_type TEXT NOT NULL,
         order_id TEXT REFERENCES orders(id),
         quantity_delta INTEGER NOT NULL,
+        quantity_before INTEGER,
         quantity_after INTEGER NOT NULL,
         reason TEXT,
         created_by TEXT NOT NULL DEFAULT 'SYSTEM',
@@ -470,5 +473,44 @@ async function migrateAdminAuthSchema() {
     await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username)`)
   } catch {
     // unique index may already exist
+  }
+
+  await migrateInventoryAndOrderSchema()
+}
+
+async function migrateInventoryAndOrderSchema() {
+  try {
+    // 1. orders: idempotency_key and is_stock_restored
+    const orderCols = sqliteDb ? (await query(`PRAGMA table_info(orders)`)).rows.map((c: any) => c.name.toLowerCase()) : []
+    
+    if (sqliteDb) {
+      if (!orderCols.includes('idempotency_key')) {
+        try { await query(`ALTER TABLE orders ADD COLUMN idempotency_key TEXT`) } catch {}
+      }
+      if (!orderCols.includes('is_stock_restored')) {
+        try { await query(`ALTER TABLE orders ADD COLUMN is_stock_restored INTEGER NOT NULL DEFAULT 0`) } catch {}
+      }
+      try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency ON orders(idempotency_key) WHERE idempotency_key IS NOT NULL`) } catch {}
+    } else if (isPostgres) {
+      try { await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(120) UNIQUE`) } catch {}
+      try { await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_stock_restored BOOLEAN NOT NULL DEFAULT FALSE`) } catch {}
+    }
+
+    // 2. inventory_transactions: quantity_before
+    if (sqliteDb) {
+      const txCols = (await query(`PRAGMA table_info(inventory_transactions)`)).rows.map((c: any) => c.name.toLowerCase())
+      if (!txCols.includes('quantity_before')) {
+        try { await query(`ALTER TABLE inventory_transactions ADD COLUMN quantity_before INTEGER`) } catch {}
+      }
+    } else if (isPostgres) {
+      try { await query(`ALTER TABLE inventory_transactions ADD COLUMN IF NOT EXISTS quantity_before INT`) } catch {}
+    }
+
+    // 3. Ensure non-negative stock in product_variants
+    try {
+      await query(`UPDATE product_variants SET stock_quantity = 0 WHERE stock_quantity < 0`)
+    } catch {}
+  } catch (err: any) {
+    console.warn('Notice in migrateInventoryAndOrderSchema:', err.message)
   }
 }

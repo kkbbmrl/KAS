@@ -17,7 +17,7 @@ export default function About() {
         <div>
           <SectionHeading kicker="قصتنا" title="من نحن؟" />
           <p className="reveal -mt-6 text-lg leading-loose text-zinc-600" data-delay="60">
-            <span className="font-cairo font-black text-zinc-900">Khaled Auto Spart</span> متخصص في توفير قطع غيار
+            <span className="font-cairo font-black text-zinc-900">Khaled Auto Parts</span> متخصص في توفير قطع غيار
             السيارات عالية الجودة لمختلف أنواع المركبات. نسعى لتقديم منتجات موثوقة، أسعار تنافسية وخدمة احترافية
             تساعد عملاءنا في العثور على القطعة المناسبة بسهولة وسرعة.
           </p>
@@ -45,7 +45,7 @@ export default function About() {
         <div className="reveal reveal-scale relative" data-delay="100">
           <div className="overflow-hidden rounded-[2rem] border border-zinc-100 bg-white shadow-2xl shadow-zinc-900/10">
             <div className="stripes-dark relative bg-gradient-to-b from-white to-zinc-100 p-8">
-              <img src="/img/hero-car.png" alt="معرض Khaled Auto Spart" className="w-full object-contain" loading="lazy" />
+              <img src="/img/hero-car.png" alt="معرض Khaled Auto Parts" className="w-full object-contain" loading="lazy" />
             </div>
             <div className="grid grid-cols-3 divide-x divide-x-reverse divide-zinc-100 border-t border-zinc-100 text-center">
               {[

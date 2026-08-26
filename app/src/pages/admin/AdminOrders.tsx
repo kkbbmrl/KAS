@@ -22,6 +22,7 @@ import {
   updateAdminOrderNotes,
   bulkUpdateAdminOrderStatus,
 } from '@/lib/adminApi'
+import { useSearchParams } from 'react-router'
 import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import { formatPrice } from '@/data/products'
 import { useAdminAuth } from '@/context/AdminAuthContext'
@@ -71,6 +72,7 @@ const STATUS_CONFIG: Record<string, { label: string; badgeCls: string; icon: any
 
 export default function AdminOrders() {
   const { user } = useAdminAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // State
   const [orders, setOrders] = useState<any[]>([])
@@ -79,10 +81,31 @@ export default function AdminOrders() {
 
   // Filters
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(() => searchParams.get('status') || 'all')
   const [wilaya, setWilaya] = useState('all')
   const [source, setSource] = useState('all')
   const [page, setPage] = useState(1)
+
+  // Synchronize status with URL query params
+  useEffect(() => {
+    const urlStatus = searchParams.get('status') || 'all'
+    if (urlStatus !== status) {
+      setStatus(urlStatus)
+      setPage(1)
+    }
+  }, [searchParams])
+
+  const handleStatusChange = (newStatus: string) => {
+    setStatus(newStatus)
+    setPage(1)
+    const nextParams = new URLSearchParams(searchParams)
+    if (newStatus === 'all') {
+      nextParams.delete('status')
+    } else {
+      nextParams.set('status', newStatus)
+    }
+    setSearchParams(nextParams)
+  }
 
   // Bulk Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -282,10 +305,7 @@ export default function AdminOrders() {
           ].map((st) => (
             <button
               key={st.id}
-              onClick={() => {
-                setStatus(st.id)
-                setPage(1)
-              }}
+              onClick={() => handleStatusChange(st.id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                 status === st.id
                   ? 'bg-zinc-900 text-white font-black shadow-sm'

@@ -221,6 +221,19 @@ export async function toggleAdminProductFeatured(id: string) {
   return await res.json()
 }
 
+export async function updateAdminProductStock(id: string, stockQuantity: number, stockStatus?: string) {
+  const res = await fetch(`${API_BASE}/products/${id}/stock`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ stockQuantity, stockStatus }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to update stock')
+  }
+  return await res.json()
+}
+
 // 5. BRANDS
 export async function fetchAdminBrands() {
   const res = await fetch(`${API_BASE}/brands`, {
@@ -528,8 +541,12 @@ export async function toggleAdminLandingPage(id: string) {
 }
 
 // 9. MISC (ACTIVITY, USERS, SETTINGS, NOTIFICATIONS, SEARCH)
-export async function fetchAdminActivityLogs() {
-  const res = await fetch(`${API_BASE}/activity`, {
+export async function fetchAdminActivityLogs(params?: { category?: string; q?: string }) {
+  const qp = new URLSearchParams()
+  if (params?.category && params.category !== 'all') qp.set('category', params.category)
+  if (params?.q) qp.set('q', params.q)
+  const qs = qp.toString() ? `?${qp.toString()}` : ''
+  const res = await fetch(`${API_BASE}/activity${qs}`, {
     headers: getAuthHeaders(),
   })
   if (!res.ok) throw new Error('Failed to fetch activity logs')

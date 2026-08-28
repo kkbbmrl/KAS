@@ -12,6 +12,7 @@ import {
 
 import { adminGlobalSearch } from '@/lib/adminApi'
 import { formatPrice } from '@/data/products'
+import { useAdminAuth } from '@/context/AdminAuthContext'
 
 interface AdminCommandModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ interface AdminCommandModalProps {
 
 export default function AdminCommandModal({ isOpen, onClose }: AdminCommandModalProps) {
   const navigate = useNavigate()
+  const { user } = useAdminAuth()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<{ orders: any[]; customers: any[]; products: any[] }>({
@@ -69,22 +71,34 @@ export default function AdminCommandModal({ isOpen, onClose }: AdminCommandModal
 
   if (!isOpen) return null
 
+  const isInventoryOnly = user?.role === 'inventory_manager'
+
   const handleSelectOrder = (orderRef: string) => {
+    if (isInventoryOnly) return
     onClose()
     navigate(`/admin/orders?q=${encodeURIComponent(orderRef)}`)
   }
 
   const handleSelectCustomer = (phone: string) => {
+    if (isInventoryOnly) return
     onClose()
     navigate(`/admin/customers?q=${encodeURIComponent(phone)}`)
   }
 
   const handleSelectProduct = (sku: string) => {
     onClose()
-    navigate(`/admin/products?q=${encodeURIComponent(sku)}`)
+    if (isInventoryOnly) {
+      navigate(`/admin/inventory?q=${encodeURIComponent(sku)}`)
+    } else {
+      navigate(`/admin/products?q=${encodeURIComponent(sku)}`)
+    }
   }
 
-  const hasAnyResults = results.orders.length > 0 || results.customers.length > 0 || results.products.length > 0
+  const visibleOrders = isInventoryOnly ? [] : results.orders
+  const visibleCustomers = isInventoryOnly ? [] : results.customers
+  const visibleProducts = results.products
+
+  const hasAnyResults = visibleOrders.length > 0 || visibleCustomers.length > 0 || visibleProducts.length > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-zinc-950/70 p-4 pt-16 backdrop-blur-sm">
@@ -127,13 +141,13 @@ export default function AdminCommandModal({ isOpen, onClose }: AdminCommandModal
           )}
 
           {/* 1. Orders matching */}
-          {results.orders.length > 0 && (
+          {visibleOrders.length > 0 && (
             <div>
               <p className="mb-2 font-cairo text-xs font-black text-zinc-400 flex items-center gap-1.5">
                 <Package className="h-3.5 w-3.5 text-brand-600" /> الطلبات المطابقة
               </p>
               <div className="space-y-1.5">
-                {results.orders.map((o) => (
+                {visibleOrders.map((o) => (
                   <button
                     key={o.id}
                     onClick={() => handleSelectOrder(o.orderReference)}
@@ -159,13 +173,13 @@ export default function AdminCommandModal({ isOpen, onClose }: AdminCommandModal
           )}
 
           {/* 2. Customers matching */}
-          {results.customers.length > 0 && (
+          {visibleCustomers.length > 0 && (
             <div>
               <p className="mb-2 font-cairo text-xs font-black text-zinc-400 flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5 text-blue-600" /> العملاء المطابقون
               </p>
               <div className="space-y-1.5">
-                {results.customers.map((c) => (
+                {visibleCustomers.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => handleSelectCustomer(c.phone)}
@@ -185,13 +199,13 @@ export default function AdminCommandModal({ isOpen, onClose }: AdminCommandModal
           )}
 
           {/* 3. Products matching */}
-          {results.products.length > 0 && (
+          {visibleProducts.length > 0 && (
             <div>
               <p className="mb-2 font-cairo text-xs font-black text-zinc-400 flex items-center gap-1.5">
                 <Boxes className="h-3.5 w-3.5 text-purple-600" /> المنتجات المطابقة
               </p>
               <div className="space-y-1.5">
-                {results.products.map((p) => (
+                {visibleProducts.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => handleSelectProduct(p.sku)}

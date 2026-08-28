@@ -42,7 +42,7 @@ export default function Hero() {
             قطع غيار أصلية 100% بضمان معتمد
           </div>
 
-          <h1 className="hero-up mt-6 font-cairo text-4xl font-black leading-[1.25] text-zinc-900 sm:text-5xl lg:text-[3.4rem]" style={{ animationDelay: '0.15s' }}>
+          <h1 className="hero-up mt-6 font-cairo text-[1.75rem] font-black leading-[1.25] text-zinc-900 sm:text-5xl lg:text-[3.4rem]" style={{ animationDelay: '0.15s' }}>
             قطع غيار أصلية.
             <br />
             
@@ -71,7 +71,7 @@ export default function Hero() {
           </div>
 
           {/* mini stats */}
-          <div className="hero-up mt-10 flex flex-wrap gap-8" style={{ animationDelay: '0.45s' }}>
+          <div className="hero-up mt-10 flex flex-wrap gap-4 sm:gap-8" style={{ animationDelay: '0.45s' }}>
             <div className="border-r-2 border-brand-600 pr-4">
               <p className="font-cairo text-2xl font-black text-zinc-900">
                 <span dir="ltr" className="inline-flex items-baseline gap-1">
@@ -117,11 +117,11 @@ export default function Hero() {
             </span>
           </div>
 
-          {/* floating part chips */}
+          {/* floating part chips — hidden on very small screens to prevent Android overflow */}
           {rad && (
             <button
               onClick={() => setSelected(rad)}
-              className="animate-floaty group absolute -right-3 top-8 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:right-6"
+              className="animate-floaty group absolute right-2 top-8 hidden items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 min-[480px]:flex sm:right-6"
             >
               <img src={rad.image} alt={rad.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
               <span>
@@ -134,7 +134,7 @@ export default function Hero() {
           {lamp && (
             <button
               onClick={() => setSelected(lamp)}
-              className="animate-floaty-slow group absolute -left-3 bottom-16 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 sm:left-6"
+              className="animate-floaty-slow group absolute left-2 bottom-16 hidden items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 min-[480px]:flex sm:left-6"
               style={{ animationDelay: '1.2s' }}
             >
               <img src={lamp.image} alt={lamp.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />

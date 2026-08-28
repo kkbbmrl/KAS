@@ -88,7 +88,7 @@ export default function FeaturedProducts() {
                 {featuredProducts.length} قطعة
               </span>
             </div>
-            <h2 className="mt-3 font-cairo text-3xl font-black text-zinc-900 sm:text-4xl">
+            <h2 className="mt-3 font-cairo text-2xl font-black text-zinc-900 sm:text-3xl md:text-4xl">
               القطع <span className="text-brand-600">الأكثر طلباً</span> والموصى بها
             </h2>
             <p className="mt-2 text-sm text-zinc-600 sm:text-base font-medium">
@@ -175,7 +175,7 @@ export default function FeaturedProducts() {
         )}
 
         {/* Bottom CTA Banner */}
-        <div className="mt-16 rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 p-8 text-white shadow-2xl sm:p-10">
+        <div className="mt-16 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 p-6 text-white shadow-2xl sm:rounded-3xl sm:p-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-brand-600/20 border border-brand-500/30 px-3 py-1 text-xs font-black text-brand-400">

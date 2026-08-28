@@ -107,7 +107,7 @@ export default function CartDrawer() {
         than the visible area, which pushed the confirm button under the browser bar.
       */}
       <aside
-        className="drawer-in absolute left-0 top-0 flex h-screen max-h-screen w-full max-w-lg flex-col bg-white shadow-2xl supports-[height:100dvh]:h-dvh supports-[height:100dvh]:max-h-dvh"
+        className="drawer-in absolute left-0 top-0 flex w-full max-w-lg flex-col bg-white shadow-2xl h-screen h-[100dvh] max-h-screen max-h-[100dvh]"
         role="dialog"
         aria-modal="true"
         aria-label="سلة التسوق وإتمام الطلب"

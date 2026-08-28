@@ -170,12 +170,12 @@ export default function Brands() {
         />
 
         {/* Brand Selector Tabs */}
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex justify-center overflow-x-auto">
           <div className="inline-flex rounded-2xl bg-zinc-100 p-1.5 shadow-inner">
             <button
               type="button"
               onClick={() => setActiveTab('cars')}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 font-cairo text-xs font-black transition-all ${
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 font-cairo text-xs font-black transition-all sm:px-5 ${
                 activeTab === 'cars'
                   ? 'bg-white text-zinc-900 shadow-md shadow-zinc-900/5'
                   : 'text-zinc-500 hover:text-zinc-900'
@@ -188,7 +188,7 @@ export default function Brands() {
             <button
               type="button"
               onClick={() => setActiveTab('oem')}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 font-cairo text-xs font-black transition-all ${
+              className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 font-cairo text-xs font-black transition-all sm:px-5 ${
                 activeTab === 'oem'
                   ? 'bg-white text-zinc-900 shadow-md shadow-zinc-900/5'
                   : 'text-zinc-500 hover:text-zinc-900'

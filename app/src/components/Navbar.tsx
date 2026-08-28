@@ -46,10 +46,10 @@ export default function Navbar() {
     >
       {/* top thin strip */}
       <div className={`overflow-hidden bg-zinc-950 text-white transition-all duration-500 ${scrolled ? 'max-h-0' : 'max-h-10'}`}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs">
-          <p className="flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />
-            توصيل سريع لجميع الولايات — الدفع عند الاستلام
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-2 text-[11px] sm:text-xs">
+          <p className="flex items-center gap-2 min-w-0">
+            <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-brand-500" />
+            <span className="truncate">توصيل سريع لجميع الولايات — الدفع عند الاستلام</span>
           </p>
           <a href={`tel:${phoneCall}`} dir="ltr" className="flex items-center gap-1.5 font-semibold transition-colors hover:text-brand-400">
             <Phone className="h-3.5 w-3.5" /> {phoneDisplay}

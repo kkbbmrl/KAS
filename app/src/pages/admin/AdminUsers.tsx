@@ -123,6 +123,9 @@ export default function AdminUsers() {
   const roleBadges: Record<string, { label: string; cls: string }> = {
     super_admin: { label: 'Super Admin (صلاحيات كاملة)', cls: 'bg-red-50 text-red-700 border-red-200' },
     admin: { label: 'مدير عام (Admin)', cls: 'bg-zinc-100 text-zinc-800 border-zinc-200' },
+    inventory_manager: { label: 'مسؤول المخزون والجرد فقط (Inventory Only)', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+    order_manager: { label: 'مسؤول معالجة الطلبات (Orders Manager)', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+    marketing_manager: { label: 'مسؤول التسويق والحملات (Marketing)', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   }
 
   return (
@@ -331,15 +334,23 @@ export default function AdminUsers() {
               </div>
 
               <div>
-                <label className="text-xs font-black text-zinc-700 block mb-1">الصلاحية (Role):</label>
+                <label className="text-xs font-black text-zinc-700 block mb-1">الصلاحية ونوع الحساب (Role) *:</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 outline-none focus:border-brand-500"
                 >
-                  <option value="admin">مدير عام (Admin)</option>
-                  <option value="super_admin">Super Admin (صلاحيات كاملة)</option>
+                  <option value="inventory_manager">📦 مسؤول المخزون والجرد فقط (تعديل كميات المخزون فقط)</option>
+                  <option value="admin">🛡️ مدير عام (Admin - كامل الصلاحيات الإدارية)</option>
+                  <option value="order_manager">🚚 مسؤول إدارة وتجهيز الطلبات (Orders Manager)</option>
+                  <option value="marketing_manager">📈 مسؤول التسويق وصفحات الهبوط (Marketing)</option>
+                  <option value="super_admin">⚡ Super Admin (صلاحيات النظام الكاملة)</option>
                 </select>
+                {form.role === 'inventory_manager' && (
+                  <p className="mt-1.5 rounded-lg bg-purple-50 p-2 text-[11px] font-bold text-purple-800 border border-purple-200">
+                    💡 <strong>صلاحية المخزون فقط:</strong> سيتمكن هذا المسؤول من تسجيل الدخول والوصول <u>فقط</u> إلى قسم المستودع والمخزون، مع إمكانية تعديل كميات القطع وجرد المستودع دون إمكانية الوصول لباقي أقسام لوحة التحكم.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-zinc-100">
@@ -423,15 +434,23 @@ export default function AdminUsers() {
               </div>
 
               <div>
-                <label className="text-xs font-black text-zinc-700 block mb-1">الصلاحية (Role):</label>
+                <label className="text-xs font-black text-zinc-700 block mb-1">الصلاحية ونوع الحساب (Role):</label>
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                   className="w-full rounded-xl border border-zinc-300 p-2.5 text-xs font-bold text-zinc-900 outline-none focus:border-brand-500"
                 >
-                  <option value="admin">مدير عام (Admin)</option>
-                  <option value="super_admin">Super Admin (صلاحيات كاملة)</option>
+                  <option value="inventory_manager">📦 مسؤول المخزون والجرد فقط (تعديل كميات المخزون فقط)</option>
+                  <option value="admin">🛡️ مدير عام (Admin - كامل الصلاحيات الإدارية)</option>
+                  <option value="order_manager">🚚 مسؤول إدارة وتجهيز الطلبات (Orders Manager)</option>
+                  <option value="marketing_manager">📈 مسؤول التسويق وصفحات الهبوط (Marketing)</option>
+                  <option value="super_admin">⚡ Super Admin (صلاحيات النظام الكاملة)</option>
                 </select>
+                {editForm.role === 'inventory_manager' && (
+                  <p className="mt-1.5 rounded-lg bg-purple-50 p-2 text-[11px] font-bold text-purple-800 border border-purple-200">
+                    💡 <strong>صلاحية المخزون فقط:</strong> يمتلك حق الوصول <u>فقط</u> إلى صفحة إدارة المخزون وتعديل كميات القطع.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-zinc-100">

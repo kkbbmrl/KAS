@@ -149,7 +149,7 @@ export default function SearchSection() {
   return (
     <section id="search" className="relative py-10 sm:py-16" ref={ref}>
       <div className="mx-auto max-w-6xl px-4">
-        <div className="reveal relative overflow-hidden rounded-[2.2rem] border-2 border-zinc-100 bg-white p-6 shadow-2xl shadow-brand-600/10 sm:p-10">
+        <div className="reveal relative overflow-hidden rounded-2xl border-2 border-zinc-100 bg-white p-4 shadow-2xl shadow-brand-600/10 sm:rounded-[2.2rem] sm:p-10">
           <div className="pointer-events-none absolute -left-20 -top-20 h-60 w-60 rounded-full bg-brand-600/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-24 -right-16 h-56 w-56 rounded-full bg-brand-600/5 blur-3xl" aria-hidden />
 
@@ -167,7 +167,7 @@ export default function SearchSection() {
                   اختر نوع السيارة وموديلها أو اكتب اسم القطعة (بالعربية أو الفرنسية) لمعرفة حالة التوفر فوراً.
                 </p>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-2.5 text-xs font-black text-brand-700 shadow-sm">
+              <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50/70 px-3 py-2 text-[11px] font-black text-brand-700 shadow-sm sm:rounded-2xl sm:px-4 sm:py-2.5 sm:text-xs">
                 <Car className="h-4 w-4" /> فحص التوافق والمخزون الفعلي
               </div>
             </div>
@@ -227,13 +227,13 @@ export default function SearchSection() {
             </div>
 
             {/* Quick search suggestion tags */}
-            <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-3.5 flex items-center gap-1.5 overflow-x-auto pb-1">
               <span className="text-xs font-bold text-zinc-400">شائع:</span>
               {QUICK_TAGS.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => handleQuickTag(tag)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
                     query === tag
                       ? 'bg-brand-600 text-white shadow-sm'
                       : 'border border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700'

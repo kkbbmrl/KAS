@@ -811,9 +811,9 @@ async function runAllSecurityTests() {
       // Login admin
       const loginRes = await request('/api/v1/admin/auth/login', {
         method: 'POST',
-        body: { username: 'admin', password: 'adminpassword123' },
+        body: { username: 'sectest_admin', password: 'RealSecretPassword_2026!#' },
       })
-      const adminToken = loginRes.body.token
+      const adminToken = loginRes.body?.token
 
       // Create test variant with 5 stock
       const pId = randomUUID()

@@ -68,7 +68,7 @@ export default function WhyUs() {
         </div>
 
         {/* stats band */}
-        <div className="reveal relative mt-16 overflow-hidden rounded-[2rem] bg-zinc-950 px-8 py-12 shadow-2xl shadow-zinc-900/25" data-delay="100">
+        <div className="reveal relative mt-16 overflow-hidden rounded-2xl bg-zinc-950 px-5 py-10 shadow-2xl shadow-zinc-900/25 sm:rounded-[2rem] sm:px-8 sm:py-12" data-delay="100">
           <div className="stripes absolute inset-0 opacity-50" aria-hidden />
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/25 blur-3xl" aria-hidden />
           <div className="relative grid grid-cols-2 gap-10 lg:grid-cols-4">

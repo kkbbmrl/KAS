@@ -51,7 +51,8 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     }
 
     const role = String(user.role || '').toLowerCase()
-    if (role !== 'admin' && role !== 'super_admin') {
+    const validRoles = ['admin', 'super_admin', 'inventory_manager', 'order_manager', 'marketing_manager']
+    if (!validRoles.includes(role)) {
       return res.status(403).json({ error: 'غير مصرح لك بالوصول إلى لوحة التحكم' })
     }
 
@@ -70,6 +71,19 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export function requireRoles(allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.adminUser) {
+      return res.status(401).json({ error: 'يجب تسجيل الدخول للوصول إلى هذه الخاصية' })
+    }
+    const role = String(req.adminUser.role || '').toLowerCase()
+    if (role === 'super_admin' || allowedRoles.includes(role)) {
+      return next()
+    }
+    return res.status(403).json({ error: 'غير مصرح: ليس لديك الصلاحية الكافية للوصول إلى هذا القسم أو تنفيذ هذا الإجراء' })
+  }
+}
+
 export function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.adminUser) {
     return res.status(401).json({ error: 'يجب تسجيل الدخول للوصول إلى هذه الخاصية' })
@@ -80,3 +94,4 @@ export function requireSuperAdmin(req: Request, res: Response, next: NextFunctio
   }
   next()
 }
+

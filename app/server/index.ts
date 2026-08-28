@@ -24,7 +24,7 @@ import { initDatabase } from './db/init.js'
 import { seedDatabase } from './db/seed.js'
 import { query } from './db/db.js'
 import { ensureAdminAccounts } from './db/ensureAdmins.js'
-import { requireAdmin } from './middleware/adminAuth.js'
+import { requireAdmin, requireRoles } from './middleware/adminAuth.js'
 import { apiGlobalRateLimiter } from './middleware/rateLimiter.js'
 
 dotenv.config()
@@ -150,16 +150,16 @@ app.use('/api/v1/orders', ordersRouter)
 app.use('/api/v1/contact', contactRouter)
 app.use('/api/v1', catalogRouter)
 
-// Admin API Routes — login is public with dedicated brute-force protection; everything else requires admin session
+// Admin API Routes — login is public with dedicated brute-force protection; everything else requires admin session with appropriate role checks
 app.use('/api/v1/admin/auth', adminAuthRouter)
-app.use('/api/v1/admin/analytics', requireAdmin, adminAnalyticsRouter)
-app.use('/api/v1/admin/orders', requireAdmin, adminOrdersRouter)
-app.use('/api/v1/admin/products', requireAdmin, adminProductsRouter)
-app.use('/api/v1/admin/brands', requireAdmin, adminBrandsRouter)
-app.use('/api/v1/admin/categories', requireAdmin, adminCategoriesRouter)
-app.use('/api/v1/admin/inventory', requireAdmin, adminInventoryRouter)
-app.use('/api/v1/admin/customers', requireAdmin, adminCustomersRouter)
-app.use('/api/v1/admin/marketing', requireAdmin, adminMarketingRouter)
+app.use('/api/v1/admin/analytics', requireAdmin, requireRoles(['admin', 'super_admin']), adminAnalyticsRouter)
+app.use('/api/v1/admin/orders', requireAdmin, requireRoles(['admin', 'super_admin', 'order_manager']), adminOrdersRouter)
+app.use('/api/v1/admin/products', requireAdmin, requireRoles(['admin', 'super_admin']), adminProductsRouter)
+app.use('/api/v1/admin/brands', requireAdmin, requireRoles(['admin', 'super_admin']), adminBrandsRouter)
+app.use('/api/v1/admin/categories', requireAdmin, requireRoles(['admin', 'super_admin']), adminCategoriesRouter)
+app.use('/api/v1/admin/inventory', requireAdmin, requireRoles(['admin', 'super_admin', 'inventory_manager']), adminInventoryRouter)
+app.use('/api/v1/admin/customers', requireAdmin, requireRoles(['admin', 'super_admin']), adminCustomersRouter)
+app.use('/api/v1/admin/marketing', requireAdmin, requireRoles(['admin', 'super_admin', 'marketing_manager']), adminMarketingRouter)
 // Admin misc route gets dedicated 10mb body parser for safe image base64 uploads
 app.use('/api/v1/admin', requireAdmin, express.json({ limit: '10mb' }), adminMiscRouter)
 

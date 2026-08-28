@@ -43,37 +43,37 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'الرئيسية',
     items: [
-      { path: '/admin', label: 'لوحة القيادة', icon: LayoutDashboard, exact: true },
+      { path: '/admin', label: 'لوحة القيادة', icon: LayoutDashboard, exact: true, roles: ['super_admin', 'admin'] },
     ],
   },
   {
     title: 'العمليات والمبيعات',
     items: [
-      { path: '/admin/orders', label: 'إدارة الطلبات', icon: Package, badge: 'جديد' },
-      { path: '/admin/inventory', label: 'المخزون والتنبيهات', icon: Warehouse },
+      { path: '/admin/orders', label: 'إدارة الطلبات', icon: Package, badge: 'جديد', roles: ['super_admin', 'admin', 'order_manager'] },
+      { path: '/admin/inventory', label: 'المخزون والتنبيهات', icon: Warehouse, roles: ['super_admin', 'admin', 'inventory_manager'] },
     ],
   },
   {
     title: 'الكتالوج والمنتجات',
     items: [
-      { path: '/admin/products', label: 'المنتجات والمتغيرات', icon: Boxes },
-      { path: '/admin/categories', label: 'الأقسام والتصنيفات', icon: Layers },
+      { path: '/admin/products', label: 'المنتجات والمتغيرات', icon: Boxes, roles: ['super_admin', 'admin'] },
+      { path: '/admin/categories', label: 'الأقسام والتصنيفات', icon: Layers, roles: ['super_admin', 'admin'] },
     ],
   },
   {
     title: 'التسويق والعملاء',
     items: [
-      { path: '/admin/customers', label: 'سجل العملاء CRM', icon: ShieldCheck },
-      { path: '/admin/marketing', label: 'الحملات والـ UTM', icon: Megaphone },
-      { path: '/admin/landing-pages', label: 'صفحات الهبوط', icon: Zap },
+      { path: '/admin/customers', label: 'سجل العملاء CRM', icon: ShieldCheck, roles: ['super_admin', 'admin'] },
+      { path: '/admin/marketing', label: 'الحملات والـ UTM', icon: Megaphone, roles: ['super_admin', 'admin', 'marketing_manager'] },
+      { path: '/admin/landing-pages', label: 'صفحات الهبوط', icon: Zap, roles: ['super_admin', 'admin', 'marketing_manager'] },
     ],
   },
   {
     title: 'الإدارة والنظام',
     items: [
-      { path: '/admin/activity', label: 'سجل العمليات', icon: Activity },
+      { path: '/admin/activity', label: 'سجل العمليات', icon: Activity, roles: ['super_admin', 'admin'] },
       { path: '/admin/users', label: 'فريق العمل والصلاحيات', icon: ShieldCheck, roles: ['super_admin'] },
-      { path: '/admin/settings', label: 'الإعدادات العامة', icon: Settings },
+      { path: '/admin/settings', label: 'الإعدادات العامة', icon: Settings, roles: ['super_admin', 'admin'] },
     ],
   },
 ]
@@ -112,6 +112,19 @@ export default function AdminLayout() {
     return <Navigate to="/admin/login" replace />
   }
 
+  // Determine authorized default home path for user
+  const defaultHomePath = user.role === 'inventory_manager' ? '/admin/inventory' : '/admin'
+
+  // Route authorization check for current page
+  const allNavItems = NAV_GROUPS.flatMap((g) => g.items)
+  const matchingItem = allNavItems.find((it) =>
+    it.exact ? location.pathname === it.path : location.pathname.startsWith(it.path)
+  )
+
+  if (matchingItem?.roles && !canAccess(matchingItem.roles)) {
+    return <Navigate to={defaultHomePath} replace />
+  }
+
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
   const handleMarkNotifsRead = async () => {
@@ -122,16 +135,16 @@ export default function AdminLayout() {
   const roleLabels: Record<AdminRole, string> = {
     super_admin: 'Super Admin',
     admin: 'مدير عام',
+    inventory_manager: 'مسؤول مخزون وجرد',
     order_manager: 'مدير طلبات',
-    inventory_manager: 'مسؤول مخزون',
     marketing_manager: 'مسؤول تسويق',
   }
 
   const roleBadgeColors: Record<AdminRole, string> = {
     super_admin: 'bg-red-50 text-brand-700 border-brand-200',
     admin: 'bg-zinc-100 text-zinc-800 border-zinc-200',
-    order_manager: 'bg-blue-50 text-blue-700 border-blue-200',
     inventory_manager: 'bg-purple-50 text-purple-700 border-purple-200',
+    order_manager: 'bg-blue-50 text-blue-700 border-blue-200',
     marketing_manager: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   }
 
@@ -146,7 +159,7 @@ export default function AdminLayout() {
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-100 px-4">
           {!collapsed ? (
-            <Link to="/admin" className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity" title="الرئيسية - لوحة التحكم">
+            <Link to={defaultHomePath} className="flex items-center gap-2.5 group hover:opacity-80 transition-opacity" title="الرئيسية - لوحة التحكم">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-sm font-black text-white shadow-md shadow-brand-600/30 group-hover:scale-105 transition-transform">
                 KAS
               </div>
@@ -158,7 +171,7 @@ export default function AdminLayout() {
               </div>
             </Link>
           ) : (
-            <Link to="/admin" className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-xs font-black text-white shadow-md hover:scale-105 transition-transform" title="الرئيسية - لوحة التحكم">
+            <Link to={defaultHomePath} className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-brand-600 font-cairo text-xs font-black text-white shadow-md hover:scale-105 transition-transform" title="الرئيسية - لوحة التحكم">
               KAS
             </Link>
           )}

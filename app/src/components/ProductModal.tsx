@@ -118,7 +118,7 @@ export default function ProductModal() {
       onClick={() => setSelected(null)}
     >
       <div
-        className="modal-in relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border-2 border-zinc-100 bg-white shadow-2xl supports-[max-height:1dvh]:max-h-[92dvh]"
+        className="modal-in relative w-full max-w-5xl overflow-y-auto rounded-[2rem] border-2 border-zinc-100 bg-white shadow-2xl max-h-[92vh] max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -132,7 +132,7 @@ export default function ProductModal() {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="grid gap-8 p-6 sm:p-10 lg:grid-cols-2">
+        <div className="grid gap-6 p-4 sm:gap-8 sm:p-10 lg:grid-cols-2">
           {/* Gallery side */}
           <div>
             <div
@@ -145,7 +145,7 @@ export default function ProductModal() {
               <img
                 src={effectiveImage}
                 alt={p.name}
-                className="h-80 w-full object-contain p-8 transition-transform duration-300 sm:h-96"
+                className="h-56 w-full object-contain p-6 transition-transform duration-300 sm:h-96 sm:p-8"
                 style={{
                   transformOrigin: origin,
                   transform: `${zooming ? 'scale(2)' : 'scale(1)'} ${p.flip ? 'scaleX(-1)' : ''} ${view === 2 ? 'scale(1.5)' : ''} ${view === 1 && !p.flip ? 'scaleX(-1)' : ''}`,
@@ -411,7 +411,7 @@ export default function ProductModal() {
 
         {/* Similar items */}
         {similar.length > 0 && (
-          <div className="border-t border-zinc-100 bg-zinc-50/50 px-6 py-7 sm:px-10">
+          <div className="border-t border-zinc-100 bg-zinc-50/50 px-4 py-6 sm:px-10 sm:py-7">
             <p className="font-cairo text-base font-black text-zinc-900">قطع غيار مشابهة وموصى بها</p>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {similar.map((s) => (

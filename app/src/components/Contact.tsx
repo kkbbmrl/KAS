@@ -116,7 +116,7 @@ export default function Contact() {
             </div>
           </div>
 
-          <form onSubmit={submit} className="reveal rounded-[2rem] border border-zinc-100 bg-zinc-50/60 p-7 shadow-sm sm:p-9" data-delay="100">
+          <form onSubmit={submit} className="reveal rounded-2xl border border-zinc-100 bg-zinc-50/60 p-5 shadow-sm sm:rounded-[2rem] sm:p-9" data-delay="100">
             <h3 className="font-cairo text-xl font-black text-zinc-900">أرسل لنا رسالة</h3>
             <p className="mt-1.5 text-sm text-zinc-500">سنرد عليك في أقرب وقت ممكن خلال ساعات العمل</p>
 

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { query } from '../../db/db.js'
-import { requireSuperAdmin } from '../../middleware/adminAuth.js'
+import { requireSuperAdmin, requireRoles } from '../../middleware/adminAuth.js'
 
 const router = Router()
 
@@ -48,7 +48,7 @@ function validateImageMagicBytes(buffer: Buffer): 'jpg' | 'png' | 'webp' | null 
 }
 
 // POST /api/v1/admin/upload (Hardened Image Upload handler)
-router.post('/upload', async (req, res) => {
+router.post('/upload', requireRoles(['admin', 'super_admin']), async (req, res) => {
   try {
     const { image, data } = req.body
     const rawData = image || data
@@ -102,7 +102,7 @@ router.post('/upload', async (req, res) => {
 })
 
 // GET /api/v1/admin/activity (Audit logs)
-router.get('/activity', async (req, res) => {
+router.get('/activity', requireRoles(['admin', 'super_admin']), async (req, res) => {
   try {
     const { category, q, limit = '100' } = req.query as Record<string, string>
     const limitNum = Math.max(1, Math.min(200, parseInt(limit, 10) || 100))
@@ -171,8 +171,8 @@ router.get('/activity', async (req, res) => {
   }
 })
 
-// GET /api/v1/admin/users (RBAC Team)
-router.get('/users', async (_req, res) => {
+// GET /api/v1/admin/users (RBAC Team - Super Admin Only)
+router.get('/users', requireSuperAdmin, async (_req, res) => {
   try {
     const result = await query(
       `SELECT id, name, username, email, role, avatar_url AS "avatarUrl", (is_active = 1 OR is_active = TRUE) AS "isActive", last_login_at AS "lastLoginAt", created_at AS "createdAt"
@@ -201,8 +201,8 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
 
     const cleanUsername = String(username).trim().toLowerCase().slice(0, 50)
     const cleanEmail = email ? String(email).toLowerCase().trim().slice(0, 100) : `${cleanUsername}@kas.dz`
-    const allowedRoles = ['admin', 'super_admin']
-    const cleanRole = allowedRoles.includes(role) ? role : 'admin'
+    const allowedRoles = ['super_admin', 'admin', 'inventory_manager', 'order_manager', 'marketing_manager']
+    const cleanRole = allowedRoles.includes(role) ? role : 'inventory_manager'
 
     const existingUser = await query(
       `SELECT id FROM admin_users WHERE LOWER(username) = $1 OR LOWER(email) = $2`,
@@ -239,7 +239,8 @@ router.put('/users/:id', requireSuperAdmin, async (req, res) => {
 
     const cleanUsername = username ? String(username).trim().toLowerCase().slice(0, 50) : undefined
     const cleanEmail = email ? String(email).trim().toLowerCase().slice(0, 100) : undefined
-    const cleanRole = role && ['admin', 'super_admin'].includes(role) ? role : undefined
+    const allowedRoles = ['super_admin', 'admin', 'inventory_manager', 'order_manager', 'marketing_manager']
+    const cleanRole = role && allowedRoles.includes(role) ? role : undefined
 
     let passwordChanged = false
     let passwordHash = existing.rows[0].password_hash
@@ -336,7 +337,7 @@ router.delete('/users/:id', requireSuperAdmin, async (req, res) => {
 })
 
 // GET /api/v1/admin/settings
-router.get('/settings', async (_req, res) => {
+router.get('/settings', requireRoles(['admin', 'super_admin']), async (_req, res) => {
   try {
     const result = await query(`SELECT setting_key AS "key", setting_value AS "value", category FROM system_settings`)
     const settingsMap: Record<string, string> = {}
@@ -350,7 +351,7 @@ router.get('/settings', async (_req, res) => {
 })
 
 // PUT /api/v1/admin/settings
-router.put('/settings', async (req, res) => {
+router.put('/settings', requireRoles(['admin', 'super_admin']), async (req, res) => {
   try {
     const settings = req.body
     for (const [k, v] of Object.entries(settings)) {

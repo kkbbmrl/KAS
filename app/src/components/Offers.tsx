@@ -45,7 +45,7 @@ export default function Offers() {
   return (
     <section id="offers" className="scroll-mt-24 py-20" ref={ref}>
       <div className="mx-auto max-w-7xl px-4">
-        <div className="reveal relative overflow-hidden rounded-[2.5rem] bg-gradient-to-bl from-brand-700 via-brand-600 to-brand-900 px-6 py-14 shadow-2xl shadow-brand-900/30 sm:px-12">
+        <div className="reveal relative overflow-hidden rounded-2xl bg-gradient-to-bl from-brand-700 via-brand-600 to-brand-900 px-4 py-10 shadow-2xl shadow-brand-900/30 sm:rounded-[2.5rem] sm:px-12 sm:py-14">
           <div className="stripes absolute inset-0" aria-hidden />
           <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-28 -right-16 h-96 w-96 rounded-full bg-zinc-950/30 blur-3xl" aria-hidden />
@@ -66,9 +66,9 @@ export default function Offers() {
                 { v: pad(m), l: 'دقيقة' },
                 { v: pad(s), l: 'ثانية' },
               ].map((u) => (
-                <div key={u.l} className="min-w-[74px] rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-center backdrop-blur transition-transform hover:scale-105">
-                  <p className="font-cairo text-3xl font-black tabular-nums text-white">{u.v}</p>
-                  <p className="mt-0.5 text-[11px] font-bold text-brand-100">{u.l}</p>
+                <div key={u.l} className="min-w-[60px] rounded-2xl border border-white/20 bg-white/10 px-3 py-2.5 text-center backdrop-blur transition-transform hover:scale-105 sm:min-w-[74px] sm:px-4 sm:py-3">
+                  <p className="font-cairo text-2xl font-black tabular-nums text-white sm:text-3xl">{u.v}</p>
+                  <p className="mt-0.5 text-[10px] font-bold text-brand-100 sm:text-[11px]">{u.l}</p>
                 </div>
               ))}
             </div>

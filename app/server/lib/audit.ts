@@ -27,7 +27,7 @@ export async function logAuditAction(params: AuditParams): Promise<void> {
 
     await query(
       `INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, ip_address, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, datetime('now'))`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
       [tableName, String(recordId), actionType, oldJson, newJson, performedBy, ipAddress]
     )
   } catch (err) {

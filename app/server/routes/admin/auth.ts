@@ -67,7 +67,8 @@ router.post('/login', loginRateLimiter, async (req, res) => {
     }
 
     const role = String(user.role || '').toLowerCase()
-    if (role !== 'admin' && role !== 'super_admin') {
+    const validRoles = ['admin', 'super_admin', 'inventory_manager', 'order_manager', 'marketing_manager']
+    if (!validRoles.includes(role)) {
       return res.status(403).json({ error: 'هذا الحساب غير مصرح له بدخول لوحة التحكم' })
     }
 

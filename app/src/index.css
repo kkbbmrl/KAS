@@ -68,19 +68,61 @@
 @layer base {
   * {
     @apply border-border;
+    /* Prevent Android highlight flash on tap */
+    -webkit-tap-highlight-color: transparent;
+    /* Prevent text-size-adjust quirks on Android */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Enforce consistent box-sizing */
+    box-sizing: border-box;
   }
   html {
     scroll-behavior: smooth;
+    /* Prevent horizontal overflow on all mobile devices */
+    overflow-x: hidden;
+    /* Prevent rubber-band pull on Android Chrome address bar */
+    overscroll-behavior-y: none;
   }
   body {
     @apply bg-background text-foreground;
     font-family: 'Tajawal', 'Cairo', system-ui, sans-serif;
     overflow-x: hidden;
+    /* Prevent any content from leaking horizontally */
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh; /* Use dynamic viewport height for Android Chrome */
     /* iOS momentum scrolling for nested scroll containers */
     -webkit-overflow-scrolling: touch;
+    /* Better font rendering across Android devices */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+    /* Prevent long Arabic headings from overflowing on small Android screens */
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  /* Prevent zoom on input focus in Android Chrome & Samsung Internet */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  /* Ensure interactive elements have minimum 44px touch targets on mobile */
+  @media (pointer: coarse) {
+    button, a, select, input, textarea {
+      min-height: 44px;
+    }
+    /* Keep icon-only buttons compact with touch-friendly size */
+    button:has(> svg:only-child) {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+  /* Prevent images and embeds from overflowing their containers */
+  img, iframe, video, svg {
+    max-width: 100%;
+    height: auto;
   }
   ::selection {
     background: #e10600;
@@ -96,7 +138,20 @@
     background: linear-gradient(#e10600, #8f0400);
     border-radius: 8px;
   }
+  /* Hide scrollbar on mobile — cleaner look on Android */
+  @media (max-width: 768px) {
+    ::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    /* Firefox */
+    * {
+      scrollbar-width: none;
+    }
+  }
 }
+
 
 @layer utilities {
   /* ===== Scroll reveal ===== */

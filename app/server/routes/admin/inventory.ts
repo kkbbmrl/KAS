@@ -130,6 +130,20 @@ router.post('/adjust', async (req, res) => {
       console.warn('Could not write inventory transaction log:', txErr)
     }
 
+    // Log audit action
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'product_variants',
+        recordId: targetVariantId,
+        actionType: 'ADJUST',
+        oldData: { stockQuantity: curStock },
+        newData: { qty: finalStock, delta, reason: reason || 'تعديل يدوي للمخزون' },
+        performedBy: adminName,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({
       success: true,
       stockQuantity: finalStock,

@@ -427,6 +427,26 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       })),
       createdAt: new Date().toISOString(),
     })
+
+    // Log order creation in audit trail
+    try {
+      const { logAuditAction } = await import('../lib/audit.js')
+      await logAuditAction({
+        tableName: 'orders',
+        recordId: orderId,
+        actionType: 'CREATE',
+        newData: {
+          orderRef,
+          total: totalAmount,
+          customer: `${cleanFirstName} ${cleanLastName}`.trim(),
+          phone: cleanPhone,
+          wilayaCode: finalWilayaCode,
+          itemsCount: itemsToInsert.length,
+        },
+        performedBy: `${cleanFirstName} ${cleanLastName}`.trim() || 'عميل المتجر',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
   } catch (err: any) {
     if (err.message === 'INSUFFICIENT_STOCK_LOCK') {
       const pName = err.productName || 'إحدى القطع المطلوبة'

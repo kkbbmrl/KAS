@@ -483,6 +483,18 @@ router.post('/', async (req, res) => {
       }
     })
 
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'products',
+        recordId: productId,
+        actionType: 'CREATE',
+        newData: { name: cleanNameAr, sku, partNumber: cleanPartNumber, price: numPrice },
+        performedBy: req.adminUser?.name || 'مدير عام',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.status(201).json({
       success: true,
       id: productId,
@@ -697,6 +709,18 @@ router.put('/:id', async (req, res) => {
       }
     })
 
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'products',
+        recordId: id,
+        actionType: 'UPDATE',
+        newData: { name: nameAr ? String(nameAr).trim() : id, partNumber, price },
+        performedBy: req.adminUser?.name || 'مدير عام',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({ success: true, message: 'تم تحديث بيانات المنتج والسيارات المتوافقة والأسعار بنجاح' })
   } catch (err: any) {
     console.error('Error updating product:', err)
@@ -765,10 +789,12 @@ router.post('/:id/duplicate', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const check = await query(`SELECT id FROM products WHERE id = $1`, [id])
+    const check = await query(`SELECT id, name_ar, sku FROM products WHERE id = $1`, [id])
     if (check.rows.length === 0) {
       return res.status(404).json({ error: 'المنتج غير موجود' })
     }
+
+    const prodName = check.rows[0]?.name_ar || id
 
     await withTransaction(async () => {
       await query(`DELETE FROM part_compatibility WHERE product_id = $1`, [id])
@@ -778,6 +804,18 @@ router.delete('/:id', async (req, res) => {
       await query(`DELETE FROM product_variants WHERE product_id = $1`, [id])
       await query(`DELETE FROM products WHERE id = $1`, [id])
     })
+
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'products',
+        recordId: id,
+        actionType: 'DELETE',
+        newData: { name: prodName, id },
+        performedBy: req.adminUser?.name || 'مدير عام',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
 
     res.json({ success: true, message: 'تم حذف المنتج نهائياً من قاعدة البيانات' })
   } catch (err: any) {

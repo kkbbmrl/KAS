@@ -332,6 +332,19 @@ router.put('/:id/status', async (req, res) => {
       )
     })
 
+    // Log status change in audit trail
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'orders',
+        recordId: orderId,
+        actionType: 'STATUS_CHANGE',
+        newData: { status, orderRef, note },
+        performedBy: adminName,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({ success: true, status, message: responseMessage })
   } catch (err: any) {
     if (err.message === 'ORDER_NOT_FOUND') {

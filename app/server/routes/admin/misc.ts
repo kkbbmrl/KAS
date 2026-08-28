@@ -115,8 +115,12 @@ router.get('/activity', requireRoles(['admin', 'super_admin']), async (req, res)
     const params: any[] = []
 
     if (category && category !== 'all') {
-      params.push(category)
-      sql += ` AND table_name = $${params.length}`
+      if (category === 'product_variants' || category === 'inventory') {
+        sql += ` AND (table_name = 'product_variants' OR table_name = 'inventory')`
+      } else {
+        params.push(category)
+        sql += ` AND table_name = $${params.length}`
+      }
     }
 
     if (q) {
@@ -133,13 +137,13 @@ router.get('/activity', requireRoles(['admin', 'super_admin']), async (req, res)
     const formatted = result.rows.map((r: any) => {
       let note = ''
       try {
-        const newData = r.newData ? JSON.parse(r.newData) : {}
+        const newData = r.newData ? (typeof r.newData === 'string' ? JSON.parse(r.newData) : r.newData) : {}
 
         if (r.tableName === 'orders') {
           if (r.actionType === 'CREATE') {
             note = `إنشاء طلبية جديدة (${newData.orderRef || ''}) بقيمة ${newData.total ? `${Number(newData.total).toLocaleString('en-US')} دج` : ''} للعميل ${newData.customer || ''}`
           } else if (r.actionType === 'STATUS_CHANGE') {
-            note = `تحديث حالة الطلب إلى "${newData.status || ''}"`
+            note = `تحديث حالة الطلب ${newData.orderRef ? `(${newData.orderRef})` : ''} إلى "${newData.status || ''}"`
           } else {
             note = `تعديل على الطلبية ${newData.orderRef || ''}`
           }
@@ -150,9 +154,23 @@ router.get('/activity', requireRoles(['admin', 'super_admin']), async (req, res)
         } else if (r.tableName === 'admin_sessions' || r.actionType === 'LOGIN') {
           note = `تسجيل دخول ناجح للمسؤول (${newData.username || r.performedBy})`
         } else if (r.tableName === 'products') {
-          note = `تعديل بيانات المنتج ${newData.name || ''}`
+          if (r.actionType === 'CREATE') {
+            note = `إضافة قطعة غيار جديدة (${newData.name || ''})`
+          } else if (r.actionType === 'DELETE') {
+            note = `حذف القطعة (${newData.name || ''}) نهائياً`
+          } else {
+            note = `تعديل بيانات القطعة (${newData.name || ''})`
+          }
         } else if (r.tableName === 'admin_users') {
-          note = `تعديل صلاحيات وحساب المسؤول (${newData.username || ''})`
+          if (r.actionType === 'CREATE') {
+            note = `إضافة مسؤول جديد (${newData.username || ''})`
+          } else if (r.actionType === 'STATUS_CHANGE') {
+            note = `${newData.isActive ? 'تفعيل' : 'تعطيل'} حساب المسؤول (${newData.username || ''})`
+          } else if (r.actionType === 'DELETE') {
+            note = `حذف حساب المسؤول (${newData.username || ''})`
+          } else {
+            note = `تعديل بيانات وحساب المسؤول (${newData.username || ''})`
+          }
         }
       } catch {
         // Safe fallback
@@ -219,6 +237,18 @@ router.post('/users', requireSuperAdmin, async (req, res) => {
       [id, String(name).trim().slice(0, 100), cleanUsername, cleanEmail, hashPassword(password), cleanRole, avatarUrl || null]
     )
 
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'admin_users',
+        recordId: id,
+        actionType: 'CREATE',
+        newData: { username: cleanUsername, name: String(name).trim(), role: cleanRole },
+        performedBy: req.adminUser?.name || 'Super Admin',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.status(201).json({ success: true, id, message: 'تمت إضافة المسؤول بنجاح' })
   } catch (err: any) {
     console.error('Error creating admin user:', err)
@@ -232,7 +262,7 @@ router.put('/users/:id', requireSuperAdmin, async (req, res) => {
     const { id } = req.params
     const { name, username, email, password, role, avatarUrl } = req.body
 
-    const existing = await query(`SELECT id, password_hash FROM admin_users WHERE id = $1`, [id])
+    const existing = await query(`SELECT id, password_hash, username, role, name FROM admin_users WHERE id = $1`, [id])
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'المستخدم غير موجود' })
     }
@@ -272,6 +302,19 @@ router.put('/users/:id', requireSuperAdmin, async (req, res) => {
       await query(`DELETE FROM admin_sessions WHERE user_id = $1`, [id])
     }
 
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'admin_users',
+        recordId: id,
+        actionType: 'UPDATE',
+        oldData: { username: existing.rows[0].username, role: existing.rows[0].role },
+        newData: { username: cleanUsername || existing.rows[0].username, role: cleanRole || existing.rows[0].role, passwordChanged },
+        performedBy: req.adminUser?.name || 'Super Admin',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({ success: true, message: 'تم تحديث بيانات المسؤول بنجاح' })
   } catch (err: any) {
     console.error('Error updating admin user:', err)
@@ -289,7 +332,7 @@ router.put('/users/:id/toggle-active', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'لا يمكنك تعطيل حسابك الحالي' })
     }
 
-    const cur = await query(`SELECT is_active FROM admin_users WHERE id = $1`, [id])
+    const cur = await query(`SELECT is_active, username FROM admin_users WHERE id = $1`, [id])
     if (cur.rows.length === 0) {
       return res.status(404).json({ error: 'المستخدم غير موجود' })
     }
@@ -303,6 +346,18 @@ router.put('/users/:id/toggle-active', requireSuperAdmin, async (req, res) => {
     if (!newActive) {
       await query(`DELETE FROM admin_sessions WHERE user_id = $1`, [id])
     }
+
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'admin_users',
+        recordId: id,
+        actionType: 'STATUS_CHANGE',
+        newData: { username: cur.rows[0].username, isActive: Boolean(newActive) },
+        performedBy: req.adminUser?.name || 'Super Admin',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
 
     res.json({ success: true, isActive: Boolean(newActive), message: 'تم تحديث حالة الحساب بنجاح' })
   } catch (err: any) {
@@ -321,6 +376,7 @@ router.delete('/users/:id', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'لا يمكنك حذف حسابك الحالي' })
     }
 
+    const userRes = await query(`SELECT username FROM admin_users WHERE id = $1`, [id])
     const adminsCountRes = await query(`SELECT COUNT(*) AS count FROM admin_users WHERE is_active = 1 OR is_active = TRUE`)
     if (Number(adminsCountRes.rows[0]?.count || 0) <= 1) {
       return res.status(400).json({ error: 'لا يمكن حذف المسؤول الوحيد المتبقي' })
@@ -328,6 +384,18 @@ router.delete('/users/:id', requireSuperAdmin, async (req, res) => {
 
     await query(`DELETE FROM admin_sessions WHERE user_id = $1`, [id])
     await query(`DELETE FROM admin_users WHERE id = $1`, [id])
+
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'admin_users',
+        recordId: id,
+        actionType: 'DELETE',
+        newData: { username: userRes.rows[0]?.username || id },
+        performedBy: req.adminUser?.name || 'Super Admin',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
 
     res.json({ success: true, message: 'تم حذف حساب المسؤول بنجاح' })
   } catch (err: any) {
@@ -362,6 +430,19 @@ router.put('/settings', requireRoles(['admin', 'super_admin']), async (req, res)
         await query(`INSERT INTO system_settings (setting_key, setting_value) VALUES ($1, $2)`, [k, String(v)])
       }
     }
+
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'system_settings',
+        recordId: 'settings',
+        actionType: 'UPDATE',
+        newData: settings,
+        performedBy: req.adminUser?.name || 'مدير عام',
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({ success: true, message: 'تم حفظ الإعدادات بنجاح' })
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update settings' })

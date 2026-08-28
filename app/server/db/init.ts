@@ -513,4 +513,30 @@ async function migrateInventoryAndOrderSchema() {
   } catch (err: any) {
     console.warn('Notice in migrateInventoryAndOrderSchema:', err.message)
   }
+
+  await migrateAuditLogsSchema()
+}
+
+async function migrateAuditLogsSchema() {
+  try {
+    if (isPostgres) {
+      try { await query(`ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_action_type_check`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN record_id TYPE VARCHAR(255)`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN action_type TYPE VARCHAR(50)`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN ip_address TYPE VARCHAR(100)`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN old_data TYPE TEXT`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN new_data TYPE TEXT`) } catch {}
+      try { await query(`ALTER TABLE audit_logs ALTER COLUMN performed_by TYPE VARCHAR(150)`) } catch {}
+    }
+
+    // Ensure audit_logs is populated with initial records if empty
+    const countRes = await query(`SELECT COUNT(*) AS count FROM audit_logs`)
+    const count = Number(countRes.rows[0]?.count || 0)
+    if (count === 0) {
+      const { seedInitialAuditLogs } = await import('./seed_audit.js')
+      await seedInitialAuditLogs()
+    }
+  } catch (err: any) {
+    console.warn('Notice in migrateAuditLogsSchema:', err.message)
+  }
 }

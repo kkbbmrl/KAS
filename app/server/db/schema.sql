@@ -378,13 +378,13 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGSERIAL PRIMARY KEY,
-    table_name VARCHAR(60) NOT NULL,
-    record_id UUID NOT NULL,
-    action_type VARCHAR(10) NOT NULL CHECK (action_type IN ('INSERT', 'UPDATE', 'DELETE')),
-    old_data JSONB,
-    new_data JSONB,
-    performed_by VARCHAR(100) NOT NULL DEFAULT 'SYSTEM',
-    ip_address INET,
+    table_name VARCHAR(100) NOT NULL,
+    record_id VARCHAR(255) NOT NULL DEFAULT 'N/A',
+    action_type VARCHAR(50) NOT NULL,
+    old_data TEXT,
+    new_data TEXT,
+    performed_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    ip_address VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

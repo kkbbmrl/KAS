@@ -62,7 +62,7 @@ export async function seedInitialAuditLogs() {
   // 3. Audit log for settings update
   await query(
     `INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, ip_address, created_at)
-     VALUES ('system_settings', '1', 'UPDATE', NULL, $1, 'KAS Administrator', '127.0.0.1', datetime('now', '-10 minutes'))`,
+     VALUES ('system_settings', '1', 'UPDATE', NULL, $1, 'KAS Administrator', '127.0.0.1', CURRENT_TIMESTAMP)`,
     [JSON.stringify({ storeName: 'Khaled Auto Parts', phone: '0550 72 96 01' })]
   )
 

@@ -84,6 +84,19 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       [token, user.id, sessionExpiry()]
     )
 
+    // Audit log for admin login
+    try {
+      const { logAuditAction } = await import('../../lib/audit.js')
+      await logAuditAction({
+        tableName: 'admin_sessions',
+        recordId: user.id,
+        actionType: 'LOGIN',
+        newData: { username: user.username, role: user.role, name: user.name },
+        performedBy: user.name || user.username,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || null,
+      })
+    } catch {}
+
     res.json({
       success: true,
       token,

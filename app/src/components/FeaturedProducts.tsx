@@ -38,14 +38,14 @@ export default function FeaturedProducts() {
     return () => ac.abort()
   }, [])
 
-  // Featured products are those marked with the Star (featuredHome === true) in the Admin Dashboard.
-  // If fewer than 4 are starred, we supplement with top products so the section looks rich.
+  // Featured products linked directly to the Star configuration (featured_home) in Admin Dashboard, strictly capped at 5 products
   const featuredProducts = useMemo(() => {
     const starred = products.filter((p) => p.featuredHome)
-    if (starred.length >= 4) return starred
-    // If fewer than 4 starred in admin, include other active products as fallback
-    const other = products.filter((p) => !p.featuredHome)
-    return [...starred, ...other]
+    if (starred.length > 0) {
+      return starred.slice(0, 5)
+    }
+    // Fallback only if admin has not starred any products yet: top 5 active products
+    return products.slice(0, 5)
   }, [products])
 
   // Extract available categories from the featured products
@@ -147,8 +147,8 @@ export default function FeaturedProducts() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((n) => (
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((n) => (
               <div key={n} className="h-96 animate-pulse rounded-3xl border border-zinc-100 bg-zinc-50 p-6" />
             ))}
           </div>
@@ -168,9 +168,9 @@ export default function FeaturedProducts() {
           </div>
         ) : (
           <div>
-            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {displayedProducts.slice(0, 12).map((product, i) => (
-                <ProductCard key={product.id} product={product} delay={(i % 4) * 80} />
+            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {displayedProducts.map((product, i) => (
+                <ProductCard key={product.id} product={product} delay={(i % 5) * 80} />
               ))}
             </div>
 

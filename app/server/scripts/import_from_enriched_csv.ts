@@ -1439,7 +1439,8 @@ export async function importFromEnrichedCsv() {
     }
   }
 
-  // 8. Highlight Featured Home Products
+  // 8. Highlight Exactly 5 Top Showcase Featured Home Products
+  await query(`UPDATE products SET featured_home = 0`)
   await query(`
     UPDATE products 
     SET featured_home = 1 
@@ -1447,10 +1448,12 @@ export async function importFromEnrichedCsv() {
       SELECT id FROM (
         SELECT id, ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY rating DESC, id ASC) as rn
         FROM products
-      ) WHERE rn <= 2
+        WHERE category_id IN ('cat-phares', 'cat-feux-arriere', 'cat-retroviseurs', 'cat-calandres-grilles', 'cat-radiateurs-refroidissement')
+      ) WHERE rn = 1
+      LIMIT 5
     )
   `)
-  console.log('🌟 Highlighted diverse featured products across all active categories.')
+  console.log('🌟 Highlighted top 5 featured showcase products for the homepage.')
 
   // 9. Summary Log
   const totalProductsRes = await query(`SELECT count(*) as count FROM products`)

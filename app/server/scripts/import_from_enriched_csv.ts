@@ -430,6 +430,16 @@ const KNOWN_MODEL_IMAGES = new Set([
   'phare-vw-caddy.jpg',
   'phare-vw-polo.jpg',
   'retro-chevrolet-spark.jpg',
+  'retro-fiat-punto.jpg',
+  'feu-fiat-punto.jpg',
+  'phare-fiat-punto.jpg',
+  'calandre-dacia-duster.jpg',
+  'calandre-peugeot-301.jpg',
+  'retro-peugeot-301.jpg',
+  'feu-peugeot-301.jpg',
+  'phare-peugeot-301.jpg',
+  'feu-dacia-duster.jpg',
+  'phare-dacia-sandero.jpg',
   'retro-hyundai-accent.jpg',
   'retro-kia-picanto.jpg',
   'retro-partner-berlingo.jpg',
@@ -656,9 +666,11 @@ function classifyPiece(pieceType: string, pieceName: string): {
   }
 
   if (/rétroviseur|retro\b|retroviseur/i.test(fullText)) {
-    const isSymbolLogan = /symbol|logan|sandero|duster/i.test(fullText)
+    const isSymbolLogan = /symbol|logan|duster/i.test(fullText)
     const is207 = /207\b/i.test(fullText)
     const is208 = /208\b/i.test(fullText)
+    const is301 = /301|c-ely|elysee/i.test(fullText)
+    const isPunto = /punto/i.test(fullText)
     const isKangoo = /kangoo/i.test(fullText)
     const isPartner = /partner|berlingo/i.test(fullText)
     const isGolf7 = /golf\s*7|golf7/i.test(fullText)
@@ -673,6 +685,10 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
     const img = isSymbolLogan
       ? getModelImg('retro-symbol-logan.jpg', '/img/parts/mirror-wing.jpg')
+      : is301
+      ? getModelImg('retro-peugeot-301.jpg', '/img/parts/mirror-wing.jpg')
+      : isPunto
+      ? getModelImg('retro-fiat-punto.jpg', '/img/parts/mirror-wing.jpg')
       : is207
       ? getModelImg('retro-peugeot-207.jpg', '/img/parts/mirror-wing.jpg')
       : is208
@@ -736,11 +752,14 @@ function classifyPiece(pieceType: string, pieceName: string): {
     const is206 = /206\b/i.test(fullText)
     const is207 = /207\b/i.test(fullText)
     const is208 = /208\b/i.test(fullText)
+    const is301 = /301|c-ely|elysee/i.test(fullText)
     const is307 = /307\b/i.test(fullText)
     const is308 = /308\b/i.test(fullText)
     const isSymbol = /symbol|logan/i.test(fullText)
+    const isSandero = /sandero|stepway/i.test(fullText)
     const isMegane = /megane|mégane/i.test(fullText)
     const isDuster = /duster/i.test(fullText)
+    const isPunto = /punto/i.test(fullText)
     const isKangoo = /kangoo/i.test(fullText)
     const isGolf7 = /golf\s*7|golf7/i.test(fullText)
     const isGolf6 = /golf\s*6|golf6/i.test(fullText)
@@ -765,16 +784,22 @@ function classifyPiece(pieceType: string, pieceName: string): {
       ? getModelImg('phare-peugeot-207.jpg', '/img/parts/headlight-led.jpg')
       : is208
       ? getModelImg('phare-peugeot-208.jpg', '/img/parts/headlight-led.jpg')
+      : is301
+      ? getModelImg('phare-peugeot-301.jpg', '/img/parts/headlight-led.jpg')
       : is307
       ? getModelImg('phare-peugeot-307.jpg', '/img/parts/headlight-led.jpg')
       : is308
       ? getModelImg('phare-peugeot-308.jpg', '/img/parts/headlight-led.jpg')
       : isSymbol
       ? getModelImg('phare-renault-symbol.jpg', '/img/parts/headlight-led.jpg')
+      : isSandero
+      ? getModelImg('phare-dacia-sandero.jpg', '/img/parts/headlight-led.jpg')
       : isMegane
       ? getModelImg('phare-renault-megane.jpg', '/img/parts/headlight-led.jpg')
       : isDuster
       ? getModelImg('phare-dacia-duster.jpg', '/img/parts/headlight-led.jpg')
+      : isPunto
+      ? getModelImg('phare-fiat-punto.jpg', '/img/parts/headlight-led.jpg')
       : isKangoo
       ? getModelImg('phare-renault-kangoo.jpg', '/img/parts/headlight-led.jpg')
       : isGolf7
@@ -821,6 +846,9 @@ function classifyPiece(pieceType: string, pieceName: string): {
     const isGolf6 = /golf\s*6|golf6/i.test(fullText)
     const isSymbol = /symbol|logan/i.test(fullText)
     const isSandero = /sandero|stepway/i.test(fullText)
+    const isDuster = /duster/i.test(fullText)
+    const is301 = /301|c-ely|elysee/i.test(fullText)
+    const isPunto = /punto/i.test(fullText)
     const isClio4 = /clio\s*4|clio4/i.test(fullText)
     const is206 = /206\b/i.test(fullText)
     const is207 = /207\b/i.test(fullText)
@@ -841,6 +869,12 @@ function classifyPiece(pieceType: string, pieceName: string): {
       ? getModelImg('feu-golf-6.jpg', '/img/parts/taillight-led.jpg')
       : isSandero
       ? getModelImg('feu-sandero-stepway.jpg', '/img/parts/taillight-led.jpg')
+      : isDuster
+      ? getModelImg('feu-dacia-duster.jpg', '/img/parts/taillight-led.jpg')
+      : is301
+      ? getModelImg('feu-peugeot-301.jpg', '/img/parts/taillight-led.jpg')
+      : isPunto
+      ? getModelImg('feu-fiat-punto.jpg', '/img/parts/taillight-led.jpg')
       : isSymbol
       ? getModelImg('feu-renault-symbol.jpg', '/img/parts/taillight-led.jpg')
       : isClio4
@@ -893,9 +927,15 @@ function classifyPiece(pieceType: string, pieceName: string): {
     const isSymbol = /symbol|logan/i.test(fullText)
     const isClio4 = /clio\s*4|clio4/i.test(fullText)
     const isPartner = /partner|berlingo/i.test(fullText)
+    const is301 = /301|c-ely|elysee/i.test(fullText)
+    const isDuster = /duster/i.test(fullText)
 
     const img = is208
       ? getModelImg('calandre-peugeot-208.jpg', '/img/parts/calandre-grille.jpg')
+      : is301
+      ? getModelImg('calandre-peugeot-301.jpg', '/img/parts/calandre-grille.jpg')
+      : isDuster
+      ? getModelImg('calandre-dacia-duster.jpg', '/img/parts/calandre-grille.jpg')
       : isCaddy
       ? getModelImg('calandre-caddy.jpg', '/img/parts/calandre-grille.jpg')
       : isSymbol

@@ -107,7 +107,7 @@ export default function CartDrawer() {
         than the visible area, which pushed the confirm button under the browser bar.
       */}
       <aside
-        className="drawer-in absolute left-0 top-0 flex w-full max-w-lg flex-col bg-white shadow-2xl h-screen h-[100dvh] max-h-screen max-h-[100dvh]"
+        className="drawer-in fixed inset-y-0 left-0 flex w-full max-w-lg flex-col bg-white shadow-2xl h-[100dvh] max-h-[100dvh] overflow-hidden z-50"
         role="dialog"
         aria-modal="true"
         aria-label="سلة التسوق وإتمام الطلب"
@@ -320,10 +320,29 @@ export default function CartDrawer() {
                   تُضاف رسوم التوصيل حسب الولاية عند التأكيد.
                 </p>
               </div>
+
+              {/* Inline Submit Button (Always reachable when scrolling through the form on any phone) */}
+              <div className="pt-2 sm:hidden">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-shine flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 py-3.5 font-cairo text-sm font-black text-white shadow-xl shadow-brand-600/30 transition-all hover:bg-brand-700 active:scale-95 disabled:bg-zinc-400 disabled:shadow-none"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" /> جارٍ تأكيد الطلب…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" /> تأكيد وإرسال الطلبية الآن
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            {/* Pinned footer — safe-area padding keeps it clear of the iOS home bar */}
-            <div className="shrink-0 grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50/90 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+            {/* Pinned bottom action bar — safe-area padding keeps it clear of Android and iOS navigation bars */}
+            <div className="shrink-0 grid grid-cols-2 gap-3 border-t border-zinc-200 bg-white/95 backdrop-blur px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6">
               <button
                 type="button"
                 onClick={() => setCheckout(false)}

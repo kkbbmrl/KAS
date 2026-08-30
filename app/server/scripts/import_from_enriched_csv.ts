@@ -1045,13 +1045,26 @@ export async function importFromEnrichedCsv() {
   console.log('🚗 Starting Complete Catalog Import from Etat_Article_tout_enriched.csv...')
 
   // 1. Read CSV File
-  const csvPath = path.resolve(process.cwd(), 'Etat_Article_tout_enriched.csv')
-  const altPath = path.resolve(process.cwd(), '..', 'Etat_Article_tout_enriched.csv')
-  const targetPath = fs.existsSync(csvPath) ? csvPath : fs.existsSync(altPath) ? altPath : null
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'Etat_Article_tout_enriched.csv'),
+    path.resolve(process.cwd(), 'app', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(process.cwd(), 'server', 'data', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(process.cwd(), 'dist-server', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(__dirname, 'Etat_Article_tout_enriched.csv'),
+    path.resolve(__dirname, '..', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(__dirname, '..', 'data', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(__dirname, '..', '..', 'Etat_Article_tout_enriched.csv'),
+    path.resolve(__dirname, '..', '..', 'app', 'Etat_Article_tout_enriched.csv'),
+    '/app/Etat_Article_tout_enriched.csv',
+    '/app/server/data/Etat_Article_tout_enriched.csv',
+  ]
+  const targetPath = candidatePaths.find((p) => fs.existsSync(p))
 
   if (!targetPath) {
+    console.warn('⚠️ Etat_Article_tout_enriched.csv not found in candidate paths:', candidatePaths)
     throw new Error('Etat_Article_tout_enriched.csv not found!')
   }
+  console.log(`📄 Found enriched CSV at: ${targetPath}`)
 
   const csvContent = fs.readFileSync(targetPath, 'utf-8')
   const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0)

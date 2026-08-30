@@ -23,6 +23,7 @@ import adminLegacyImportRouter from './routes/admin/legacyImport.js'
 import adminMiscRouter from './routes/admin/misc.js'
 import { initDatabase } from './db/init.js'
 import { seedDatabase } from './db/seed.js'
+import { importFromEnrichedCsv } from './scripts/import_from_enriched_csv.js'
 import { query } from './db/db.js'
 import { ensureAdminAccounts } from './db/ensureAdmins.js'
 import { requireAdmin, requireRoles } from './middleware/adminAuth.js'
@@ -258,7 +259,6 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
       if (prodCount < 500) {
         console.log('📦 Database has less than 500 products. Auto-populating all 2,237 products from enriched CSV...')
         try {
-          const { importFromEnrichedCsv } = await import('./scripts/import_from_enriched_csv.js')
           await importFromEnrichedCsv()
         } catch (csvErr: any) {
           console.warn('⚠️ Could not auto-import from CSV:', csvErr.message)

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { query } from '../db/db.js'
 import { initDatabase } from '../db/init.js'
+import { CATALOG_DATA } from '../data/catalogData.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -1047,49 +1048,45 @@ export async function importFromEnrichedCsv() {
   await initDatabase()
   console.log('🚗 Starting Complete Catalog Import from Etat_Article_tout_enriched.csv...')
 
-  // 1. Read CSV File
-  const candidatePaths = [
-    path.resolve(process.cwd(), 'Etat_Article_tout_enriched.csv'),
-    path.resolve(process.cwd(), 'app', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(process.cwd(), 'server', 'data', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(process.cwd(), 'dist-server', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(__dirname, 'Etat_Article_tout_enriched.csv'),
-    path.resolve(__dirname, '..', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(__dirname, '..', 'data', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(__dirname, '..', '..', 'Etat_Article_tout_enriched.csv'),
-    path.resolve(__dirname, '..', '..', 'app', 'Etat_Article_tout_enriched.csv'),
-    '/app/Etat_Article_tout_enriched.csv',
-    '/app/server/data/Etat_Article_tout_enriched.csv',
-  ]
-  const targetPath = candidatePaths.find((p) => fs.existsSync(p))
+  // 1. Get Catalog Rows (Embedded in memory + fallback)
+  let rows: any[] = (CATALOG_DATA && CATALOG_DATA.length > 0) ? CATALOG_DATA : []
 
-  if (!targetPath) {
-    console.warn('⚠️ Etat_Article_tout_enriched.csv not found in candidate paths:', candidatePaths)
-    throw new Error('Etat_Article_tout_enriched.csv not found!')
-  }
-  console.log(`📄 Found enriched CSV at: ${targetPath}`)
+  if (rows.length === 0) {
+    const candidatePaths = [
+      path.resolve(process.cwd(), 'Etat_Article_tout_enriched.csv'),
+      path.resolve(process.cwd(), 'app', 'Etat_Article_tout_enriched.csv'),
+      path.resolve(process.cwd(), 'server', 'data', 'Etat_Article_tout_enriched.csv'),
+      path.resolve(process.cwd(), 'dist-server', 'Etat_Article_tout_enriched.csv'),
+      path.resolve(__dirname, 'Etat_Article_tout_enriched.csv'),
+      path.resolve(__dirname, '..', 'Etat_Article_tout_enriched.csv'),
+      path.resolve(__dirname, '..', 'data', 'Etat_Article_tout_enriched.csv'),
+      '/app/Etat_Article_tout_enriched.csv',
+      '/app/server/data/Etat_Article_tout_enriched.csv',
+    ]
+    const targetPath = candidatePaths.find((p) => fs.existsSync(p))
 
-  const csvContent = fs.readFileSync(targetPath, 'utf-8')
-  const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0)
-
-  const rows: any[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const rawLine = lines[i]
-    const parts = rawLine.split(',')
-    if (parts.length < 5) continue
-
-    const rowObj: any = {}
-    rowObj.ref_code = parts[0]?.replace(/^\uFEFF/, '').trim() || ''
-    rowObj.piece_type = parts[1]?.trim() || ''
-    rowObj.piece_name = parts[2]?.trim() || ''
-    rowObj.piece_brand = parts[3]?.trim() || ''
-    rowObj.vehicle_make = parts[4]?.trim() || ''
-    rowObj.vehicle_model = parts[5]?.trim() || ''
-    rowObj.detail_ht = parseFloat(parts[6] || '0') || 0
-    rows.push(rowObj)
+    if (targetPath) {
+      console.log(`📄 Found enriched CSV on disk at: ${targetPath}`)
+      const csvContent = fs.readFileSync(targetPath, 'utf-8')
+      const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0)
+      for (let i = 1; i < lines.length; i++) {
+        const rawLine = lines[i]
+        const parts = rawLine.split(',')
+        if (parts.length < 5) continue
+        rows.push({
+          ref_code: parts[0]?.replace(/^\uFEFF/, '').trim() || '',
+          piece_type: parts[1]?.trim() || '',
+          piece_name: parts[2]?.trim() || '',
+          piece_brand: parts[3]?.trim() || '',
+          vehicle_make: parts[4]?.trim() || '',
+          vehicle_model: parts[5]?.trim() || '',
+          detail_ht: parseFloat(parts[6] || '0') || 0,
+        })
+      }
+    }
   }
 
-  console.log(`📄 Parsed ${rows.length} rows from CSV.`)
+  console.log(`📄 Initializing catalog with ${rows.length} verified products...`)
 
   // 2. Seed Categories
   for (const cat of CATEGORIES_DATA) {

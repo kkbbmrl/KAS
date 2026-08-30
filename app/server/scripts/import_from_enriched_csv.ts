@@ -1,8 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { query } from '../db/db.js'
 import { initDatabase } from '../db/init.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Categories Data (14 Structured Automotive Categories)
 const CATEGORIES_DATA = [

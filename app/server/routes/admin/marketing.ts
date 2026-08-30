@@ -161,7 +161,6 @@ async function ensureMarketingColumns() {
   }
   marketingColumnsEnsured = true
 }
-ensureMarketingColumns()
 
 // GET /api/v1/admin/marketing/landing-pages
 router.get('/landing-pages', async (_req, res) => {

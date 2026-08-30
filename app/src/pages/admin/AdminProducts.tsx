@@ -79,7 +79,7 @@ const DEFAULT_BRANDS = [
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>(() =>
-    CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+    CATEGORIES.map((c, i) => ({ id: c.id || `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
   )
   const [brands, setBrands] = useState<any[]>(() =>
     DEFAULT_BRANDS.map((b, i) => ({ id: `brand-${i}`, name: b }))
@@ -170,7 +170,7 @@ export default function AdminProducts() {
       const loadedCats =
         Array.isArray(cats) && cats.length > 0
           ? cats
-          : CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+          : CATEGORIES.map((c, i) => ({ id: c.id || `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
 
       const loadedBrands =
         Array.isArray(brs) && brs.length > 0
@@ -182,7 +182,7 @@ export default function AdminProducts() {
       setTaxonomiesLoaded(true)
       return { categories: loadedCats, brands: loadedBrands }
     } catch {
-      const fallbackCats = CATEGORIES.map((c, i) => ({ id: `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
+      const fallbackCats = CATEGORIES.map((c, i) => ({ id: c.id || `cat-${i}`, nameAr: c.name, nameFr: c.fr, name: c.name }))
       const fallbackBrands = DEFAULT_BRANDS.map((b, i) => ({ id: `brand-${i}`, name: b }))
       setCategories(fallbackCats)
       setBrands(fallbackBrands)

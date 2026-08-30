@@ -8,119 +8,183 @@ import { CATALOG_DATA } from '../data/catalogData.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Categories Data (14 Structured Automotive Categories)
+// Categories Data (22 Structured Automotive Categories matching products.ts)
 const CATEGORIES_DATA = [
+  {
+    id: 'cat-phares',
+    name_ar: 'المصباح الأمامي',
+    name_fr: 'Phare',
+    slug: 'phare',
+    icon: 'Lightbulb',
+    sort_order: 1,
+  },
+  {
+    id: 'cat-feux-arriere',
+    name_ar: 'الضوء الخلفي',
+    name_fr: 'Feu arrière',
+    slug: 'feu-arriere',
+    icon: 'Lamp',
+    sort_order: 2,
+  },
   {
     id: 'cat-retroviseurs',
     name_ar: 'المرايا الجانبية والزجاج',
     name_fr: 'Rétroviseurs & Glaces',
     slug: 'retroviseurs-glaces',
     icon: 'Eye',
-    sort_order: 1,
-  },
-  {
-    id: 'cat-calandres-grilles',
-    name_ar: 'الشبكات والواجهات الأمامية',
-    name_fr: 'Calandres & Grilles',
-    slug: 'calandres-grilles',
-    icon: 'Grid',
-    sort_order: 2,
-  },
-  {
-    id: 'cat-poignees-portes',
-    name_ar: 'مقابض الأبواب والملحقات',
-    name_fr: 'Poignées de Portes',
-    slug: 'poignees-portes',
-    icon: 'Key',
     sort_order: 3,
   },
   {
     id: 'cat-pare-chocs',
-    name_ar: 'الصدامات وحوامل الصدام',
-    name_fr: 'Pare-chocs & Supports',
-    slug: 'pare-chocs-supports',
-    icon: 'Shield',
+    name_ar: 'الصدام',
+    name_fr: 'Pare-chocs',
+    slug: 'pare-chocs',
+    icon: 'RectangleHorizontal',
     sort_order: 4,
   },
   {
-    id: 'cat-feux-arriere',
-    name_ar: 'الأضواء والمصابيح الخلفية',
-    name_fr: 'Feux Arrières & Stop',
-    slug: 'feux-arriere-stop',
-    icon: 'Lightbulb',
+    id: 'cat-supports-pare-chocs',
+    name_ar: 'حامل الصدام',
+    name_fr: 'Support pare-chocs',
+    slug: 'support-pare-chocs',
+    icon: 'Frame',
     sort_order: 5,
   },
   {
-    id: 'cat-phares',
-    name_ar: 'المصابيح الأمامية والعدسات',
-    name_fr: 'Phares & Projecteurs',
-    slug: 'phares-projecteurs',
-    icon: 'Sun',
+    id: 'cat-calandres-grilles',
+    name_ar: 'الشبكات والواجهات',
+    name_fr: 'Calandres & Grilles',
+    slug: 'calandres-grilles',
+    icon: 'Grid',
     sort_order: 6,
   },
   {
-    id: 'cat-eclairage',
-    name_ar: 'مصابيح الضباب والإضاءة',
-    name_fr: 'Antibrouillards & Éclairage',
-    slug: 'antibrouillards-eclairage',
-    icon: 'Zap',
+    id: 'cat-ailes',
+    name_ar: 'الأجنحة الجانبية',
+    name_fr: 'Ailes',
+    slug: 'ailes',
+    icon: 'Layers',
     sort_order: 7,
   },
   {
-    id: 'cat-capots-ailes',
-    name_ar: 'أغطية المحرك والأجنحة',
-    name_fr: 'Capots & Ailes',
-    slug: 'capots-ailes',
-    icon: 'Layers',
+    id: 'cat-capot',
+    name_ar: 'الغطاء الأمامي',
+    name_fr: 'Capot',
+    slug: 'capot',
+    icon: 'PanelTop',
     sort_order: 8,
   },
   {
-    id: 'cat-armatures',
-    name_ar: 'الهيكل الداخلي والجسور',
-    name_fr: 'Armatures & Traverses',
-    slug: 'armatures-traverses',
-    icon: 'Box',
+    id: 'cat-verre-phare',
+    name_ar: 'زجاج المصباح',
+    name_fr: 'Verre de phare',
+    slug: 'verre-de-phare',
+    icon: 'Scan',
     sort_order: 9,
   },
   {
-    id: 'cat-radiateurs',
-    name_ar: 'التبريد والمبردات',
-    name_fr: 'Radiateurs & Refroidissement',
-    slug: 'radiateurs-refroidissement',
-    icon: 'Thermometer',
+    id: 'cat-antibrouillards',
+    name_ar: 'مصابيح الضباب',
+    name_fr: 'Antibrouillards',
+    slug: 'antibrouillards',
+    icon: 'Zap',
     sort_order: 10,
   },
   {
-    id: 'cat-filtres',
-    name_ar: 'الفلاتر والصيانة الدورية',
-    name_fr: 'Filtres & Entretien',
-    slug: 'filtres-lubrifiants',
-    icon: 'Filter',
+    id: 'cat-cache-poussiere',
+    name_ar: 'غطاء الغبار',
+    name_fr: 'Cache poussière',
+    slug: 'cache-poussiere',
+    icon: 'Shield',
     sort_order: 11,
+  },
+  {
+    id: 'cat-poignees',
+    name_ar: 'مقبض الباب',
+    name_fr: 'Poignée de porte',
+    slug: 'poignee-de-porte',
+    icon: 'DoorOpen',
+    sort_order: 12,
+  },
+  {
+    id: 'cat-radiateur',
+    name_ar: 'المشعاع',
+    name_fr: 'Radiateur',
+    slug: 'radiateur',
+    icon: 'Snowflake',
+    sort_order: 13,
+  },
+  {
+    id: 'cat-ventilateur',
+    name_ar: 'المروحة',
+    name_fr: 'Ventilateur',
+    slug: 'ventilateur',
+    icon: 'Fan',
+    sort_order: 14,
+  },
+  {
+    id: 'cat-armature',
+    name_ar: 'الآرما تور',
+    name_fr: 'Armature',
+    slug: 'armature',
+    icon: 'Grid3x3',
+    sort_order: 15,
+  },
+  {
+    id: 'cat-traverse',
+    name_ar: 'الترافرس',
+    name_fr: 'Traverse',
+    slug: 'traverse',
+    icon: 'Minus',
+    sort_order: 16,
+  },
+  {
+    id: 'cat-berceau',
+    name_ar: 'بيرسو',
+    name_fr: 'Perceau',
+    slug: 'perceau',
+    icon: 'Box',
+    sort_order: 17,
+  },
+  {
+    id: 'cat-cerceau',
+    name_ar: 'سيرسو',
+    name_fr: 'Cerceau',
+    slug: 'cerceau',
+    icon: 'CircleDashed',
+    sort_order: 18,
+  },
+  {
+    id: 'cat-essuie-glaces',
+    name_ar: 'ماسحة الزجاج',
+    name_fr: 'Essuie-glace',
+    slug: 'essuie-glace',
+    icon: 'Wind',
+    sort_order: 19,
+  },
+  {
+    id: 'cat-filtres',
+    name_ar: 'فلاتر الزيت والهواء',
+    name_fr: 'Filtres & Entretien',
+    slug: 'filtres-entretien',
+    icon: 'Filter',
+    sort_order: 20,
   },
   {
     id: 'cat-freinage',
     name_ar: 'الفرامل والتعليق',
     name_fr: 'Freinage & Suspension',
     slug: 'freinage-suspension',
-    icon: 'Disc',
-    sort_order: 12,
-  },
-  {
-    id: 'cat-essuie-glaces',
-    name_ar: 'ماسحات الزجاج ومكونات الرؤية',
-    name_fr: 'Essuie-glaces & Vitres',
-    slug: 'essuie-glaces-vitres',
-    icon: 'Sparkles',
-    sort_order: 13,
+    icon: 'Disc3',
+    sort_order: 21,
   },
   {
     id: 'cat-carrosserie-divers',
-    name_ar: 'إكسسوارات وهيكل خارجي متنوع',
+    name_ar: 'إكسسوارات وهيكل متنوع',
     name_fr: 'Carrosserie & Divers',
     slug: 'carrosserie-divers',
-    icon: 'SlidersHorizontal',
-    sort_order: 14,
+    icon: 'Sparkles',
+    sort_order: 22,
   },
 ]
 
@@ -386,7 +450,7 @@ function getModelImg(filename: string, fallback: string): string {
 }
 
 /**
- * Categorize piece type and assign 3D image and Arabic prefix
+ * Categorize piece type and assign 3D image and Arabic prefix across 22 unified categories
  */
 function classifyPiece(pieceType: string, pieceName: string): {
   categoryId: string
@@ -406,7 +470,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
   else if (/\b(AR|ARRIERE|ARRIÈRE)\b/.test(pn)) side = 'خلفي (Arrière)'
   else if (/\b(JEUX|KIT|PAIRE)\b/.test(pn)) side = 'طقم كامل (Paire)'
 
-  // 2. High-priority Specific Components (Comodo, Serrure, Vérin, Essieu, Berceau)
+  // 2. High-priority Specific Components (Comodo, Serrure, Vérin, Essieu, Berceau, Cerceau)
   if (/commodo|comodo/i.test(fullText)) {
     return {
       categoryId: 'cat-carrosserie-divers',
@@ -427,7 +491,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
   if (/verin|am\s*male|am\s*a\s*capo|malle\s*gaz|ammale/i.test(fullText)) {
     return {
-      categoryId: 'cat-capots-ailes',
+      categoryId: 'cat-carrosserie-divers',
       arabicPrefix: 'مساعد هيدروليك باب الصندوق (Vérin)',
       imageUrl: '/img/parts/dust-cover-shock.jpg',
       side,
@@ -436,7 +500,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
   if (/essieu/i.test(fullText)) {
     return {
-      categoryId: 'cat-armatures',
+      categoryId: 'cat-freinage',
       arabicPrefix: 'محور وجسر تعليق خلفي (Essieu Arrière)',
       imageUrl: '/img/parts/rear-axle-beam.jpg',
       side,
@@ -445,7 +509,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
   if (/berceau|subframe/i.test(fullText)) {
     return {
-      categoryId: 'cat-armatures',
+      categoryId: 'cat-berceau',
       arabicPrefix: 'بيرسو وجسر تثبيت المحرك والتعليق',
       imageUrl: '/img/parts/berceau-front.jpg',
       side,
@@ -454,8 +518,8 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
   if (/cerceau|renfort/i.test(fullText)) {
     return {
-      categoryId: 'cat-armatures',
-      arabicPrefix: 'إطار وتدعيم الهيكل الداخلي',
+      categoryId: 'cat-cerceau',
+      arabicPrefix: 'سيرسو وإطار تدعيم الهيكل الداخلي',
       imageUrl: '/img/parts/cerceau-reinforce.jpg',
       side,
     }
@@ -464,7 +528,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
   // 3. Cooling Assemblies & Distinct Reservoirs (Radiateurs & Refroidissement)
   if (/liquide.*refroidissement|antigel/i.test(fullText)) {
     return {
-      categoryId: 'cat-radiateurs',
+      categoryId: 'cat-radiateur',
       arabicPrefix: 'سائل تبريد المحرك المضاد للتجمد (Liquide de refroidissement)',
       imageUrl: '/img/parts/expansion-tank.jpg',
       side,
@@ -474,7 +538,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
   if (/ventil|vase|radiat|intercooler|turbo.*radiat|bouchon\s*vase|bouchon\s*d.*eau/i.test(fullText)) {
     if (/ventil/i.test(fullText) && (/vase/i.test(fullText) || /moteur/i.test(fullText) || /cag/i.test(fullText))) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-ventilateur',
         arabicPrefix: 'مجموعة تبريد متكاملة (مروحة + محرك + خزان السائل)',
         imageUrl: '/img/parts/double-fan.jpg',
         side,
@@ -482,7 +546,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/double/i.test(pn) || /cage double/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-ventilateur',
         arabicPrefix: 'طقم مروحة تبريد مزدوجة مع القفص',
         imageUrl: '/img/parts/double-fan.jpg',
         side,
@@ -490,7 +554,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/ventil/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-ventilateur',
         arabicPrefix: 'مروحة ومحرك تبريد الرديتر',
         imageUrl: '/img/parts/radiator-fan.jpg',
         side,
@@ -498,7 +562,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/vase.*huille|vase.*huile|direction/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'خزان زيت مضخة التوجيه الهيدروليكي',
         imageUrl: '/img/parts/expansion-tank.jpg',
         side,
@@ -506,7 +570,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/vase.*lave|lave.*glass|lave.*glasse/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-essuie-glaces',
         arabicPrefix: 'خزان ومطرة سائل مساحات الزجاج (Vase lave-glace)',
         imageUrl: '/img/parts/expansion-tank.jpg',
         side,
@@ -514,7 +578,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/vase.*d.*eau|vase.*daeu|vase.*deau|vase.*eau|vase.*dh/i.test(fullText) || pt === 'vase') {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'خزان ومطرة سائل تبريد المحرك (Vase d\'eau)',
         imageUrl: '/img/parts/expansion-tank.jpg',
         side,
@@ -522,7 +586,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/bouchon/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'غطاء وسدادة خزان التبريد',
         imageUrl: '/img/parts/expansion-tank.jpg',
         side,
@@ -530,7 +594,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/support.*radiat/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'حامل ومثبت مشعاع التبريد',
         imageUrl: '/img/parts/radiator-armature.jpg',
         side,
@@ -538,7 +602,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/turbo|intercooler/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'مبرد التيربو والإنتركولر (Intercooler)',
         imageUrl: '/img/parts/radiator-turbo.jpg',
         side,
@@ -546,7 +610,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/radiat/i.test(fullText)) {
       return {
-        categoryId: 'cat-radiateurs',
+        categoryId: 'cat-radiateur',
         arabicPrefix: 'مشعاع ومبرد المحرك (Radiateur)',
         imageUrl: '/img/parts/radiator.jpg',
         side,
@@ -554,25 +618,25 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
   }
 
-  // 4. Fog light bezels & covers (Cache anti / cace anti)
+  // 4. Fog light bezels & covers (Antibrouillards)
   if (/cache anti|cace anti|cach anti|cache-anti|anti broul|antibroul|antibr|antber/i.test(fullText)) {
     if (/cache|cach|cace|grille|cadre/i.test(fullText)) {
       return {
-        categoryId: 'cat-eclairage',
+        categoryId: 'cat-antibrouillards',
         arabicPrefix: 'غطاء وحلية كشاف الضباب',
         imageUrl: '/img/parts/fog-light-grille.jpg',
         side,
       }
     }
     return {
-      categoryId: 'cat-eclairage',
+      categoryId: 'cat-antibrouillards',
       arabicPrefix: 'مصباح وكشاف الضباب الأصلي',
       imageUrl: '/img/parts/fog-light-grille.jpg',
       side,
     }
   }
 
-  // 5. Mirror Covers & Glass & Complete Assemblies
+  // 5. Mirror Covers & Glass & Complete Assemblies (Rétroviseurs)
   if (/couver.*retro|couvir.*retro|coquille.*retro/i.test(fullText)) {
     return {
       categoryId: 'cat-retroviseurs',
@@ -649,7 +713,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
   if (/verre.*phare|veer.*phare|verre.*optique|veer\b/i.test(fullText)) {
     const isPair = /jeux|paire|kit/i.test(pn)
     return {
-      categoryId: 'cat-phares',
+      categoryId: 'cat-verre-phare',
       arabicPrefix: isPair ? 'طقم بلورات وعدسات المصابيح الأمامية (زوج)' : 'بلورة وزجاج مصباح أمامي',
       imageUrl: isPair ? '/img/parts/headlight-lens-set.jpg' : '/img/parts/headlight-lens.jpg',
       side,
@@ -854,7 +918,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     const img = /chrome/i.test(fullText) ? '/img/parts/door-handle-chrome.jpg' : '/img/parts/door-handle.jpg'
     const prefix = /chrome/i.test(fullText) ? 'مقبض باب كروم فاخر' : 'مقبض باب أصلي معتمد'
     return {
-      categoryId: 'cat-poignees-portes',
+      categoryId: 'cat-poignees',
       arabicPrefix: prefix,
       imageUrl: img,
       side,
@@ -863,9 +927,9 @@ function classifyPiece(pieceType: string, pieceName: string): {
 
   // 10. Bumpers & Supports & Spoilers
   if (/pare-choc|parchoc|pchoc|spoiler|support.*pchoc|ferrure|bande.*parchoc/i.test(fullText)) {
-    if (/support|ferrure|glissiere/i.test(fullText)) {
+    if (/support|ferrure|glissiere|glissière/i.test(fullText)) {
       return {
-        categoryId: 'cat-pare-chocs',
+        categoryId: 'cat-supports-pare-chocs',
         arabicPrefix: 'حامل ومثبت الصدام الجانبي (Glissière)',
         imageUrl: '/img/parts/bumper-brackets.jpg',
         side,
@@ -937,7 +1001,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
   if (/cache moter|cache moteur|capot|aile|passage|pssage|doublure|deroue|malle|hayon|poussier|pousser/i.test(fullText)) {
     if (/cache moter|cache moteur|sous\s*carter/i.test(pn.toLowerCase())) {
       return {
-        categoryId: 'cat-capots-ailes',
+        categoryId: 'cat-capot',
         arabicPrefix: 'حامي المحرك السفلي (Sous-carter)',
         imageUrl: '/img/parts/hood-capot.jpg',
         side,
@@ -946,7 +1010,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     if (/capot/i.test(fullText)) {
       const isAlu = /alu/i.test(pn)
       return {
-        categoryId: 'cat-capots-ailes',
+        categoryId: 'cat-capot',
         arabicPrefix: isAlu ? 'غطاء محرك ألومنيوم خفيف الوزن' : 'غطاء محرك أمامي (كابوت)',
         imageUrl: isAlu ? '/img/parts/hood-aluminum.jpg' : '/img/parts/hood-capot.jpg',
         side,
@@ -954,7 +1018,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/passage|deroue|pssage|poussier|pousser/i.test(fullText)) {
       return {
-        categoryId: 'cat-capots-ailes',
+        categoryId: 'cat-cache-poussiere',
         arabicPrefix: 'بطانة وحامي العجلة الداخلي من الغبار (بوسيار)',
         imageUrl: '/img/parts/wheel-arch-liner.jpg',
         side,
@@ -991,7 +1055,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
       : '/img/parts/car-fender.jpg'
 
     return {
-      categoryId: 'cat-capots-ailes',
+      categoryId: 'cat-ailes',
       arabicPrefix: 'جناح وهيكل جانبي أصلي',
       imageUrl: img,
       side,
@@ -1003,7 +1067,7 @@ function classifyPiece(pieceType: string, pieceName: string): {
     if (/traverse/i.test(fullText)) {
       const isRear = /\b(AR|ARRIERE)\b/.test(pn)
       return {
-        categoryId: 'cat-armatures',
+        categoryId: 'cat-traverse',
         arabicPrefix: isRear ? 'ترافرس وجسر خلفي' : 'ترافرس وجسر أمامي',
         imageUrl: isRear ? '/img/parts/traverse-rear.jpg' : '/img/parts/traverse-front.jpg',
         side,
@@ -1011,14 +1075,14 @@ function classifyPiece(pieceType: string, pieceName: string): {
     }
     if (/armature.*radiat/i.test(fullText)) {
       return {
-        categoryId: 'cat-armatures',
+        categoryId: 'cat-armature',
         arabicPrefix: 'آرماتور وحامل مشعاع التبريد',
         imageUrl: '/img/parts/radiator-armature.jpg',
         side,
       }
     }
     return {
-      categoryId: 'cat-armatures',
+      categoryId: 'cat-armature',
       arabicPrefix: 'هيكل وآرماتور أمامي',
       imageUrl: '/img/parts/armature-front.jpg',
       side,
@@ -1149,6 +1213,9 @@ export async function importFromEnrichedCsv() {
   console.log(`📄 Initializing catalog with ${rows.length} verified products...`)
 
   // 2. Seed Categories
+  const validCatIds = CATEGORIES_DATA.map((c) => c.id)
+  await query(`DELETE FROM categories WHERE id NOT IN (${validCatIds.map((_, i) => `$${i + 1}`).join(', ')})`, validCatIds)
+
   for (const cat of CATEGORIES_DATA) {
     await query(
       `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order)

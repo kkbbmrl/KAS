@@ -58,30 +58,29 @@ export interface FeaturedCategory {
   priceFrom: number
 }
 
-/** Category taxonomy — reference data, also seeded into the `categories` table. */
-export const CATEGORIES: { name: string; fr: string; icon: string; available: boolean; count?: number }[] = [
-  { name: 'المشعاع', fr: 'Radiateur', icon: 'Snowflake', available: true },
-  { name: 'زجاج المصباح', fr: 'Verre de phare', icon: 'Scan', available: true },
-  { name: 'غطاء الغبار', fr: 'Cache poussière', icon: 'Shield', available: true },
-  { name: 'المروحة', fr: 'Ventilateur', icon: 'Fan', available: true },
-  { name: 'المصباح الأمامي', fr: 'Phare', icon: 'Lightbulb', available: true },
-  { name: 'ماسحة الزجاج', fr: 'Essuie-glace', icon: 'Wind', available: true },
-  { name: 'بيرسو', fr: 'Perceau', icon: 'Box', available: true },
-  { name: 'سيرسو', fr: 'Cerceau', icon: 'CircleDashed', available: true },
-  { name: 'الترافرس', fr: 'Traverse', icon: 'Minus', available: true },
-  { name: 'حامل الصدام', fr: 'Support pare-chocs', icon: 'Frame', available: true },
-  { name: 'الضوء الخلفي', fr: 'Feu arrière', icon: 'Lamp', available: true },
-  { name: 'الصدام', fr: 'Pare-chocs', icon: 'RectangleHorizontal', available: true },
-  { name: 'مقبض الباب', fr: 'Poignée de porte', icon: 'DoorOpen', available: true },
-  { name: 'الغطاء الأمامي', fr: 'Capot', icon: 'PanelTop', available: true },
-  { name: 'الآرما تور', fr: 'Armature', icon: 'Grid3x3', available: true },
-  { name: 'فلاتر الزيت', fr: 'Filtre à huile', icon: 'Droplet', available: true },
-  { name: 'فلاتر الهواء', fr: 'Filtre à air', icon: 'Wind', available: true },
-  { name: 'أقراص الفرامل', fr: 'Disques de frein', icon: 'Disc3', available: true },
-  { name: 'بطانات الفرامل', fr: 'Plaquettes de frein', icon: 'Layers', available: true },
-  { name: 'المساعدات', fr: 'Amortisseurs', icon: 'MoveVertical', available: false },
-  { name: 'البطاريات', fr: 'Batteries', icon: 'BatteryCharging', available: false },
-  { name: 'شمعات الإشعال', fr: 'Bougies', icon: 'Zap', available: false },
+export const CATEGORIES: { id?: string; name: string; fr: string; icon: string; available: boolean; count?: number }[] = [
+  { id: 'cat-phares', name: 'المصباح الأمامي', fr: 'Phare', icon: 'Lightbulb', available: true },
+  { id: 'cat-feux-arriere', name: 'الضوء الخلفي', fr: 'Feu arrière', icon: 'Lamp', available: true },
+  { id: 'cat-retroviseurs', name: 'المرايا الجانبية والزجاج', fr: 'Rétroviseurs & Glaces', icon: 'Eye', available: true },
+  { id: 'cat-pare-chocs', name: 'الصدام', fr: 'Pare-chocs', icon: 'RectangleHorizontal', available: true },
+  { id: 'cat-supports-pare-chocs', name: 'حامل الصدام', fr: 'Support pare-chocs', icon: 'Frame', available: true },
+  { id: 'cat-calandres-grilles', name: 'الشبكات والواجهات', fr: 'Calandres & Grilles', icon: 'Grid', available: true },
+  { id: 'cat-ailes', name: 'الأجنحة الجانبية', fr: 'Ailes', icon: 'Layers', available: true },
+  { id: 'cat-capot', name: 'الغطاء الأمامي', fr: 'Capot', icon: 'PanelTop', available: true },
+  { id: 'cat-verre-phare', name: 'زجاج المصباح', fr: 'Verre de phare', icon: 'Scan', available: true },
+  { id: 'cat-antibrouillards', name: 'مصابيح الضباب', fr: 'Antibrouillards', icon: 'Zap', available: true },
+  { id: 'cat-cache-poussiere', name: 'غطاء الغبار', fr: 'Cache poussière', icon: 'Shield', available: true },
+  { id: 'cat-poignees', name: 'مقبض الباب', fr: 'Poignée de porte', icon: 'DoorOpen', available: true },
+  { id: 'cat-radiateur', name: 'المشعاع', fr: 'Radiateur', icon: 'Snowflake', available: true },
+  { id: 'cat-ventilateur', name: 'المروحة', fr: 'Ventilateur', icon: 'Fan', available: true },
+  { id: 'cat-armature', name: 'الآرما تور', fr: 'Armature', icon: 'Grid3x3', available: true },
+  { id: 'cat-traverse', name: 'الترافرس', fr: 'Traverse', icon: 'Minus', available: true },
+  { id: 'cat-berceau', name: 'بيرسو', fr: 'Perceau', icon: 'Box', available: true },
+  { id: 'cat-cerceau', name: 'سيرسو', fr: 'Cerceau', icon: 'CircleDashed', available: true },
+  { id: 'cat-essuie-glaces', name: 'ماسحة الزجاج', fr: 'Essuie-glace', icon: 'Wind', available: true },
+  { id: 'cat-filtres', name: 'فلاتر الزيت والهواء', fr: 'Filtres & Entretien', icon: 'Filter', available: true },
+  { id: 'cat-freinage', name: 'الفرامل والتعليق', fr: 'Freinage & Suspension', icon: 'Disc3', available: true },
+  { id: 'cat-carrosserie-divers', name: 'إكسسوارات وهيكل متنوع', fr: 'Carrosserie & Divers', icon: 'Sparkles', available: true },
 ]
 
 /** Vehicle taxonomy — reference data, also seeded into vehicle_makes/vehicle_models. */

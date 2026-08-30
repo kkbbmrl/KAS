@@ -29,20 +29,19 @@ export async function seedDatabase() {
   for (let i = 0; i < CATEGORIES.length; i++) {
     const c = CATEGORIES[i]
     const slug = c.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `cat-${i}`
+    const catId = c.id || `cat-${slug}`
 
-    const existing = await query(`SELECT id FROM categories WHERE slug = $1`, [slug])
-    let catId = existing.rows[0]?.id
-    if (catId) {
+    const existing = await query(`SELECT id FROM categories WHERE id = $1 OR slug = $2`, [catId, slug])
+    if (existing.rows.length > 0) {
       await query(
-        `UPDATE categories SET name_ar = $1, name_fr = $2, icon_name = $3, is_available = $4, display_order = $5 WHERE id = $6`,
-        [c.name, c.fr, c.icon, c.available ? 1 : 0, i, catId]
+        `UPDATE categories SET slug = $1, name_ar = $2, name_fr = $3, icon_name = $4, is_available = $5, display_order = $6 WHERE id = $7`,
+        [slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i + 1, existing.rows[0].id]
       )
     } else {
-      catId = randomUUID()
       await query(
         `INSERT INTO categories (id, slug, name_ar, name_fr, icon_name, is_available, display_order)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [catId, slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i]
+        [catId, slug, c.name, c.fr, c.icon, c.available ? 1 : 0, i + 1]
       )
     }
     categoryIdMap[c.name] = catId

@@ -252,7 +252,18 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
       }
 
       const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
-      console.log(`✅ Database ready with ${Number(checkProds.rows[0]?.count || 0)} products.`)
+      const prodCount = Number(checkProds.rows[0]?.count || 0)
+      console.log(`✅ Current database has ${prodCount} products.`)
+
+      if (prodCount < 500) {
+        console.log('📦 Database has less than 500 products. Auto-populating all 2,237 products from enriched CSV...')
+        try {
+          const { importFromEnrichedCsv } = await import('./scripts/import_from_enriched_csv.js')
+          await importFromEnrichedCsv()
+        } catch (csvErr: any) {
+          console.warn('⚠️ Could not auto-import from CSV:', csvErr.message)
+        }
+      }
 
       await ensureAdminAccounts()
       console.log('🛡️ Admin accounts verified.')

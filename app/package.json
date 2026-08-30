@@ -13,6 +13,8 @@
     "server": "tsx watch server/index.ts",
     "start": "node dist-server/index.js",
     "db:seed": "tsx server/db/seed.ts",
+    "db:dump": "python server/scripts/export_sqlite_to_pg_dump.py",
+    "db:push": "tsx server/scripts/sync_to_remote_postgres.ts",
     "test:security": "tsx server/tests/security.test.ts"
   },
   "dependencies": {

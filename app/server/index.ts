@@ -184,6 +184,31 @@ app.use('/api/v1/admin/marketing', requireAdmin, requireRoles(['admin', 'super_a
 // Admin misc route gets dedicated 10mb body parser for safe image base64 uploads
 app.use('/api/v1/admin', requireAdmin, express.json({ limit: '10mb' }), adminMiscRouter)
 
+// System Sync Endpoint (Forces catalog import into active live database)
+app.get('/api/v1/system/sync-catalog', async (req, res) => {
+  const secret = req.query.secret
+  if (secret !== 'kas-master-sync-2026') {
+    return res.status(403).json({ error: 'Unauthorized secret key' })
+  }
+  try {
+    console.log('⚡ Manual system catalog sync triggered via API...')
+    await importFromEnrichedCsv()
+    const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
+    const checkVariants = await query(`SELECT COUNT(*) AS count FROM product_variants`)
+    const checkStock = await query(`SELECT SUM(stock_quantity) AS total_units FROM product_variants`)
+    return res.json({
+      success: true,
+      productsCount: Number(checkProds.rows[0]?.count || 0),
+      variantsCount: Number(checkVariants.rows[0]?.count || 0),
+      totalStockUnits: Number(checkStock.rows[0]?.total_units || 0),
+      message: 'Catalogue successfully synchronized with all 2,237 products and warehouse inventory!'
+    })
+  } catch (err: any) {
+    console.error('Error during manual system catalog sync:', err)
+    return res.status(500).json({ error: err.message })
+  }
+})
+
 // 404 handler for unmatched API routes
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
@@ -219,31 +244,6 @@ if (fs.existsSync(distPath)) {
     next()
   })
 }
-
-// System Sync Endpoint (Forces catalog import into active live database)
-app.get('/api/v1/system/sync-catalog', async (req, res) => {
-  const secret = req.query.secret
-  if (secret !== 'kas-master-sync-2026') {
-    return res.status(403).json({ error: 'Unauthorized secret key' })
-  }
-  try {
-    console.log('⚡ Manual system catalog sync triggered via API...')
-    await importFromEnrichedCsv()
-    const checkProds = await query(`SELECT COUNT(*) AS count FROM products`)
-    const checkVariants = await query(`SELECT COUNT(*) AS count FROM product_variants`)
-    const checkStock = await query(`SELECT SUM(stock_quantity) AS total_units FROM product_variants`)
-    return res.json({
-      success: true,
-      productsCount: Number(checkProds.rows[0]?.count || 0),
-      variantsCount: Number(checkVariants.rows[0]?.count || 0),
-      totalStockUnits: Number(checkStock.rows[0]?.total_units || 0),
-      message: 'Catalogue successfully synchronized with all 2,237 products and warehouse inventory!'
-    })
-  } catch (err: any) {
-    console.error('Error during manual system catalog sync:', err)
-    return res.status(500).json({ error: err.message })
-  }
-})
 
 // Global Process Error Handlers (Prevents silent container exits)
 process.on('uncaughtException', (err) => {

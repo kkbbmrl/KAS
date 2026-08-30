@@ -38,15 +38,15 @@ export default function FeaturedProducts() {
     return () => ac.abort()
   }, [])
 
-  // Featured products linked directly to the Star configuration (featured_home) in Admin Dashboard, strictly capped at 5 products
+  // Featured products linked directly to the Star configuration (featured_home) in Admin Dashboard
   const featuredProducts = useMemo(() => {
-    const starred = products.filter((p) => p.featuredHome)
-    if (starred.length > 0) {
-      return starred.slice(0, 5)
-    }
-    // Fallback only if admin has not starred any products yet: top 5 active products
-    return products.slice(0, 5)
+    return products.filter((p) => p.featuredHome)
   }, [products])
+
+  // If no products have been starred yet by admin, hide this section
+  if (!loading && featuredProducts.length === 0) {
+    return null
+  }
 
   // Extract available categories from the featured products
   const categories = useMemo(() => {

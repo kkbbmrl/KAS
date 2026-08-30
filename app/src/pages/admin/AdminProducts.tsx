@@ -613,16 +613,24 @@ export default function AdminProducts() {
   }
 
   const handleToggleFeatured = async (id: string) => {
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, featuredHome: !item.featuredHome } : item
+      )
+    )
     try {
       await toggleAdminProductFeatured(id)
       loadProducts()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      loadProducts()
+      alert(err.message || 'فشل تعديل حالة العرض في الرئيسية')
     }
   }
 
   const handleClearAllFeatured = async () => {
-    if (!confirm('هل تريد إلغاء تحديد جميع النجوم وتصفير المنتجات المميزة؟')) return
+    if (!confirm('هل تريد إلغاء تحديد جميع النجوم وإزالة كل المنتجات من قسم المميزة بالرئيسية؟')) return
     try {
       await clearAllAdminFeatured()
       loadProducts()
@@ -632,12 +640,12 @@ export default function AdminProducts() {
   }
 
   const handleSyncTop5Featured = async () => {
-    if (!confirm('هل تريد ضبط 5 منتجات مميزة متنوعة تلقائياً للصفحة الرئيسية؟')) return
+    if (!confirm('هل تريد توليد وضبط 5 منتجات مميزة متنوعة تلقائياً للصفحة الرئيسية؟')) return
     try {
       await syncTop5AdminFeatured()
       loadProducts()
     } catch (err: any) {
-      alert(err.message || 'فشل ضبط المنتجات')
+      alert(err.message || 'فشل توليد المنتجات المميزة')
     }
   }
 
@@ -812,10 +820,10 @@ export default function AdminProducts() {
             </div>
             <div>
               <p className="font-cairo font-black text-amber-950 text-sm">
-                المنتجات المميزة المعروضة في الصفحة الرئيسية ({pagination.total} منتج محدد)
+                المنتجات المميزة بالصفحة الرئيسية ({pagination.total} منتج محدد)
               </p>
               <p className="text-xs text-amber-800 font-bold">
-                تعرض الصفحة الرئيسية أول 5 منتجات محددة بالنجمة ⭐. يمكنك تفعيل أو إلغاء أي منتج مباشرة بالنقر على النجمة.
+                تعرض الصفحة الرئيسية المنتجات المحددة بنجمة ⭐ فقط. يمكنك تحديد أو إلغاء أي منتج بالنقر المباشر على النجمة في الجدول.
               </p>
             </div>
           </div>
@@ -824,13 +832,13 @@ export default function AdminProducts() {
               onClick={handleSyncTop5Featured}
               className="rounded-xl border border-amber-300 bg-white px-3 py-1.5 font-cairo text-xs font-black text-amber-900 shadow-sm hover:bg-amber-100 transition-colors"
             >
-              ضبط 5 منتجات مميزة تلقائياً
+              ⚡ توليد 5 منتجات مميزة تلقائياً
             </button>
             <button
               onClick={handleClearAllFeatured}
               className="rounded-xl border border-red-200 bg-white px-3 py-1.5 font-cairo text-xs font-black text-red-700 shadow-sm hover:bg-red-50 transition-colors"
             >
-              إلغاء تحديد الكل (تصفير)
+              🗑️ إلغاء تحديد الكل (تصفير ⭐)
             </button>
           </div>
         </div>

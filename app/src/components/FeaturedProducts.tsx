@@ -147,15 +147,15 @@ export default function FeaturedProducts() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {[1, 2, 3, 4, 5].map((n) => (
-              <div key={n} className="h-96 animate-pulse rounded-3xl border border-zinc-100 bg-zinc-50 p-6" />
+              <div key={n} className="h-80 animate-pulse rounded-2xl border border-zinc-100 bg-zinc-50 p-4" />
             ))}
           </div>
         ) : displayedProducts.length === 0 ? (
-          <div className="mt-12 rounded-3xl border-2 border-dashed border-zinc-200 bg-zinc-50 p-12 text-center">
-            <Boxes className="mx-auto h-12 w-12 text-zinc-300" />
-            <p className="mt-3 font-cairo text-lg font-black text-zinc-700">لا توجد قطع مطابقة للفلتر المحدد</p>
+          <div className="mt-8 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 p-10 text-center">
+            <Boxes className="mx-auto h-10 w-10 text-zinc-300" />
+            <p className="mt-3 font-cairo text-base font-black text-zinc-700">لا توجد قطع مطابقة للفلتر المحدد</p>
             <button
               onClick={() => {
                 setActiveCategory('الكل')
@@ -168,7 +168,7 @@ export default function FeaturedProducts() {
           </div>
         ) : (
           <div>
-            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {displayedProducts.map((product, i) => (
                 <ProductCard key={product.id} product={product} delay={(i % 5) * 80} />
               ))}

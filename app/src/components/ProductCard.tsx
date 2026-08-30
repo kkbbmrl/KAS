@@ -1,6 +1,12 @@
-import { CheckCircle2, Eye, ShoppingCart, Star, XCircle, Zap } from 'lucide-react'
+import { Eye, ShoppingCart, Star } from 'lucide-react'
 import { formatPrice, type Product } from '@/data/products'
 import { useShop } from '@/context/ShopContext'
+
+const stockColors: Record<string, string> = {
+  'متوفر': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'كمية محدودة': 'bg-amber-50 text-amber-700 border-amber-200',
+  'غير متوفر': 'bg-zinc-100 text-zinc-500 border-zinc-200',
+}
 
 export default function ProductCard({
   product,
@@ -21,124 +27,114 @@ export default function ProductCard({
 
   return (
     <article
-      className={`card-glow group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm transition-all duration-500 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-600/10 ${reveal ? 'reveal' : ''}`}
+      className={`group flex flex-col overflow-hidden rounded-2xl border-2 border-zinc-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-600/10 ${
+        reveal ? 'reveal' : ''
+      }`}
       data-delay={delay}
     >
-      {/* image container */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-zinc-50 via-white to-red-50/30 p-6">
+      {/* Image & Badges Header */}
+      <button
+        onClick={() => setSelected(product)}
+        className="relative block overflow-hidden bg-gradient-to-br from-zinc-50 to-red-50/30 p-4 text-center cursor-pointer"
+        aria-label={`عرض تفاصيل ${product.name}`}
+      >
+        <img
+          src={product.image || '/img/parts/calandre-grille.jpg'}
+          alt={product.name}
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+          }}
+          className={`mx-auto h-40 w-full object-contain transition-transform duration-500 group-hover:scale-110 ${
+            product.flip ? '-scale-x-100' : ''
+          }`}
+        />
         {product.badge && (
-          <span className="absolute right-4 top-4 z-10 rounded-full bg-brand-600 px-3.5 py-1 text-xs font-black text-white shadow-lg shadow-brand-600/30">
+          <span className="absolute right-3 top-3 rounded-full bg-brand-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
             {product.badge}
           </span>
         )}
-        <span className="absolute left-4 top-4 z-10 rounded-full bg-zinc-900/85 px-3 py-1 text-[11px] font-bold tracking-wider text-white backdrop-blur-md" dir="ltr">
-          {product.partNumber}
-        </span>
-
-        <button onClick={() => setSelected(product)} className="block w-full cursor-pointer text-center" aria-label={`عرض ${product.name}`}>
-          <img
-            src={product.image || '/img/parts/calandre-grille.jpg'}
-            alt={product.name}
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.src = '/img/parts/calandre-grille.jpg'
-            }}
-            className={`img-in mx-auto h-48 w-full object-contain drop-shadow-xl transition-transform duration-700 ease-out group-hover:scale-110 ${product.flip ? '-scale-x-100' : ''}`}
-          />
-        </button>
-
-        {/* quick view overlay */}
-        <button
-          onClick={() => setSelected(product)}
-          className="absolute inset-x-6 bottom-3 flex translate-y-14 items-center justify-center gap-2 rounded-xl bg-zinc-900/90 py-2.5 text-sm font-bold text-white opacity-0 backdrop-blur-md transition-all duration-400 group-hover:translate-y-0 group-hover:opacity-100 hover:bg-brand-600"
+        <span
+          className={`absolute bottom-3 left-3 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${
+            stockColors[product.stock] ?? stockColors['متوفر']
+          }`}
         >
-          <Eye className="h-4 w-4" /> معاينة سريعة
-        </button>
-      </div>
+          {product.stock}
+        </span>
+        {product.partNumber && (
+          <span className="absolute left-3 top-3 rounded-full bg-zinc-900/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs" dir="ltr">
+            {product.partNumber}
+          </span>
+        )}
+      </button>
 
-      {/* body */}
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-extrabold text-zinc-700" dir="ltr">
+      {/* Card Body */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-black text-white" dir="ltr">
               {product.brand}
             </span>
-            {product.aliases?.[0] && (
-              <span className="rounded-md bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700" dir="ltr">
-                {product.aliases[0]}
+            {product.nameFr && (
+              <span className="max-w-[140px] truncate rounded bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700" dir="ltr">
+                {product.nameFr}
               </span>
             )}
           </div>
-          <span className="flex items-center gap-1 text-xs font-bold text-amber-500">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {product.rating}
-          </span>
+          {product.rating && (
+            <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-500">
+              <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> {product.rating}
+            </span>
+          )}
         </div>
 
-        <h3
+        <button
           onClick={() => setSelected(product)}
-          className="mt-2.5 cursor-pointer font-cairo text-lg font-black leading-snug text-zinc-900 transition-colors group-hover:text-brand-600"
+          className="line-clamp-2 text-right font-cairo text-sm font-black leading-snug text-zinc-900 transition-colors hover:text-brand-600 cursor-pointer"
         >
           {product.name}
-        </h3>
+        </button>
 
         {Array.isArray(product.compat) && product.compat.length > 0 ? (
-          <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">
-            متوافقة مع: {product.compat.slice(0, 2).join('، ')}{product.compat.length > 2 ? '…' : ''}
+          <p className="line-clamp-1 text-xs text-zinc-500 font-medium">
+            {product.compat.slice(0, 3).join(' · ')}
+            {product.compat.length > 3 && ` +${product.compat.length - 3}`}
           </p>
         ) : (
-          <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-400">
+          <p className="line-clamp-1 text-xs text-zinc-400 font-medium">
             {product.category || 'قطع غيار سيارات أصلية'}
           </p>
         )}
 
-        {/* stock status */}
-        <div className="mt-3.5 flex items-center justify-between">
-          <div>
-            {product.stock === 'متوفر' ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-extrabold text-emerald-600">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                <CheckCircle2 className="h-3.5 w-3.5" /> متوفر بالمخزن
-              </span>
-            ) : product.stock === 'كمية محدودة' ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-extrabold text-amber-600">
-                <Zap className="h-3.5 w-3.5 text-amber-500" /> كمية محدودة
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-[11px] font-extrabold text-zinc-500">
-                <XCircle className="h-3.5 w-3.5" /> غير متوفر
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* price */}
-        <div className="mt-4 flex items-end justify-between border-t border-dashed border-zinc-200 pt-3.5">
-          <div>
-            {product.oldPrice && (
+        {/* Price & Action Buttons */}
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2 border-t border-zinc-100/80">
+          <div className="min-w-0">
+            <p className="font-cairo text-base font-black text-brand-600">{formatPrice(product.price)}</p>
+            {product.oldPrice ? (
               <p className="text-xs font-bold text-zinc-400 line-through">{formatPrice(product.oldPrice)}</p>
-            )}
-            <p className="font-cairo text-xl font-black text-brand-600">{formatPrice(product.price)}</p>
+            ) : null}
           </div>
-        </div>
 
-        {/* action buttons */}
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <button
-            onClick={() => setSelected(product)}
-            className="rounded-xl border-2 border-zinc-200 py-2.5 text-center font-cairo text-xs font-extrabold text-zinc-800 transition-all hover:border-zinc-900 hover:bg-zinc-900 hover:text-white"
-          >
-            التفاصيل
-          </button>
-          <button
-            onClick={() => addToCart(product)}
-            disabled={out}
-            className="btn-shine flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 py-2.5 text-center font-cairo text-xs font-black text-white shadow-md shadow-brand-600/30 transition-all hover:bg-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
-          >
-            <ShoppingCart className="h-3.5 w-3.5" /> أضف للسلة
-          </button>
+          <div className="flex shrink-0 gap-1.5">
+            <button
+              onClick={() => setSelected(product)}
+              className="grid h-10 w-10 place-items-center rounded-lg border-2 border-zinc-200 text-zinc-600 transition-all hover:border-brand-300 hover:text-brand-600 cursor-pointer"
+              aria-label={`تفاصيل ${product.name}`}
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => addToCart(product)}
+              disabled={out}
+              className="flex min-h-[40px] items-center gap-1.5 rounded-lg bg-brand-600 px-3 font-cairo text-xs font-black text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 active:scale-95 disabled:bg-zinc-300 disabled:shadow-none cursor-pointer"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              {out ? 'غير متوفر' : 'أضف'}
+            </button>
+          </div>
         </div>
       </div>
     </article>
   )
 }
-

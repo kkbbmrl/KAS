@@ -876,6 +876,38 @@ router.put('/:id/toggle-featured', async (req, res) => {
   }
 })
 
+// POST /api/v1/admin/products/clear-all-featured
+router.post('/clear-all-featured', async (req, res) => {
+  try {
+    await query(`UPDATE products SET featured_home = 0, updated_at = CURRENT_TIMESTAMP`)
+    res.json({ success: true, message: 'تم إلغاء تثبيت جميع المنتجات من الرئيسية' })
+  } catch (err: any) {
+    res.status(500).json({ error: 'فشل إلغاء التثبيت: ' + err.message })
+  }
+})
+
+// POST /api/v1/admin/products/sync-top-5-featured
+router.post('/sync-top-5-featured', async (req, res) => {
+  try {
+    await query(`UPDATE products SET featured_home = 0`)
+    await query(`
+      UPDATE products 
+      SET featured_home = 1 
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY rating DESC, id ASC) as rn
+          FROM products
+          WHERE category_id IN ('cat-phares', 'cat-feux-arriere', 'cat-retroviseurs', 'cat-calandres-grilles', 'cat-pare-chocs')
+        ) WHERE rn = 1
+        LIMIT 5
+      )
+    `)
+    res.json({ success: true, message: 'تم ضبط 5 منتجات مميزة في الرئيسية بنجاح' })
+  } catch (err: any) {
+    res.status(500).json({ error: 'فشل ضبط المنتجات: ' + err.message })
+  }
+})
+
 // POST /api/v1/admin/products/reseed-compatibility
 router.post('/reseed-compatibility', async (req, res) => {
   try {

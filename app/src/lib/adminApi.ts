@@ -227,6 +227,30 @@ export async function toggleAdminProductFeatured(id: string) {
   return await res.json()
 }
 
+export async function clearAllAdminFeatured() {
+  const res = await fetch(`${API_BASE}/products/clear-all-featured`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to clear featured products')
+  }
+  return await res.json()
+}
+
+export async function syncTop5AdminFeatured() {
+  const res = await fetch(`${API_BASE}/products/sync-top-5-featured`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to sync top 5 featured')
+  }
+  return await res.json()
+}
+
 export async function updateAdminProductStock(id: string, stockQuantity: number, stockStatus?: string) {
   const res = await fetch(`${API_BASE}/products/${id}/stock`, {
     method: 'PATCH',

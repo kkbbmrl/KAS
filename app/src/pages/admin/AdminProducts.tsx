@@ -29,6 +29,8 @@ import {
   deleteAdminProduct,
   toggleAdminProductActive,
   toggleAdminProductFeatured,
+  clearAllAdminFeatured,
+  syncTop5AdminFeatured,
   fetchAdminCategories,
   fetchAdminBrands,
   uploadAdminImage,
@@ -619,6 +621,26 @@ export default function AdminProducts() {
     }
   }
 
+  const handleClearAllFeatured = async () => {
+    if (!confirm('هل تريد إلغاء تحديد جميع النجوم وتصفير المنتجات المميزة؟')) return
+    try {
+      await clearAllAdminFeatured()
+      loadProducts()
+    } catch (err: any) {
+      alert(err.message || 'فشل إلغاء التحديد')
+    }
+  }
+
+  const handleSyncTop5Featured = async () => {
+    if (!confirm('هل تريد ضبط 5 منتجات مميزة متنوعة تلقائياً للصفحة الرئيسية؟')) return
+    try {
+      await syncTop5AdminFeatured()
+      loadProducts()
+    } catch (err: any) {
+      alert(err.message || 'فشل ضبط المنتجات')
+    }
+  }
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* ─── HEADER ─── */}
@@ -781,6 +803,38 @@ export default function AdminProducts() {
           })}
         </div>
       </div>
+
+      {featuredFilter === 'true' && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-500 text-white shadow-sm">
+              <Star className="h-5 w-5 fill-white" />
+            </div>
+            <div>
+              <p className="font-cairo font-black text-amber-950 text-sm">
+                المنتجات المميزة المعروضة في الصفحة الرئيسية ({pagination.total} منتج محدد)
+              </p>
+              <p className="text-xs text-amber-800 font-bold">
+                تعرض الصفحة الرئيسية أول 5 منتجات محددة بالنجمة ⭐. يمكنك تفعيل أو إلغاء أي منتج مباشرة بالنقر على النجمة.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncTop5Featured}
+              className="rounded-xl border border-amber-300 bg-white px-3 py-1.5 font-cairo text-xs font-black text-amber-900 shadow-sm hover:bg-amber-100 transition-colors"
+            >
+              ضبط 5 منتجات مميزة تلقائياً
+            </button>
+            <button
+              onClick={handleClearAllFeatured}
+              className="rounded-xl border border-red-200 bg-white px-3 py-1.5 font-cairo text-xs font-black text-red-700 shadow-sm hover:bg-red-50 transition-colors"
+            >
+              إلغاء تحديد الكل (تصفير)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── PRODUCTS TABLE ─── */}
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">

@@ -43,11 +43,6 @@ export default function FeaturedProducts() {
     return products.filter((p) => p.featuredHome)
   }, [products])
 
-  // If no products have been starred yet by admin, hide this section
-  if (!loading && featuredProducts.length === 0) {
-    return null
-  }
-
   // Extract available categories from the featured products
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -71,6 +66,11 @@ export default function FeaturedProducts() {
 
     return list
   }, [featuredProducts, activeCategory, inStockOnly])
+
+  // If no products have been starred yet by admin, hide this section
+  if (!loading && featuredProducts.length === 0) {
+    return null
+  }
 
   return (
     <section id="products" ref={sectionRef} className="relative scroll-mt-24 overflow-hidden bg-white py-16 sm:py-24" dir="rtl">

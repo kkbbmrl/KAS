@@ -167,10 +167,23 @@ export default function FeaturedProducts() {
             </button>
           </div>
         ) : (
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {displayedProducts.map((product, i) => (
-              <ProductCard key={product.id} product={product} delay={(i % 4) * 80} />
-            ))}
+          <div>
+            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {displayedProducts.slice(0, 12).map((product, i) => (
+                <ProductCard key={product.id} product={product} delay={(i % 4) * 80} />
+              ))}
+            </div>
+
+            <div className="mt-10 text-center">
+              <Link
+                to="/search"
+                onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+                className="btn-shine inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-8 py-3.5 font-cairo text-sm font-black text-white shadow-xl hover:bg-brand-600 active:scale-95 transition-all"
+              >
+                <span>استكشاف كافة قطع الغيار المتوفرة ({products.length > 0 ? `${products.length} قطعة` : 'الكتالوج الكامل'})</span>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         )}
 

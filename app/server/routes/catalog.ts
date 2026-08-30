@@ -273,94 +273,135 @@ router.get('/products', async (req, res) => {
     sql += ` ORDER BY p.featured_home DESC, p.id ASC LIMIT ${reqLimit}`
 
     const result = await query(sql, params)
+    const rawProducts = result.rows
+    if (rawProducts.length === 0) {
+      return res.json([])
+    }
 
-    // Enrich products with primary variant price & specs
-    const products = await Promise.all(
-      result.rows.map(async (prod: any) => {
-        const variants = await query(
-          `SELECT id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs"
-           FROM product_variants
-           WHERE product_id = $1 AND (is_active = 1 OR is_active = TRUE)`,
-          [prod.id]
-        )
+    const productIds = rawProducts.map((p: any) => p.id)
+    const placeholders = productIds.map((_, i) => `$${i + 1}`).join(',')
 
-        const specs = await query(
-          `SELECT label_ar AS label, value_ar AS value
-           FROM product_specs
-           WHERE product_id = $1
-           ORDER BY display_order ASC`,
-          [prod.id]
-        )
+    // 4 high-speed batch queries for all products at once
+    const [allVariantsRes, allSpecsRes, allCompatRes, allAliasesRes] = await Promise.all([
+      query(
+        `SELECT product_id, id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs"
+         FROM product_variants
+         WHERE product_id IN (${placeholders}) AND (is_active = 1 OR is_active = TRUE)
+         ORDER BY price ASC`,
+        productIds
+      ),
+      query(
+        `SELECT product_id, label_ar AS label, value_ar AS value
+         FROM product_specs
+         WHERE product_id IN (${placeholders})
+         ORDER BY display_order ASC`,
+        productIds
+      ),
+      query(
+        `SELECT DISTINCT pc.product_id, mk.name_ar AS make, md.name_ar AS model
+         FROM part_compatibility pc
+         JOIN vehicle_makes mk ON mk.id = pc.make_id
+         JOIN vehicle_models md ON md.id = pc.model_id
+         WHERE pc.product_id IN (${placeholders})`,
+        productIds
+      ),
+      query(
+        `SELECT product_id, alias_term AS term 
+         FROM product_aliases 
+         WHERE product_id IN (${placeholders})`,
+        productIds
+      ),
+    ])
 
-        // compat: vehicle names the UI renders directly (ProductCard/ProductModal
-        // call .slice()/.map() on this, so it must always be an array).
-        const compat = await query(
-          `SELECT DISTINCT mk.name_ar AS make, md.name_ar AS model
-           FROM part_compatibility pc
-           JOIN vehicle_makes mk ON mk.id = pc.make_id
-           JOIN vehicle_models md ON md.id = pc.model_id
-           WHERE pc.product_id = $1`,
-          [prod.id]
-        )
+    // Group relations in memory
+    const variantsByProduct: Record<string, any[]> = {}
+    for (const v of allVariantsRes.rows) {
+      if (!variantsByProduct[v.product_id]) variantsByProduct[v.product_id] = []
+      variantsByProduct[v.product_id].push(v)
+    }
 
-        const aliases = await query(
-          `SELECT alias_term AS term FROM product_aliases WHERE product_id = $1`,
-          [prod.id]
-        )
+    const specsByProduct: Record<string, any[]> = {}
+    for (const s of allSpecsRes.rows) {
+      if (!specsByProduct[s.product_id]) specsByProduct[s.product_id] = []
+      specsByProduct[s.product_id].push({ label: s.label, value: s.value })
+    }
 
-        const primaryVariant = variants.rows[0]
-        const totalStock = variants.rows.reduce((sum, v) => sum + Math.max(0, Number(v.stockQuantity ?? 0)), 0)
-        const isOutOfStock = totalStock === 0 || (variants.rows.length > 0 && variants.rows.every(v => Number(v.stockQuantity ?? 0) === 0 || v.stock === 'out_of_stock'))
-        const isLimited = !isOutOfStock && totalStock <= 5
-        const overallStockArabic = isOutOfStock ? 'غير متوفر' : isLimited ? 'كمية محدودة' : 'متوفر'
+    const compatByProduct: Record<string, string[]> = {}
+    for (const c of allCompatRes.rows) {
+      if (!compatByProduct[c.product_id]) compatByProduct[c.product_id] = []
+      const pair = `${c.make} ${c.model}`.trim()
+      if (pair && !compatByProduct[c.product_id].includes(pair)) {
+        compatByProduct[c.product_id].push(pair)
+      }
+    }
 
-        let compatList = compat.rows.map((c: any) => `${c.make} ${c.model}`.trim()).filter(Boolean)
-        if (compatList.length === 0) {
-          const fallbackSet = new Set<string>()
-          for (const v of variants.rows) {
-            if (v.label && typeof v.label === 'string') {
-              const cleaned = v.label.split('—')[0].split('(')[0].trim()
-              if (cleaned && cleaned.length > 2) {
-                fallbackSet.add(cleaned)
-              }
+    const aliasesByProduct: Record<string, string[]> = {}
+    for (const a of allAliasesRes.rows) {
+      if (!aliasesByProduct[a.product_id]) aliasesByProduct[a.product_id] = []
+      aliasesByProduct[a.product_id].push(a.term)
+    }
+
+    // Build enriched product objects in memory with 0 extra queries
+    const products = rawProducts.map((prod: any) => {
+      const prodVariants = variantsByProduct[prod.id] || []
+      const prodSpecs = specsByProduct[prod.id] || []
+      const prodAliases = aliasesByProduct[prod.id] || []
+      let compatList = compatByProduct[prod.id] || []
+
+      if (compatList.length === 0) {
+        const fallbackSet = new Set<string>()
+        for (const v of prodVariants) {
+          if (v.label && typeof v.label === 'string') {
+            const cleaned = v.label.split('—')[0].split('(')[0].trim()
+            if (cleaned && cleaned.length > 2) {
+              fallbackSet.add(cleaned)
             }
           }
-          compatList = Array.from(fallbackSet)
         }
+        compatList = Array.from(fallbackSet)
+      }
 
-        return {
-          ...prod,
-          rating: Number(prod.rating ?? 0),
-          // NUMERIC(12,2) comes back as a string from pg — coerce or the cart
-          // computes NaN and formatPrice() renders garbage.
-          price: Number(primaryVariant?.price ?? 0),
-          oldPrice: primaryVariant?.oldPrice != null ? Number(primaryVariant.oldPrice) : undefined,
-          stock: overallStockArabic,
-          compat: compatList,
-          aliases: aliases.rows.map((a: any) => a.term),
-          specs: specs.rows,
-          variants: variants.rows.map((v: any) => {
-            const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
-            const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
-              ? 'غير متوفر'
-              : vQty <= 5 || v.stock === 'limited_stock'
-              ? 'كمية محدودة'
-              : 'متوفر'
+      const primaryVariant = prodVariants[0]
+      const totalStock = prodVariants.reduce((sum: number, v: any) => sum + Math.max(0, Number(v.stockQuantity ?? 0)), 0)
+      const isOutOfStock = totalStock === 0 || (prodVariants.length > 0 && prodVariants.every((v: any) => Number(v.stockQuantity ?? 0) === 0 || v.stock === 'out_of_stock'))
+      const isLimited = !isOutOfStock && totalStock <= 5
+      const overallStockArabic = isOutOfStock ? 'غير متوفر' : isLimited ? 'كمية محدودة' : 'متوفر'
 
-            return {
-              id: v.id,
-              sku: v.sku,
-              partNumber: v.partNumber,
-              label: v.label,
-              price: Number(v.price ?? 0),
-              oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
-              stock: vStockArabic,
-              extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
-            }
-          }),
-        }
-      })
-    )
+      return {
+        ...prod,
+        rating: Number(prod.rating ?? 0),
+        price: Number(primaryVariant?.price ?? 0),
+        oldPrice: primaryVariant?.oldPrice != null ? Number(primaryVariant.oldPrice) : undefined,
+        stock: overallStockArabic,
+        compat: compatList,
+        aliases: prodAliases,
+        specs: prodSpecs,
+        variants: prodVariants.map((v: any) => {
+          const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
+          const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
+            ? 'غير متوفر'
+            : vQty <= 5 || v.stock === 'limited_stock'
+            ? 'كمية محدودة'
+            : 'متوفر'
+
+          let extraSpecsParsed = []
+          try {
+            extraSpecsParsed = typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs || []
+          } catch {}
+
+          return {
+            id: v.id,
+            sku: v.sku,
+            partNumber: v.partNumber,
+            label: v.label,
+            price: Number(v.price ?? 0),
+            oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
+            stock: vStockArabic,
+            extraSpecs: extraSpecsParsed,
+          }
+        }),
+      }
+    })
 
     if (in_stock === 'true') {
       return res.json(products.filter((p) => p.stock !== 'غير متوفر'))

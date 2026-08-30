@@ -50,12 +50,17 @@ export default function SearchPage() {
   const [draft, setDraft] = useState(query)
   const [showFilters, setShowFilters] = useState(false)
   const [showSugg, setShowSugg] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(24)
 
   const [products, setProducts] = useState<Product[]>([])
   const [liveCategories, setLiveCategories] = useState<{ name: string; fr: string; icon: string; available: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    setVisibleCount(24)
+  }, [query, brand, model, cat, inStockOnly])
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
@@ -414,93 +419,111 @@ export default function SearchPage() {
             </button>
           </div>
         ) : results.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((p) => {
-              const out = p.stock === 'غير متوفر'
-              return (
-                <article
-                  key={String(p.id)}
-                  className="group flex flex-col overflow-hidden rounded-2xl border-2 border-zinc-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-600/10"
-                >
-                  <button
-                    onClick={() => openDetails(p)}
-                    className="relative block overflow-hidden bg-gradient-to-br from-zinc-50 to-red-50/30 p-4"
-                    aria-label={`عرض تفاصيل ${p.name}`}
+          <div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {results.slice(0, visibleCount).map((p) => {
+                const out = p.stock === 'غير متوفر'
+                return (
+                  <article
+                    key={String(p.id)}
+                    className="group flex flex-col overflow-hidden rounded-2xl border-2 border-zinc-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-600/10"
                   >
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      loading="lazy"
-                      className="mx-auto h-40 w-full object-contain transition-transform duration-500 group-hover:scale-110"
-                    />
-                    {p.badge && (
-                      <span className="absolute right-3 top-3 rounded-full bg-brand-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
-                        {p.badge}
-                      </span>
-                    )}
-                    <span
-                      className={`absolute bottom-3 left-3 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${stockColors[p.stock] ?? stockColors['متوفر']}`}
-                    >
-                      {p.stock}
-                    </span>
-                  </button>
-
-                  <div className="flex flex-1 flex-col gap-2 p-4">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-black text-white" dir="ltr">
-                        {p.brand}
-                      </span>
-                      {p.nameFr && (
-                        <span className="max-w-full truncate rounded bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700" dir="ltr">
-                          {p.nameFr}
-                        </span>
-                      )}
-                    </div>
-
                     <button
                       onClick={() => openDetails(p)}
-                      className="line-clamp-2 text-right font-cairo text-sm font-black leading-snug text-zinc-900 transition-colors hover:text-brand-600"
+                      className="relative block overflow-hidden bg-gradient-to-br from-zinc-50 to-red-50/30 p-4"
+                      aria-label={`عرض تفاصيل ${p.name}`}
                     >
-                      {p.name}
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="mx-auto h-40 w-full object-contain transition-transform duration-500 group-hover:scale-110"
+                      />
+                      {p.badge && (
+                        <span className="absolute right-3 top-3 rounded-full bg-brand-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                          {p.badge}
+                        </span>
+                      )}
+                      <span
+                        className={`absolute bottom-3 left-3 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${stockColors[p.stock] ?? stockColors['متوفر']}`}
+                      >
+                        {p.stock}
+                      </span>
                     </button>
 
-                    {Array.isArray(p.compat) && p.compat.length > 0 && (
-                      <p className="line-clamp-1 text-xs text-zinc-500">
-                        {p.compat.slice(0, 3).join(' · ')}
-                        {p.compat.length > 3 && ` +${p.compat.length - 3}`}
-                      </p>
-                    )}
-
-                    <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-                      <div className="min-w-0">
-                        <p className="font-cairo text-base font-black text-brand-600">{formatPrice(p.price)}</p>
-                        {p.oldPrice ? (
-                          <p className="text-xs font-bold text-zinc-400 line-through">{formatPrice(p.oldPrice)}</p>
-                        ) : null}
+                    <div className="flex flex-1 flex-col gap-2 p-4">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] font-black text-white" dir="ltr">
+                          {p.brand}
+                        </span>
+                        {p.nameFr && (
+                          <span className="max-w-full truncate rounded bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700" dir="ltr">
+                            {p.nameFr}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex shrink-0 gap-1.5">
-                        <button
-                          onClick={() => openDetails(p)}
-                          className="grid h-11 w-11 place-items-center rounded-lg border-2 border-zinc-200 text-zinc-600 transition-all hover:border-brand-300 hover:text-brand-600"
-                          aria-label={`تفاصيل ${p.name}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => addToCart(p)}
-                          disabled={out}
-                          className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-brand-600 px-3 font-cairo text-xs font-black text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 active:scale-95 disabled:bg-zinc-300 disabled:shadow-none"
-                        >
-                          <ShoppingCart className="h-3.5 w-3.5" />
-                          {out ? 'غير متوفر' : 'أضف'}
-                        </button>
+                      <button
+                        onClick={() => openDetails(p)}
+                        className="line-clamp-2 text-right font-cairo text-sm font-black leading-snug text-zinc-900 transition-colors hover:text-brand-600"
+                      >
+                        {p.name}
+                      </button>
+
+                      {Array.isArray(p.compat) && p.compat.length > 0 && (
+                        <p className="line-clamp-1 text-xs text-zinc-500">
+                          {p.compat.slice(0, 3).join(' · ')}
+                          {p.compat.length > 3 && ` +${p.compat.length - 3}`}
+                        </p>
+                      )}
+
+                      <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                        <div className="min-w-0">
+                          <p className="font-cairo text-base font-black text-brand-600">{formatPrice(p.price)}</p>
+                          {p.oldPrice ? (
+                            <p className="text-xs font-bold text-zinc-400 line-through">{formatPrice(p.oldPrice)}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="flex shrink-0 gap-1.5">
+                          <button
+                            onClick={() => openDetails(p)}
+                            className="grid h-11 w-11 place-items-center rounded-lg border-2 border-zinc-200 text-zinc-600 transition-all hover:border-brand-300 hover:text-brand-600"
+                            aria-label={`تفاصيل ${p.name}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => addToCart(p)}
+                            disabled={out}
+                            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-brand-600 px-3 font-cairo text-xs font-black text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 active:scale-95 disabled:bg-zinc-300 disabled:shadow-none"
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            {out ? 'غير متوفر' : 'أضف'}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </article>
-              )
-            })}
+                  </article>
+                )
+              })}
+            </div>
+
+            {visibleCount < results.length && (
+              <div className="mt-12 flex flex-col items-center justify-center gap-2">
+                <button
+                  onClick={() => setVisibleCount((prev) => prev + 24)}
+                  className="btn-shine inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-8 py-3.5 font-cairo text-sm font-black text-white shadow-lg transition-all hover:bg-brand-600 active:scale-95"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>عرض المزيد من القطع (+24)</span>
+                </button>
+                <p className="text-xs font-bold text-zinc-400">
+                  يتم عرض {Math.min(visibleCount, results.length)} من إجمالي {results.length} قطعة
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           /* ─── Empty state ─── */

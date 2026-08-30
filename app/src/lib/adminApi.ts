@@ -121,6 +121,9 @@ export async function fetchAdminProducts(params: {
   category?: string
   brand?: string
   status?: string
+  featured?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
   page?: number
   limit?: number
 } = {}) {
@@ -129,6 +132,9 @@ export async function fetchAdminProducts(params: {
   if (params.category && params.category !== 'all') sp.set('category', params.category)
   if (params.brand && params.brand !== 'all') sp.set('brand', params.brand)
   if (params.status && params.status !== 'all') sp.set('status', params.status)
+  if (params.featured && params.featured !== 'all') sp.set('featured', params.featured)
+  if (params.sortBy) sp.set('sortBy', params.sortBy)
+  if (params.sortOrder) sp.set('sortOrder', params.sortOrder)
   if (params.page) sp.set('page', String(params.page))
   if (params.limit) sp.set('limit', String(params.limit))
 
@@ -653,3 +659,164 @@ export async function adminGlobalSearch(q: string) {
   if (!res.ok) throw new Error('Search failed')
   return await res.json()
 }
+
+// 10. LEGACY IMPORT & INVENTORY MIGRATION
+export async function uploadAdminLegacyPdf(data: {
+  fileData?: string
+  filename?: string
+  importType?: 'opening_stock' | 'purchase_history'
+  useSampleFile?: boolean
+}) {
+  const res = await fetch(`${API_BASE}/import/upload`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل رفع ملف الـ PDF')
+  }
+  return await res.json()
+}
+
+export async function analyzeAdminLegacyBatch(batchId: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/analyze`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل تحليل واستخراج بيانات الملف')
+  }
+  return await res.json()
+}
+
+export async function fetchAdminLegacyBatch(batchId: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('فشل جلب تفاصيل دفعة الاستيراد')
+  return await res.json()
+}
+
+export async function fetchAdminLegacyRows(
+  batchId: string,
+  params: { status?: string; q?: string; page?: number; limit?: number } = {}
+) {
+  const sp = new URLSearchParams()
+  if (params.status && params.status !== 'all') sp.set('status', params.status)
+  if (params.q) sp.set('q', params.q)
+  if (params.page) sp.set('page', String(params.page))
+  if (params.limit) sp.set('limit', String(params.limit))
+
+  const res = await fetch(`${API_BASE}/import/${batchId}/rows?${sp.toString()}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('فشل جلب صفوف الاستيراد')
+  return await res.json()
+}
+
+export async function updateAdminLegacyRow(
+  batchId: string,
+  rowId: string,
+  data: {
+    action: 'accept' | 'remap' | 'skip' | 'unskip'
+    productId?: string
+    variantId?: string
+    sourceQuantity?: number
+    sourceUnitCost?: number
+    sourceSellingPrice?: number
+    notes?: string
+  }
+) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/rows/${rowId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل تحديث بيانات الصف')
+  }
+  return await res.json()
+}
+
+export async function bulkActionAdminLegacyRows(batchId: string, action: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/bulk-action`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ action }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل تطبيق الإجراء الجماعي')
+  }
+  return await res.json()
+}
+
+export async function createAdminProductFromLegacyRow(
+  batchId: string,
+  data: {
+    rowId: string
+    nameAr: string
+    nameFr?: string
+    basePartNumber: string
+    sku?: string
+    categoryId: string
+    brandId: string
+    price: number
+    stockQuantity?: number
+  }
+) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/create-product`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل إنشاء المنتج الجديد')
+  }
+  return await res.json()
+}
+
+export async function confirmAdminLegacyImport(batchId: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/confirm`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل تأكيد وتنفيذ الاستيراد')
+  }
+  return await res.json()
+}
+
+export async function fetchAdminLegacyReconciliation(batchId: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/reconciliation`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('فشل جلب تقرير المطابقة')
+  return await res.json()
+}
+
+export async function rollbackAdminLegacyImport(batchId: string) {
+  const res = await fetch(`${API_BASE}/import/${batchId}/rollback`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'فشل التراجع عن الاستيراد')
+  }
+  return await res.json()
+}
+
+export async function fetchAdminLegacyHistory() {
+  const res = await fetch(`${API_BASE}/import/history/all`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) throw new Error('فشل جلب سجل عمليات الاستيراد')
+  return await res.json()
+}
+

@@ -480,3 +480,114 @@ CREATE TABLE IF NOT EXISTS system_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- -----------------------------------------------------------------------------
+-- 16. LEGACY INVENTORY IMPORT & PURCHASE HISTORY LEDGER
+-- -----------------------------------------------------------------------------
+
+DO $$ BEGIN
+    CREATE TYPE import_type_enum AS ENUM ('opening_stock', 'purchase_history');
+    CREATE TYPE import_status_enum AS ENUM (
+        'UPLOADED',
+        'PROCESSING',
+        'PREVIEW_READY',
+        'REVIEW_REQUIRED',
+        'READY_TO_IMPORT',
+        'IMPORTING',
+        'COMPLETED',
+        'PARTIALLY_COMPLETED',
+        'FAILED',
+        'ROLLED_BACK'
+    );
+    CREATE TYPE match_status_enum AS ENUM (
+        'MATCHED_EXACT',
+        'MATCHED_HIGH_CONFIDENCE',
+        'MATCHED_REVIEW_REQUIRED',
+        'UNMATCHED',
+        'MANUAL_MATCHED',
+        'NEW_PRODUCT_CREATED',
+        'SKIPPED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS import_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    filename VARCHAR(255) NOT NULL,
+    file_hash VARCHAR(64) NOT NULL,
+    import_type VARCHAR(50) NOT NULL DEFAULT 'opening_stock',
+    status VARCHAR(50) NOT NULL DEFAULT 'UPLOADED',
+    total_rows INT NOT NULL DEFAULT 0,
+    matched_rows INT NOT NULL DEFAULT 0,
+    unmatched_rows INT NOT NULL DEFAULT 0,
+    skipped_rows INT NOT NULL DEFAULT 0,
+    imported_rows INT NOT NULL DEFAULT 0,
+    warnings_count INT NOT NULL DEFAULT 0,
+    errors_count INT NOT NULL DEFAULT 0,
+    total_quantity NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    total_purchase_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    summary_json TEXT,
+    reconciliation_json TEXT,
+    created_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ,
+    rolled_back_at TIMESTAMPTZ,
+    rolled_back_by VARCHAR(150)
+);
+
+CREATE TABLE IF NOT EXISTS import_batch_rows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id UUID NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+    row_index INT NOT NULL,
+    page_number INT NOT NULL DEFAULT 1,
+    source_raw_text TEXT NOT NULL,
+    source_reference VARCHAR(150),
+    source_product_name VARCHAR(255),
+    source_brand VARCHAR(150),
+    source_supplier VARCHAR(255),
+    source_invoice_number VARCHAR(100),
+    source_invoice_date VARCHAR(50),
+    source_quantity NUMERIC(12, 2) NOT NULL DEFAULT 1,
+    source_unit_cost NUMERIC(12, 2),
+    source_selling_price NUMERIC(12, 2),
+    source_total_cost NUMERIC(12, 2),
+    normalized_reference VARCHAR(150),
+    normalized_product_name VARCHAR(255),
+    normalized_brand VARCHAR(150),
+    matched_product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    matched_variant_id UUID REFERENCES product_variants(id) ON DELETE SET NULL,
+    match_status VARCHAR(50) NOT NULL DEFAULT 'UNMATCHED',
+    match_method VARCHAR(50) NOT NULL DEFAULT 'NONE',
+    match_confidence NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    match_notes TEXT,
+    import_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS purchase_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_number VARCHAR(100),
+    invoice_date VARCHAR(50),
+    supplier_name VARCHAR(255),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+    variant_id UUID NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT,
+    quantity INT NOT NULL CHECK (quantity > 0),
+    unit_cost NUMERIC(12, 2) NOT NULL CHECK (unit_cost >= 0),
+    total_cost NUMERIC(12, 2) NOT NULL CHECK (total_cost >= 0),
+    currency VARCHAR(10) NOT NULL DEFAULT 'DZD',
+    source_import_id UUID REFERENCES import_batches(id) ON DELETE SET NULL,
+    source_row_id UUID REFERENCES import_batch_rows(id) ON DELETE SET NULL,
+    created_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_batches_hash ON import_batches(file_hash);
+CREATE INDEX IF NOT EXISTS idx_import_batches_status ON import_batches(status);
+CREATE INDEX IF NOT EXISTS idx_import_batch_rows_batch ON import_batch_rows(batch_id);
+CREATE INDEX IF NOT EXISTS idx_import_batch_rows_match ON import_batch_rows(match_status);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_prod ON purchase_history(product_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_var ON purchase_history(variant_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_import ON purchase_history(source_import_id);
+
+

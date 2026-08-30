@@ -677,21 +677,21 @@ export default function AdminMarketing() {
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => copyToClipboard(publicUrl, `pub-${l.id}`)}
-                                className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-black text-zinc-700 hover:bg-white transition-colors"
+                                className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 hover:bg-white hover:border-zinc-300 transition-colors cursor-pointer"
                                 title="نسخ الرابط المباشر"
                               >
                                 {copiedLink === `pub-${l.id}` ? 'تم ✓' : 'رابط مباشر'}
                               </button>
                               <button
                                 onClick={() => copyToClipboard(fbUtmUrl, `fb-${l.id}`)}
-                                className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 hover:bg-blue-100 transition-colors"
+                                className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
                                 title="نسخ رابط إعلان فيسبوك مع UTM"
                               >
                                 {copiedLink === `fb-${l.id}` ? 'تم ✓' : 'Facebook'}
                               </button>
                               <button
                                 onClick={() => copyToClipboard(tiktokUtmUrl, `tt-${l.id}`)}
-                                className="rounded-lg border border-pink-200 bg-pink-50 px-2 py-1 text-[10px] font-black text-pink-700 hover:bg-pink-100 transition-colors"
+                                className="rounded-lg border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-bold text-pink-700 hover:bg-pink-100 transition-colors cursor-pointer"
                                 title="نسخ رابط إعلان تيك توك مع UTM"
                               >
                                 {copiedLink === `tt-${l.id}` ? 'تم ✓' : 'TikTok'}
@@ -705,31 +705,31 @@ export default function AdminMarketing() {
                                 href={publicUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded-lg p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                                className="grid h-9 w-9 place-items-center rounded-xl text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
                                 title="معاينة الصفحة الحية"
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="h-4.5 w-4.5" />
                               </a>
                               <button
                                 onClick={() => openEditBuilder(l.id)}
-                                className="rounded-lg p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                                className="grid h-9 w-9 place-items-center rounded-xl text-zinc-600 hover:bg-brand-50 hover:text-brand-600 transition-colors cursor-pointer"
                                 title="تعديل وتخصيص"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-4.5 w-4.5" />
                               </button>
                               <button
                                 onClick={() => handleDuplicateOffer(l.id)}
-                                className="rounded-lg p-1.5 text-zinc-600 hover:bg-blue-50 hover:text-blue-600"
+                                className="grid h-9 w-9 place-items-center rounded-xl text-zinc-600 hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
                                 title="تكرار"
                               >
-                                <Copy className="h-4 w-4" />
+                                <Copy className="h-4.5 w-4.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteOffer(l.id)}
-                                className="rounded-lg p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600"
+                                className="grid h-9 w-9 place-items-center rounded-xl text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
                                 title="حذف"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4.5 w-4.5" />
                               </button>
                             </div>
                           </td>

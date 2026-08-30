@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Boxes,
   Car,
   Check,
@@ -83,11 +86,14 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true)
   const [taxonomiesLoaded, setTaxonomiesLoaded] = useState(false)
 
-  // Filters
+  // Filters & Sorting
   const [query, setQuery] = useState('')
   const [catFilter, setCatFilter] = useState('all')
   const [brandFilter, setBrandFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [featuredFilter, setFeaturedFilter] = useState<'all' | 'true' | 'false'>('all')
+  const [sortBy, setSortBy] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
 
   // Modal (Create / Edit)
@@ -123,13 +129,33 @@ export default function AdminProducts() {
 
   const loadProducts = () => {
     setLoading(true)
-    fetchAdminProducts({ q: query, category: catFilter, brand: brandFilter, status: statusFilter, page, limit: 25 })
+    fetchAdminProducts({
+      q: query,
+      category: catFilter,
+      brand: brandFilter,
+      status: statusFilter,
+      featured: featuredFilter !== 'all' ? featuredFilter : undefined,
+      sortBy,
+      sortOrder,
+      page,
+      limit: 25,
+    })
       .then((res) => {
         setProducts(res.products || [])
         setPagination(res.pagination || { total: 0, page: 1, limit: 25, pages: 1 })
       })
       .catch((err) => console.error('Error loading products:', err))
       .finally(() => setLoading(false))
+  }
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(column)
+      setSortOrder('desc')
+    }
+    setPage(1)
   }
 
   const loadTaxonomies = async () => {
@@ -169,7 +195,7 @@ export default function AdminProducts() {
 
   useEffect(() => {
     loadProducts()
-  }, [catFilter, brandFilter, statusFilter, page])
+  }, [catFilter, brandFilter, statusFilter, featuredFilter, sortBy, sortOrder, page])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -659,7 +685,7 @@ export default function AdminProducts() {
                 setCatFilter(e.target.value)
                 setPage(1)
               }}
-              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
+              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800 outline-none focus:border-brand-500"
             >
               <option value="all">جميع الفئات ({categories.length})</option>
               {categories.map((c, idx) => (
@@ -678,7 +704,7 @@ export default function AdminProducts() {
                 setBrandFilter(e.target.value)
                 setPage(1)
               }}
-              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
+              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800 outline-none focus:border-brand-500"
             >
               <option value="all">جميع الماركات ({brands.length})</option>
               {brands.map((b, idx) => (
@@ -697,15 +723,62 @@ export default function AdminProducts() {
                 setStatusFilter(e.target.value)
                 setPage(1)
               }}
-              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800"
+              className="rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-bold text-zinc-800 outline-none focus:border-brand-500"
             >
               <option value="all">الكل</option>
               <option value="active">مفعل فقط</option>
               <option value="archived">مؤرشف</option>
+              <option value="in_stock">متوفر (&gt;5)</option>
               <option value="low_stock">مخزون منخفض (1-5)</option>
               <option value="out_of_stock">نفد المخزون (0)</option>
             </select>
           </div>
+        </div>
+
+        {/* Quick Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-100">
+          <span className="text-xs font-black text-zinc-400 ml-1">تصفية سريعة:</span>
+          {[
+            { id: 'all', label: 'جميع الأصناف' },
+            { id: 'featured', label: 'المعروضة بالرئيسية ⭐' },
+            { id: 'in_stock', label: 'متوفر (>5)' },
+            { id: 'low_stock', label: 'مخزون منخفض (1-5)' },
+            { id: 'out_of_stock', label: 'نفد المخزون (0)' },
+            { id: 'archived', label: 'المؤرشفة' },
+          ].map((pill) => {
+            const isActive =
+              pill.id === 'featured'
+                ? featuredFilter === 'true'
+                : pill.id === 'all'
+                ? statusFilter === 'all' && featuredFilter === 'all'
+                : statusFilter === pill.id
+
+            return (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => {
+                  setPage(1)
+                  if (pill.id === 'featured') {
+                    setFeaturedFilter((prev) => (prev === 'true' ? 'all' : 'true'))
+                  } else if (pill.id === 'all') {
+                    setStatusFilter('all')
+                    setFeaturedFilter('all')
+                  } else {
+                    setStatusFilter(pill.id)
+                    setFeaturedFilter('all')
+                  }
+                }}
+                className={`rounded-xl px-3 py-1.5 font-cairo text-xs font-bold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-zinc-900 text-white font-black shadow-sm'
+                    : 'bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                {pill.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -713,16 +786,107 @@ export default function AdminProducts() {
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs">
-            <thead className="border-b border-zinc-200 bg-zinc-50/70 font-cairo font-extrabold text-zinc-500">
+            <thead className="border-b border-zinc-200 bg-zinc-50/80 font-cairo font-extrabold text-zinc-600 select-none">
               <tr>
-                <th className="p-4">المنتج والماركة</th>
-                <th className="p-4">الفئة</th>
-                <th className="p-4">رقم القطعة / SKU</th>
-                <th className="p-4">السعر</th>
-                <th className="p-4">المخزون الكلي</th>
-                <th className="p-4">المتغيرات</th>
-                <th className="p-4 text-center">الرئيسية</th>
-                <th className="p-4 text-center">الحالة</th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('name')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب اسم المنتج والماركة"
+                  >
+                    <span>المنتج والماركة</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('category')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب أو تصفية حسب الفئة"
+                  >
+                    <span>الفئة</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'category' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('partNumber')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب رقم القطعة PN"
+                  >
+                    <span>رقم القطعة / SKU</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'partNumber' || sortBy === 'sku' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('price')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب السعر"
+                  >
+                    <span>السعر</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'price' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('stock')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب كمية المخزون"
+                  >
+                    <span>المخزون الكلي</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'stock' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4">
+                  <button
+                    onClick={() => handleSort('variants')}
+                    className="group flex items-center gap-1.5 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب عدد المتغيرات"
+                  >
+                    <span>المتغيرات</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'variants' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
+                <th className="p-4 text-center">
+                  <button
+                    onClick={() => {
+                      setFeaturedFilter((prev) => (prev === 'true' ? 'all' : 'true'))
+                      setPage(1)
+                    }}
+                    className={`group mx-auto flex items-center justify-center gap-1 transition-colors font-extrabold cursor-pointer ${
+                      featuredFilter === 'true' ? 'text-amber-600 font-black' : 'hover:text-zinc-950'
+                    }`}
+                    title="تصفية / ترتيب المنتجات المعروضة في الرئيسية"
+                  >
+                    <Star className={`h-3.5 w-3.5 ${featuredFilter === 'true' ? 'fill-amber-500 text-amber-500' : ''}`} />
+                    <span>الرئيسية</span>
+                  </button>
+                </th>
+                <th className="p-4 text-center">
+                  <button
+                    onClick={() => handleSort('status')}
+                    className="group mx-auto flex items-center justify-center gap-1 hover:text-zinc-950 transition-colors font-extrabold cursor-pointer"
+                    title="ترتيب حسب حالة التفعيل"
+                  >
+                    <span>الحالة</span>
+                    <span className="text-zinc-400 group-hover:text-zinc-700">
+                      {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-brand-600 font-black" /> : <ArrowDown className="h-3.5 w-3.5 text-brand-600 font-black" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    </span>
+                  </button>
+                </th>
                 <th className="p-4 text-center">إجراءات</th>
               </tr>
             </thead>
@@ -831,27 +995,28 @@ export default function AdminProducts() {
 
                       {/* Actions */}
                       <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1.5 min-w-[140px]">
                           <button
                             onClick={() => openEditModal(p.id)}
-                            className="rounded-lg p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-                            title="تعديل"
+                            className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 font-cairo text-xs font-bold text-zinc-700 hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700 shadow-sm transition-all cursor-pointer"
+                            title="تعديل المنتج والمتغيرات"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3.5 w-3.5" />
+                            <span>تعديل</span>
                           </button>
                           <button
                             onClick={() => handleDuplicate(p.id)}
-                            className="rounded-lg p-1.5 text-zinc-600 hover:bg-blue-50 hover:text-blue-600"
-                            title="تكرار"
+                            className="grid h-8 w-8 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all cursor-pointer"
+                            title="تكرار المنتج كنسخة جديدة"
                           >
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(p.id)}
-                            className="rounded-lg p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600"
-                            title="حذف"
+                            className="grid h-8 w-8 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 shadow-sm transition-all cursor-pointer"
+                            title="حذف المنتج"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>

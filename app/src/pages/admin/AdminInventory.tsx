@@ -8,6 +8,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  UploadCloud,
   Warehouse,
   X,
   XCircle,
@@ -19,19 +20,28 @@ import {
 } from '@/lib/adminApi'
 import { formatPrice } from '@/data/products'
 import { resolveImageUrl } from '@/lib/api'
+import AdminLegacyImport from './AdminLegacyImport'
 
 export default function AdminInventory() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 30, pages: 1 })
+  const [summary, setSummary] = useState({
+    totalUnits: 0,
+    totalVariants: 0,
+    totalProducts: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
+    inStockCount: 0,
+  })
   const [loading, setLoading] = useState(true)
 
   // Filters
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all')
   const [page, setPage] = useState(1)
-  const [tab, setTab] = useState<'stock' | 'ledger'>('stock')
+  const [tab, setTab] = useState<'stock' | 'ledger' | 'import'>('stock')
 
   // Synchronize statusFilter with URL query params
   useEffect(() => {
@@ -70,6 +80,9 @@ export default function AdminInventory() {
       .then(([invRes, txRes]) => {
         setItems(invRes.items || [])
         setPagination(invRes.pagination || { total: 0, page: 1, limit: 30, pages: 1 })
+        if (invRes.summary) {
+          setSummary(invRes.summary)
+        }
         setTransactions(txRes || [])
       })
       .catch((err) => console.error('Error loading inventory:', err))
@@ -77,7 +90,6 @@ export default function AdminInventory() {
   }
 
   useEffect(() => {
-
     loadData()
   }, [statusFilter, page])
 
@@ -107,10 +119,11 @@ export default function AdminInventory() {
     }
   }
 
-  // Calculate high-level stock counts
-  const totalStockItems = items.reduce((s, i) => s + Number(i.stockQuantity || 0), 0)
-  const lowStockCount = items.filter((i) => i.stockQuantity > 0 && i.stockQuantity <= 5).length
-  const outOfStockCount = items.filter((i) => i.stockQuantity === 0).length
+  // Global warehouse stock counts
+  const totalStockItems = summary.totalUnits || items.reduce((s, i) => s + Number(i.stockQuantity || 0), 0)
+  const totalProductsCount = summary.totalProducts || pagination.total
+  const lowStockCount = summary.lowStockCount
+  const outOfStockCount = summary.outOfStockCount
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -147,6 +160,14 @@ export default function AdminInventory() {
             >
               <History className="h-3.5 w-3.5" /> سجل الحركات (Ledger)
             </button>
+            <button
+              onClick={() => setTab('import')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-cairo text-xs font-bold transition-all ${
+                tab === 'import' ? 'bg-brand-600 text-white' : 'text-zinc-600 hover:text-brand-600'
+              }`}
+            >
+              <UploadCloud className="h-3.5 w-3.5" /> استيراد الجرد والفواتير
+            </button>
           </div>
 
           <button
@@ -177,7 +198,7 @@ export default function AdminInventory() {
             </span>
           </div>
           <p className="mt-3 font-cairo text-2xl font-black text-zinc-900">
-            {totalStockItems.toLocaleString('en-US')} <span className="text-xs text-zinc-400">قطعة جاهزة للشحن</span>
+            {totalStockItems.toLocaleString('en-US')} <span className="text-xs text-zinc-400 font-bold">قطعة جاهزة للشحن ({totalProductsCount.toLocaleString('en-US')} صنف)</span>
           </p>
         </button>
 
@@ -197,7 +218,7 @@ export default function AdminInventory() {
             </span>
           </div>
           <p className="mt-3 font-cairo text-2xl font-black text-amber-950">
-            {lowStockCount} <span className="text-xs font-bold text-amber-700">أصناف تحتاج إعادة طلب</span>
+            {lowStockCount.toLocaleString('en-US')} <span className="text-xs font-bold text-amber-700">أصناف تحتاج إعادة طلب</span>
           </p>
         </button>
 
@@ -217,7 +238,7 @@ export default function AdminInventory() {
             </span>
           </div>
           <p className="mt-3 font-cairo text-2xl font-black text-red-950">
-            {outOfStockCount} <span className="text-xs font-bold text-red-700">غير متوفرة حالياً</span>
+            {outOfStockCount.toLocaleString('en-US')} <span className="text-xs font-bold text-red-700">غير متوفرة حالياً</span>
           </p>
         </button>
       </div>
@@ -356,9 +377,9 @@ export default function AdminInventory() {
                           <td className="p-4 text-center">
                             <button
                               onClick={() => openAdjust(it)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-cairo text-xs font-bold text-zinc-700 hover:border-brand-300 hover:text-brand-600 shadow-sm transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-1.5 font-cairo text-xs font-bold text-zinc-700 hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700 shadow-sm transition-all cursor-pointer"
                             >
-                              <Edit className="h-3.5 w-3.5" />
+                              <Edit className="h-4 w-4" />
                               <span>تعديل الجرد</span>
                             </button>
                           </td>
@@ -396,7 +417,7 @@ export default function AdminInventory() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : tab === 'ledger' ? (
         /* ─── TRANSACTIONS / LEDGER TAB ─── */
         <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
           <div className="bg-zinc-50/70 p-4 border-b border-zinc-100">
@@ -462,6 +483,9 @@ export default function AdminInventory() {
             </table>
           </div>
         </div>
+      ) : (
+        /* ─── LEGACY IMPORT TAB ─── */
+        <AdminLegacyImport />
       )}
 
       {/* ─── ADJUST STOCK MODAL ─── */}

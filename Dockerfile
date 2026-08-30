@@ -27,8 +27,11 @@ COPY app/package*.json ./
 RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/dist-server ./dist-server
 COPY --from=builder /app/server/db ./server/db
+COPY --from=builder /app/server/data ./server/data
+COPY --from=builder /app/Etat_Article_tout_enriched.csv ./Etat_Article_tout_enriched.csv
 
 RUN mkdir -p /app/server/data/uploads
 

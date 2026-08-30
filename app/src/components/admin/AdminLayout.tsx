@@ -6,6 +6,7 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
+  Database,
   ExternalLink,
   Layers,
   LayoutDashboard,
@@ -51,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/admin/orders', label: 'إدارة الطلبات', icon: Package, badge: 'جديد', roles: ['super_admin', 'admin', 'order_manager'] },
       { path: '/admin/inventory', label: 'المخزون والتنبيهات', icon: Warehouse, roles: ['super_admin', 'admin', 'inventory_manager'] },
+      { path: '/admin/inventory/import', label: 'ترحيل واستيراد الـ PDF', icon: Database, roles: ['super_admin', 'admin', 'inventory_manager'] },
     ],
   },
   {

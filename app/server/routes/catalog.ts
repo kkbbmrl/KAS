@@ -269,7 +269,8 @@ router.get('/products', async (req, res) => {
       }
     }
 
-    sql += ` ORDER BY p.featured_home DESC, p.created_at DESC LIMIT 120`
+    const reqLimit = Math.min(Number(req.query.limit) || 250, 500)
+    sql += ` ORDER BY p.featured_home DESC, p.id ASC LIMIT ${reqLimit}`
 
     const result = await query(sql, params)
 
@@ -413,6 +414,10 @@ router.get('/products/:id', async (req, res) => {
     const isLimited = !isOutOfStock && totalStock <= 5
     const overallStockArabic = isOutOfStock ? 'غير متوفر' : isLimited ? 'كمية محدودة' : 'متوفر'
 
+    const publicSpecs = specs.rows.filter((s: any) => 
+      !/achat|pri\.achat|d\.gros|gros\b|شراء|جملة|نصف\s*الجملة/i.test(s.label || '')
+    )
+
     res.json({
       ...prod,
       rating: Number(prod.rating ?? 0),
@@ -423,7 +428,7 @@ router.get('/products/:id', async (req, res) => {
       stock: overallStockArabic,
       compat: compat.rows.map((c: any) => `${c.make} ${c.model}`.trim()),
       aliases: aliases.rows.map((a: any) => a.term),
-      specs: specs.rows,
+      specs: publicSpecs,
       variants: variants.rows.map((v: any) => {
         const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
         const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
@@ -431,6 +436,11 @@ router.get('/products/:id', async (req, res) => {
           : vQty <= 5 || v.stock === 'limited_stock'
           ? 'كمية محدودة'
           : 'متوفر'
+
+        const parsedExtra = typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs || []
+        const publicExtraSpecs = Array.isArray(parsedExtra)
+          ? parsedExtra.filter((s: any) => !/achat|pri\.achat|d\.gros|gros\b|شراء|جملة|نصف\s*الجملة/i.test(s.label || ''))
+          : []
 
         return {
           id: v.id,
@@ -440,7 +450,7 @@ router.get('/products/:id', async (req, res) => {
           price: Number(v.price ?? 0),
           oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
           stock: vStockArabic,
-          extraSpecs: typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs,
+          extraSpecs: publicExtraSpecs,
         }
       }),
     })

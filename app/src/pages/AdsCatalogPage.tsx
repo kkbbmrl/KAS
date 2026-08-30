@@ -135,9 +135,12 @@ export default function AdsCatalogPage() {
                     {/* Image with Badges */}
                     <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl border bg-zinc-50 p-2">
                       <img
-                        src={campaign.image}
+                        src={campaign.image || '/img/parts/calandre-grille.jpg'}
                         alt={campaign.title}
                         loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+                        }}
                         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
                       />
                       {campaign.badge && (

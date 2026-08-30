@@ -59,6 +59,22 @@ router.get('/', async (req, res) => {
     const countRes = await query(countSql, params)
     const total = Number(countRes.rows[0]?.count || 0)
 
+    // Global summary across entire warehouse (independent of current page filter)
+    const summarySql = `
+      SELECT 
+        COALESCE(SUM(v.stock_quantity), 0) AS "totalUnits",
+        COUNT(DISTINCT v.id) AS "totalVariants",
+        COUNT(DISTINCT v.product_id) AS "totalProducts",
+        COUNT(CASE WHEN v.stock_quantity BETWEEN 1 AND 5 THEN 1 END) AS "lowStockCount",
+        COUNT(CASE WHEN v.stock_quantity = 0 OR v.stock_status = 'out_of_stock' THEN 1 END) AS "outOfStockCount",
+        COUNT(CASE WHEN v.stock_quantity > 5 THEN 1 END) AS "inStockCount"
+      FROM product_variants v
+      JOIN products p ON p.id = v.product_id
+      WHERE (v.is_active = 1 OR v.is_active = TRUE)
+    `
+    const summaryRes = await query(summarySql)
+    const summaryRow = summaryRes.rows[0] || {}
+
     sql += ` ORDER BY v.stock_quantity ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
     params.push(pageLimit, offset)
 
@@ -66,6 +82,14 @@ router.get('/', async (req, res) => {
 
     res.json({
       items: result.rows,
+      summary: {
+        totalUnits: Number(summaryRow.totalUnits || 0),
+        totalVariants: Number(summaryRow.totalVariants || 0),
+        totalProducts: Number(summaryRow.totalProducts || 0),
+        lowStockCount: Number(summaryRow.lowStockCount || 0),
+        outOfStockCount: Number(summaryRow.outOfStockCount || 0),
+        inStockCount: Number(summaryRow.inStockCount || 0),
+      },
       pagination: {
         total,
         page: pageNum,

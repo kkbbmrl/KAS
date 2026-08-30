@@ -14,7 +14,7 @@ router.get('/campaigns', async (_req, res) => {
         c.created_at AS "createdAt",
         (SELECT COUNT(*) FROM campaign_visits v WHERE v.campaign_id = c.id OR (c.utm_source IS NOT NULL AND v.utm_source = c.utm_source)) AS visits,
         (SELECT COUNT(*) FROM orders o WHERE (o.order_source = c.platform OR o.order_source = 'landing_offer')) AS orders,
-        (SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE (o.order_source = c.platform OR o.order_source = 'landing_offer')) AS revenue
+        (SELECT COALESCE(SUM(o.subtotal), 0) FROM orders o WHERE (o.order_source = c.platform OR o.order_source = 'landing_offer')) AS revenue
        FROM marketing_campaigns c
        ORDER BY c.created_at DESC`
     )

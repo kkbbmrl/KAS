@@ -99,7 +99,14 @@ export default function ProductGalleryInteractive({ images, productName, badge, 
                   : 'border-zinc-200 hover:border-zinc-400 opacity-75 hover:opacity-100'
               }`}
             >
-              <img src={img} alt={`صورة ${idx + 1}`} className="h-full w-full object-contain" />
+              <img
+                src={img}
+                alt={`صورة ${idx + 1}`}
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLImageElement).src = PLACEHOLDER_IMAGE
+                }}
+                className="h-full w-full object-contain"
+              />
               {activeIdx === idx && (
                 <div className="absolute top-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-brand-600 text-white shadow">
                   <Check className="h-2.5 w-2.5" />

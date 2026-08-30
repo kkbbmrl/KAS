@@ -143,8 +143,11 @@ export default function ProductModal() {
               className="relative cursor-zoom-in overflow-hidden rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 via-white to-red-50/40"
             >
               <img
-                src={effectiveImage}
+                src={effectiveImage || '/img/parts/calandre-grille.jpg'}
                 alt={p.name}
+                onError={(e) => {
+                  e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+                }}
                 className="h-56 w-full object-contain p-6 transition-transform duration-300 sm:h-96 sm:p-8"
                 style={{
                   transformOrigin: origin,
@@ -167,8 +170,11 @@ export default function ProductModal() {
                     }`}
                 >
                   <img
-                    src={effectiveImage}
+                    src={effectiveImage || '/img/parts/calandre-grille.jpg'}
                     alt={`${p.name} — ${v}`}
+                    onError={(e) => {
+                      e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+                    }}
                     className={`h-16 w-full object-contain ${i === 1 ? '-scale-x-100' : ''} ${i === 2 ? 'scale-150' : ''}`}
                   />
                   <span className="mt-1 block font-cairo text-[10px] font-bold text-zinc-600">{v}</span>
@@ -421,8 +427,11 @@ export default function ProductModal() {
                   className="group rounded-2xl border border-zinc-200 bg-white p-3 text-right transition-all hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg"
                 >
                   <img
-                    src={s.image}
+                    src={s.image || '/img/parts/calandre-grille.jpg'}
                     alt={s.name}
+                    onError={(e) => {
+                      e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+                    }}
                     className={`h-20 w-full object-contain transition-transform duration-500 group-hover:scale-110 ${s.flip ? '-scale-x-100' : ''}`}
                   />
                   <p className="mt-2 line-clamp-1 font-cairo text-xs font-bold text-zinc-800">{s.name}</p>

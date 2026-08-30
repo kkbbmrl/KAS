@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
         (c.is_blacklisted = 1 OR c.is_blacklisted = TRUE) AS "isBlacklisted",
         c.internal_notes AS "internalNotes",
         c.created_at AS "createdAt",
-        (SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE o.customer_id = c.id OR o.customer_phone = c.phone) AS "totalSpent",
+        (SELECT COALESCE(SUM(o.subtotal), 0) FROM orders o WHERE o.customer_id = c.id OR o.customer_phone = c.phone) AS "totalSpent",
         (SELECT MAX(o.created_at) FROM orders o WHERE o.customer_id = c.id OR o.customer_phone = c.phone) AS "lastOrderAt"
       FROM customers c
       LEFT JOIN algeria_wilayas w ON w.code = c.wilaya_code

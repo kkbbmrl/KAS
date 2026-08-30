@@ -107,7 +107,7 @@ export default function AdminOverview() {
         {/* Total Revenue */}
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="font-cairo text-xs font-extrabold text-zinc-500">إجمالي المبيعات</span>
+            <span className="font-cairo text-xs font-extrabold text-zinc-500">إجمالي المبيعات (صافي القطع)</span>
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-600">
               <TrendingUp className="h-5 w-5" />
             </span>
@@ -119,7 +119,7 @@ export default function AdminOverview() {
             <span className="flex items-center gap-1 font-black text-emerald-600">
               <ArrowUpRight className="h-4 w-4" /> {kpis?.revenueTrend ?? '0%'}
             </span>
-            <span className="text-zinc-400 font-bold">مقارنة بالفترة السابقة</span>
+            <span className="text-zinc-400 font-bold">بدون رسوم التوصيل</span>
           </div>
         </div>
 

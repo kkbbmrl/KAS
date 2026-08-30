@@ -377,8 +377,11 @@ export default function CartDrawer() {
                         className="fade-in flex gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-3.5"
                       >
                         <img
-                          src={i.variant?.image ?? i.product.image}
+                          src={i.variant?.image ?? i.product.image ?? '/img/parts/calandre-grille.jpg'}
                           alt={i.product.name}
+                          onError={(e) => {
+                            e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+                          }}
                           className={`h-16 w-16 shrink-0 rounded-xl bg-zinc-50 object-cover p-1.5 sm:h-20 sm:w-20 ${i.product.flip ? '-scale-x-100' : ''}`}
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-between">

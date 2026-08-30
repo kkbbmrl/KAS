@@ -19,6 +19,7 @@ import adminCategoriesRouter from './routes/admin/categories.js'
 import adminInventoryRouter from './routes/admin/inventory.js'
 import adminCustomersRouter from './routes/admin/customers.js'
 import adminMarketingRouter from './routes/admin/marketing.js'
+import adminLegacyImportRouter from './routes/admin/legacyImport.js'
 import adminMiscRouter from './routes/admin/misc.js'
 import { initDatabase } from './db/init.js'
 import { seedDatabase } from './db/seed.js'
@@ -117,6 +118,24 @@ app.use(
   express.static(uploadsDir)
 )
 
+// Static /img folder for product parts, assets, and branding
+const publicImgDir = path.resolve(process.cwd(), 'public', 'img')
+if (fs.existsSync(publicImgDir)) {
+  app.use(
+    '/img',
+    (req, res, next) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      next()
+    },
+    express.static(publicImgDir)
+  )
+}
+const distImgDir = path.resolve(process.cwd(), 'dist', 'img')
+if (fs.existsSync(distImgDir)) {
+  app.use('/img', express.static(distImgDir))
+}
+
 // Request logger
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, _res, next) => {
@@ -158,6 +177,7 @@ app.use('/api/v1/admin/products', requireAdmin, requireRoles(['admin', 'super_ad
 app.use('/api/v1/admin/brands', requireAdmin, requireRoles(['admin', 'super_admin']), adminBrandsRouter)
 app.use('/api/v1/admin/categories', requireAdmin, requireRoles(['admin', 'super_admin']), adminCategoriesRouter)
 app.use('/api/v1/admin/inventory', requireAdmin, requireRoles(['admin', 'super_admin', 'inventory_manager']), adminInventoryRouter)
+app.use('/api/v1/admin/import', requireAdmin, requireRoles(['admin', 'super_admin', 'inventory_manager']), express.json({ limit: '60mb' }), adminLegacyImportRouter)
 app.use('/api/v1/admin/customers', requireAdmin, requireRoles(['admin', 'super_admin']), adminCustomersRouter)
 app.use('/api/v1/admin/marketing', requireAdmin, requireRoles(['admin', 'super_admin', 'marketing_manager']), adminMarketingRouter)
 // Admin misc route gets dedicated 10mb body parser for safe image base64 uploads

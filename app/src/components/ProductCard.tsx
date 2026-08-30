@@ -37,9 +37,12 @@ export default function ProductCard({
 
         <button onClick={() => setSelected(product)} className="block w-full cursor-pointer text-center" aria-label={`عرض ${product.name}`}>
           <img
-            src={product.image}
+            src={product.image || '/img/parts/calandre-grille.jpg'}
             alt={product.name}
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src = '/img/parts/calandre-grille.jpg'
+            }}
             className={`img-in mx-auto h-48 w-full object-contain drop-shadow-xl transition-transform duration-700 ease-out group-hover:scale-110 ${product.flip ? '-scale-x-100' : ''}`}
           />
         </button>

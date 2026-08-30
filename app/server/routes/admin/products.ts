@@ -149,17 +149,9 @@ async function linkVehicleCompatibility(productId: string, compatItems: (string 
 // GET /api/v1/admin/products
 router.get('/', async (req, res) => {
   try {
-    const {
-      q,
-      category,
-      brand,
-      status,
-      page = '1',
-      limit = '25',
-    } = req.query as Record<string, string>
-
-    const pageNum = Math.max(1, parseInt(page, 10))
-    const pageLimit = Math.max(1, Math.min(100, parseInt(limit, 10)))
+    const { q, category, brand, status, featured, sortBy, sortOrder, page = '1', limit = '25' } = req.query as Record<string, string>
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const pageLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 25))
     const offset = (pageNum - 1) * pageLimit
 
     let sql = `
@@ -201,6 +193,12 @@ router.get('/', async (req, res) => {
       sql += ` AND (b.name = $${params.length} OR b.id = $${params.length} OR b.slug = $${params.length})`
     }
 
+    if (featured === 'true' || featured === '1') {
+      sql += ` AND (p.featured_home = 1 OR p.featured_home = TRUE)`
+    } else if (featured === 'false' || featured === '0') {
+      sql += ` AND (p.featured_home = 0 OR p.featured_home = FALSE OR p.featured_home IS NULL)`
+    }
+
     if (status === 'active') {
       sql += ` AND (p.is_active = 1 OR p.is_active = TRUE)`
     } else if (status === 'archived') {
@@ -209,6 +207,8 @@ router.get('/', async (req, res) => {
       sql += ` AND (SELECT COALESCE(SUM(pv.stock_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.id) = 0`
     } else if (status === 'low_stock') {
       sql += ` AND (SELECT COALESCE(SUM(pv.stock_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.id) BETWEEN 1 AND 5`
+    } else if (status === 'in_stock') {
+      sql += ` AND (SELECT COALESCE(SUM(pv.stock_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.id) > 5`
     }
 
     if (q && q.trim()) {
@@ -228,7 +228,29 @@ router.get('/', async (req, res) => {
     const countRes = await query(countSql, params)
     const totalCount = Number(countRes.rows[0]?.count || 0)
 
-    sql += ` ORDER BY p.featured_home DESC, p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    // Dynamic sorting
+    const orderDirection = String(sortOrder).toLowerCase() === 'asc' ? 'ASC' : 'DESC'
+    let orderClause = 'p.featured_home DESC, p.created_at DESC, p.id ASC'
+
+    if (sortBy === 'name') {
+      orderClause = `p.name_ar ${orderDirection}`
+    } else if (sortBy === 'category') {
+      orderClause = `c.name_ar ${orderDirection}`
+    } else if (sortBy === 'partNumber' || sortBy === 'sku') {
+      orderClause = `p.base_part_number ${orderDirection}`
+    } else if (sortBy === 'price') {
+      orderClause = `(SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.id) ${orderDirection}`
+    } else if (sortBy === 'stock') {
+      orderClause = `(SELECT COALESCE(SUM(pv.stock_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.id) ${orderDirection}`
+    } else if (sortBy === 'variants') {
+      orderClause = `(SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id) ${orderDirection}`
+    } else if (sortBy === 'featured') {
+      orderClause = `p.featured_home ${orderDirection}`
+    } else if (sortBy === 'status') {
+      orderClause = `p.is_active ${orderDirection}`
+    }
+
+    sql += ` ORDER BY ${orderClause} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
     params.push(pageLimit, offset)
 
     const result = await query(sql, params)

@@ -372,6 +372,77 @@ export async function initDatabase() {
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS import_batches (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        file_hash TEXT NOT NULL,
+        import_type TEXT NOT NULL DEFAULT 'opening_stock',
+        status TEXT NOT NULL DEFAULT 'UPLOADED',
+        total_rows INTEGER NOT NULL DEFAULT 0,
+        matched_rows INTEGER NOT NULL DEFAULT 0,
+        unmatched_rows INTEGER NOT NULL DEFAULT 0,
+        skipped_rows INTEGER NOT NULL DEFAULT 0,
+        imported_rows INTEGER NOT NULL DEFAULT 0,
+        warnings_count INTEGER NOT NULL DEFAULT 0,
+        errors_count INTEGER NOT NULL DEFAULT 0,
+        total_quantity REAL NOT NULL DEFAULT 0,
+        total_purchase_value REAL NOT NULL DEFAULT 0,
+        summary_json TEXT,
+        reconciliation_json TEXT,
+        created_by TEXT NOT NULL DEFAULT 'SYSTEM',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        completed_at TEXT,
+        rolled_back_at TEXT,
+        rolled_back_by TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS import_batch_rows (
+        id TEXT PRIMARY KEY,
+        batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+        row_index INTEGER NOT NULL,
+        page_number INTEGER NOT NULL DEFAULT 1,
+        source_raw_text TEXT NOT NULL,
+        source_reference TEXT,
+        source_product_name TEXT,
+        source_brand TEXT,
+        source_supplier TEXT,
+        source_invoice_number TEXT,
+        source_invoice_date TEXT,
+        source_quantity REAL NOT NULL DEFAULT 1,
+        source_unit_cost REAL,
+        source_selling_price REAL,
+        source_total_cost REAL,
+        normalized_reference TEXT,
+        normalized_product_name TEXT,
+        normalized_brand TEXT,
+        matched_product_id TEXT REFERENCES products(id),
+        matched_variant_id TEXT REFERENCES product_variants(id),
+        match_status TEXT NOT NULL DEFAULT 'UNMATCHED',
+        match_method TEXT NOT NULL DEFAULT 'NONE',
+        match_confidence REAL NOT NULL DEFAULT 0,
+        match_notes TEXT,
+        import_status TEXT NOT NULL DEFAULT 'PENDING',
+        error_message TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS purchase_history (
+        id TEXT PRIMARY KEY,
+        invoice_number TEXT,
+        invoice_date TEXT,
+        supplier_name TEXT,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        variant_id TEXT NOT NULL REFERENCES product_variants(id),
+        quantity INTEGER NOT NULL,
+        unit_cost REAL NOT NULL,
+        total_cost REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'DZD',
+        source_import_id TEXT REFERENCES import_batches(id),
+        source_row_id TEXT REFERENCES import_batch_rows(id),
+        created_by TEXT NOT NULL DEFAULT 'SYSTEM',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
       -- Indexes for fast lookups
       CREATE INDEX IF NOT EXISTS idx_orders_ref ON orders(order_reference);
       CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone);
@@ -383,6 +454,13 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_variants_pnum ON product_variants(part_number);
       CREATE INDEX IF NOT EXISTS idx_timeline_order ON order_timeline(order_id);
       CREATE INDEX IF NOT EXISTS idx_notif_unread ON notifications(is_read);
+      CREATE INDEX IF NOT EXISTS idx_import_batches_hash ON import_batches(file_hash);
+      CREATE INDEX IF NOT EXISTS idx_import_batches_status ON import_batches(status);
+      CREATE INDEX IF NOT EXISTS idx_import_batch_rows_batch ON import_batch_rows(batch_id);
+      CREATE INDEX IF NOT EXISTS idx_import_batch_rows_match ON import_batch_rows(match_status);
+      CREATE INDEX IF NOT EXISTS idx_purchase_history_prod ON purchase_history(product_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_history_var ON purchase_history(variant_id);
+      CREATE INDEX IF NOT EXISTS idx_purchase_history_import ON purchase_history(source_import_id);
     `)
     console.log('✅ SQLite schema initialized.')
   } catch (err: any) {
@@ -539,4 +617,102 @@ async function migrateAuditLogsSchema() {
   } catch (err: any) {
     console.warn('Notice in migrateAuditLogsSchema:', err.message)
   }
+
+  await migrateLegacyImportSchema()
 }
+
+async function migrateLegacyImportSchema() {
+  try {
+    // 1. inventory_transactions: add source_import_id and source_row_id
+    if (sqliteDb) {
+      const txCols = (await query(`PRAGMA table_info(inventory_transactions)`)).rows.map((c: any) => c.name.toLowerCase())
+      if (!txCols.includes('source_import_id')) {
+        try { await query(`ALTER TABLE inventory_transactions ADD COLUMN source_import_id TEXT`) } catch {}
+      }
+      if (!txCols.includes('source_row_id')) {
+        try { await query(`ALTER TABLE inventory_transactions ADD COLUMN source_row_id TEXT`) } catch {}
+      }
+    } else if (isPostgres) {
+      try { await query(`ALTER TABLE inventory_transactions ADD COLUMN IF NOT EXISTS source_import_id UUID`) } catch {}
+      try { await query(`ALTER TABLE inventory_transactions ADD COLUMN IF NOT EXISTS source_row_id UUID`) } catch {}
+    }
+
+    // 2. Ensure tables exist in PostgreSQL or SQLite if not initialized by schema.sql
+    if (sqliteDb) {
+      sqliteDb.exec(`
+        CREATE TABLE IF NOT EXISTS import_batches (
+          id TEXT PRIMARY KEY,
+          filename TEXT NOT NULL,
+          file_hash TEXT NOT NULL,
+          import_type TEXT NOT NULL DEFAULT 'opening_stock',
+          status TEXT NOT NULL DEFAULT 'UPLOADED',
+          total_rows INTEGER NOT NULL DEFAULT 0,
+          matched_rows INTEGER NOT NULL DEFAULT 0,
+          unmatched_rows INTEGER NOT NULL DEFAULT 0,
+          skipped_rows INTEGER NOT NULL DEFAULT 0,
+          imported_rows INTEGER NOT NULL DEFAULT 0,
+          warnings_count INTEGER NOT NULL DEFAULT 0,
+          errors_count INTEGER NOT NULL DEFAULT 0,
+          total_quantity REAL NOT NULL DEFAULT 0,
+          total_purchase_value REAL NOT NULL DEFAULT 0,
+          summary_json TEXT,
+          reconciliation_json TEXT,
+          created_by TEXT NOT NULL DEFAULT 'SYSTEM',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          completed_at TEXT,
+          rolled_back_at TEXT,
+          rolled_back_by TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS import_batch_rows (
+          id TEXT PRIMARY KEY,
+          batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+          row_index INTEGER NOT NULL,
+          page_number INTEGER NOT NULL DEFAULT 1,
+          source_raw_text TEXT NOT NULL,
+          source_reference TEXT,
+          source_product_name TEXT,
+          source_brand TEXT,
+          source_supplier TEXT,
+          source_invoice_number TEXT,
+          source_invoice_date TEXT,
+          source_quantity REAL NOT NULL DEFAULT 1,
+          source_unit_cost REAL,
+          source_selling_price REAL,
+          source_total_cost REAL,
+          normalized_reference TEXT,
+          normalized_product_name TEXT,
+          normalized_brand TEXT,
+          matched_product_id TEXT REFERENCES products(id),
+          matched_variant_id TEXT REFERENCES product_variants(id),
+          match_status TEXT NOT NULL DEFAULT 'UNMATCHED',
+          match_method TEXT NOT NULL DEFAULT 'NONE',
+          match_confidence REAL NOT NULL DEFAULT 0,
+          match_notes TEXT,
+          import_status TEXT NOT NULL DEFAULT 'PENDING',
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS purchase_history (
+          id TEXT PRIMARY KEY,
+          invoice_number TEXT,
+          invoice_date TEXT,
+          supplier_name TEXT,
+          product_id TEXT NOT NULL REFERENCES products(id),
+          variant_id TEXT NOT NULL REFERENCES product_variants(id),
+          quantity INTEGER NOT NULL,
+          unit_cost REAL NOT NULL,
+          total_cost REAL NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'DZD',
+          source_import_id TEXT REFERENCES import_batches(id),
+          source_row_id TEXT REFERENCES import_batch_rows(id),
+          created_by TEXT NOT NULL DEFAULT 'SYSTEM',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `)
+    }
+  } catch (err: any) {
+    console.warn('Notice in migrateLegacyImportSchema:', err.message)
+  }
+}

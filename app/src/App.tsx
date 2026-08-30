@@ -20,6 +20,7 @@ import AdminOrders from './pages/admin/AdminOrders'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminCategories from './pages/admin/AdminCategories'
 import AdminInventory from './pages/admin/AdminInventory'
+import AdminLegacyImport from './pages/admin/AdminLegacyImport'
 import AdminCustomers from './pages/admin/AdminCustomers'
 import AdminMarketing from './pages/admin/AdminMarketing'
 import AdminActivityLogs from './pages/admin/AdminActivityLogs'
@@ -75,6 +76,7 @@ export default function App() {
               <Route path="products" element={<AdminProducts />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="inventory" element={<AdminInventory />} />
+              <Route path="inventory/import" element={<AdminLegacyImport />} />
               <Route path="customers" element={<AdminCustomers />} />
               <Route path="marketing" element={<AdminMarketing />} />
               <Route path="landing-pages" element={<AdminMarketing />} />

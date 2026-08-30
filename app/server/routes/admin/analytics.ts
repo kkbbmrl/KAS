@@ -66,10 +66,14 @@ router.get('/overview', async (req, res) => {
     const { sql: period, prevSql } = rangeClause(range)
 
     const totals = await query(
-      `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue FROM orders WHERE ${period}`
+      `SELECT COUNT(*) AS count, COALESCE(SUM(subtotal), 0) AS revenue 
+       FROM orders 
+       WHERE (${period}) AND status NOT IN ('cancelled', 'refused_returned')`
     )
     const prev = await query(
-      `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue FROM orders WHERE ${prevSql}`
+      `SELECT COUNT(*) AS count, COALESCE(SUM(subtotal), 0) AS revenue 
+       FROM orders 
+       WHERE (${prevSql}) AND status NOT IN ('cancelled', 'refused_returned')`
     )
     const totalOrders = Number(totals.rows[0]?.count || 0)
     const totalRevenue = Number(totals.rows[0]?.revenue || 0)
@@ -77,9 +81,10 @@ router.get('/overview', async (req, res) => {
     const prevRevenue = Number(prev.rows[0]?.revenue || 0)
 
     const todayRes = await query(
-      `SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue
+      `SELECT COUNT(*) AS count, COALESCE(SUM(subtotal), 0) AS revenue
        FROM orders
-       WHERE DATE(created_at) = DATE('now') OR DATE(created_at) = CURRENT_DATE`
+       WHERE (DATE(created_at) = DATE('now') OR DATE(created_at) = CURRENT_DATE)
+         AND status NOT IN ('cancelled', 'refused_returned')`
     )
     const todayOrders = Number(todayRes.rows[0]?.count || 0)
     const todayRevenue = Number(todayRes.rows[0]?.revenue || 0)
@@ -105,11 +110,13 @@ router.get('/overview', async (req, res) => {
 
     const stockRes = await query(
       `SELECT
+        COALESCE(SUM(stock_quantity), 0) AS total_units,
         SUM(CASE WHEN stock_quantity > 5 THEN 1 ELSE 0 END) AS in_stock,
         SUM(CASE WHEN stock_quantity > 0 AND stock_quantity <= 5 THEN 1 ELSE 0 END) AS low_stock,
         SUM(CASE WHEN stock_quantity = 0 OR stock_status = 'out_of_stock' THEN 1 ELSE 0 END) AS out_of_stock
        FROM product_variants WHERE is_active = 1 OR is_active = TRUE`
     )
+    const totalStockUnits = Number(stockRes.rows[0]?.total_units || 0)
     const inStockCount = Number(stockRes.rows[0]?.in_stock || 0)
     const lowStockCount = Number(stockRes.rows[0]?.low_stock || 0)
     const outOfStockCount = Number(stockRes.rows[0]?.out_of_stock || 0)
@@ -118,7 +125,10 @@ router.get('/overview', async (req, res) => {
     const totalCustomers = Number(custRes.rows[0]?.count || 0)
 
     const adOrdersRes = await query(
-      `SELECT COUNT(*) AS count FROM orders WHERE (${period}) AND (order_source = 'landing_offer' OR offer_id IS NOT NULL)`
+      `SELECT COUNT(*) AS count 
+       FROM orders 
+       WHERE (${period}) AND (order_source = 'landing_offer' OR offer_id IS NOT NULL)
+         AND status NOT IN ('cancelled', 'refused_returned')`
     )
     const adOrdersCount = Number(adOrdersRes.rows[0]?.count || 0)
 
@@ -140,6 +150,7 @@ router.get('/overview', async (req, res) => {
         deliveredOrders,
         cancelledOrders,
         totalProducts,
+        totalStockUnits,
         inStockCount,
         lowStockCount,
         outOfStockCount,
@@ -167,10 +178,10 @@ router.get('/charts', async (_req, res) => {
 
     const salesRes = await query(
       `SELECT ${dayExpr} AS date,
-              COALESCE(SUM(total_amount), 0) AS revenue,
+              COALESCE(SUM(subtotal), 0) AS revenue,
               COUNT(*) AS orders
        FROM orders
-       WHERE ${lastDaysFilter}
+       WHERE (${lastDaysFilter}) AND status NOT IN ('cancelled', 'refused_returned')
        GROUP BY ${dayExpr}
        ORDER BY date ASC`
     )
@@ -210,8 +221,8 @@ router.get('/charts', async (_req, res) => {
 
     const topProductsRes = await query(
       `SELECT p.id, p.name_ar AS name, p.base_part_number AS "partNumber", c.name_ar AS category,
-              (SELECT COUNT(*) FROM order_items oi WHERE oi.product_id = p.id) AS sales_count,
-              (SELECT COALESCE(SUM(oi.line_total), 0) FROM order_items oi WHERE oi.product_id = p.id) AS total_revenue
+              (SELECT COUNT(*) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = p.id AND o.status NOT IN ('cancelled', 'refused_returned')) AS sales_count,
+              (SELECT COALESCE(SUM(oi.line_total), 0) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = p.id AND o.status NOT IN ('cancelled', 'refused_returned')) AS total_revenue
        FROM products p
        JOIN categories c ON c.id = p.category_id
        ORDER BY sales_count DESC, p.created_at DESC
@@ -220,17 +231,19 @@ router.get('/charts', async (_req, res) => {
 
     const topWilayasRes = await query(
       `SELECT w.name_ar AS wilaya, o.wilaya_code AS code,
-              COUNT(*) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue
+              COUNT(*) AS orders, COALESCE(SUM(o.subtotal), 0) AS revenue
        FROM orders o
        JOIN algeria_wilayas w ON w.code = o.wilaya_code
+       WHERE o.status NOT IN ('cancelled', 'refused_returned')
        GROUP BY o.wilaya_code, w.name_ar
        ORDER BY orders DESC
        LIMIT 6`
     )
 
     const trafficRes = await query(
-      `SELECT order_source AS source, COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS revenue
+      `SELECT order_source AS source, COUNT(*) AS orders, COALESCE(SUM(subtotal), 0) AS revenue
        FROM orders
+       WHERE status NOT IN ('cancelled', 'refused_returned')
        GROUP BY order_source
        ORDER BY orders DESC`
     )

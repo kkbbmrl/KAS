@@ -491,8 +491,13 @@ export default function AdminOrders() {
                         </span>
                       </td>
 
-                      <td className="p-4 font-cairo font-black text-brand-600">
-                        {formatPrice(o.totalAmount)}
+                      <td className="p-4 font-cairo">
+                        <p className="font-black text-brand-600">
+                          {formatPrice(o.totalAmount)}
+                        </p>
+                        <span className="text-[10px] text-zinc-400 font-bold block">
+                          القطع: {formatPrice(o.subtotal || o.totalAmount)}
+                        </span>
                       </td>
 
                       <td className="p-4">
@@ -514,10 +519,10 @@ export default function AdminOrders() {
                       <td className="p-4 text-center">
                         <button
                           onClick={() => openOrderDrawer(o.id)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 font-cairo text-xs font-bold text-zinc-700 hover:border-brand-300 hover:text-brand-600 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-1.5 font-cairo text-xs font-bold text-zinc-700 hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700 shadow-sm transition-all cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>تفاصيل</span>
+                          <Eye className="h-4 w-4" />
+                          <span>عرض الطلب</span>
                         </button>
                       </td>
                     </tr>

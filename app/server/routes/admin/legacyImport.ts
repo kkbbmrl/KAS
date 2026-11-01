@@ -20,15 +20,22 @@ import {
 
 const router = Router()
 
-// Memory store for in-progress PDF file buffers during upload/analyze session
-const pdfBufferCache = new Map<string, Buffer>()
+// Memory store for in-progress PDF file buffers during upload/analyze session (bounded to max 2 items, 5-min TTL)
+interface CachedPdfBuffer {
+  buffer: Buffer
+  expiresAt: number
+}
+const pdfBufferCache = new Map<string, CachedPdfBuffer>()
 
-// Cache cleanup timer (remove buffers older than 2 hours)
+// Periodic TTL cleanup timer (unref'd to avoid holding event loop)
 setInterval(() => {
-  if (pdfBufferCache.size > 20) {
-    pdfBufferCache.clear()
+  const now = Date.now()
+  for (const [key, entry] of pdfBufferCache.entries()) {
+    if (now > entry.expiresAt) {
+      pdfBufferCache.delete(key)
+    }
   }
-}, 2 * 60 * 60 * 1000)
+}, 60 * 1000).unref()
 
 /**
  * POST /api/v1/admin/import/upload
@@ -88,8 +95,12 @@ router.post('/upload', async (req, res) => {
       [batchId, finalFilename, fileHash, validImportType, adminName]
     )
 
-    // Cache buffer in memory for analysis step
-    pdfBufferCache.set(batchId, buffer)
+    // Cache buffer in memory for analysis step (strictly bounded, 5 min TTL)
+    if (pdfBufferCache.size >= 2) {
+      const oldestKey = pdfBufferCache.keys().next().value
+      if (oldestKey) pdfBufferCache.delete(oldestKey)
+    }
+    pdfBufferCache.set(batchId, { buffer, expiresAt: Date.now() + 5 * 60 * 1000 })
 
     res.status(201).json({
       success: true,
@@ -124,7 +135,8 @@ router.post('/:batchId/analyze', async (req, res) => {
     }
 
     const batch = batchRes.rows[0]
-    let buffer = pdfBufferCache.get(batchId)
+    const cached = pdfBufferCache.get(batchId)
+    let buffer: Buffer | null = cached ? cached.buffer : null
 
     if (!buffer) {
       // Check if sample file can be re-read
@@ -134,7 +146,6 @@ router.post('/:batchId/analyze', async (req, res) => {
         const targetPath = fs.existsSync(samplePath) ? samplePath : fs.existsSync(altSamplePath) ? altSamplePath : null
         if (targetPath) {
           buffer = fs.readFileSync(targetPath)
-          pdfBufferCache.set(batchId, buffer)
         }
       }
     }
@@ -267,6 +278,9 @@ router.post('/:batchId/analyze', async (req, res) => {
     console.error('[IMPORT ERROR] Analysis failed:', err)
     await query(`UPDATE import_batches SET status = 'FAILED' WHERE id = $1`, [req.params.batchId]).catch(() => {})
     res.status(500).json({ error: `فشل تحليل واستخراج البيانات من الملف: ${err.message}` })
+  } finally {
+    // Free large PDF buffer from RAM immediately after analysis
+    pdfBufferCache.delete(req.params.batchId)
   }
 })
 

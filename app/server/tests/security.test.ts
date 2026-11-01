@@ -123,7 +123,7 @@ async function runAllSecurityTests() {
       const varRes = await query(
         `SELECT v.id AS "variantId", v.price, v.product_id AS "productId"
          FROM product_variants v
-         WHERE v.price > 100
+         WHERE v.price > 100 AND v.stock_quantity > 5
          LIMIT 1`
       )
       if (varRes.rows.length === 0) throw new Error('No product variants available in database for test')
@@ -171,12 +171,20 @@ async function runAllSecurityTests() {
       if (returnedSubtotal !== expectedSubtotal) {
         throw new Error(`Expected server to compute subtotal ${expectedSubtotal} DZD, but got ${returnedSubtotal} DZD.`)
       }
+
+      if (res.body?.orderId) {
+        await query(`DELETE FROM order_timeline WHERE order_id = $1`, [res.body.orderId])
+        await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [res.body.orderId])
+        await query(`DELETE FROM order_items WHERE order_id = $1`, [res.body.orderId])
+        await query(`DELETE FROM orders WHERE id = $1`, [res.body.orderId])
+        await query(`UPDATE product_variants SET stock_quantity = stock_quantity + 2 WHERE id = $1`, [variant.variantId])
+      }
     })
 
     // 3. IDOR & PII PRIVACY TEST IN ORDER TRACKING
     await runTest('3. Privacy & IDOR: Customer PII Masking in Public Order Tracking', async () => {
       // Find a valid variant
-      const varRes = await query(`SELECT id AS "variantId", product_id AS "productId" FROM product_variants LIMIT 1`)
+      const varRes = await query(`SELECT id AS "variantId", product_id AS "productId" FROM product_variants WHERE stock_quantity > 5 LIMIT 1`)
       if (varRes.rows.length === 0) throw new Error('No variants available for tracking test')
       const testVar = varRes.rows[0]
 
@@ -224,6 +232,14 @@ async function runAllSecurityTests() {
       }
       if (trackData.address) {
         throw new Error(`Customer street address leaked in public tracking response: ${trackData.address}`)
+      }
+
+      if (createRes.body?.orderId) {
+        await query(`DELETE FROM order_timeline WHERE order_id = $1`, [createRes.body.orderId])
+        await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [createRes.body.orderId])
+        await query(`DELETE FROM order_items WHERE order_id = $1`, [createRes.body.orderId])
+        await query(`DELETE FROM orders WHERE id = $1`, [createRes.body.orderId])
+        await query(`UPDATE product_variants SET stock_quantity = stock_quantity + 1 WHERE id = $1`, [testVar.variantId])
       }
     })
 
@@ -621,7 +637,7 @@ async function runAllSecurityTests() {
 
     // 14. CLIENT PRICE & STOCK TAMPERING ISOLATION
     await runTest('14. Financial Integrity: Client-Supplied Fake Prices & Stock Counts are Ignored', async () => {
-      const vRes = await query(`SELECT id, product_id, price FROM product_variants WHERE price > 1000 LIMIT 1`)
+      const vRes = await query(`SELECT id, product_id, price FROM product_variants WHERE price > 1000 AND stock_quantity > 5 LIMIT 1`)
       const v = vRes.rows[0]
       const realPrice = Number(v.price)
 
@@ -658,6 +674,7 @@ async function runAllSecurityTests() {
         await query(`DELETE FROM inventory_transactions WHERE order_id = $1`, [tamperRes.body.orderId])
         await query(`DELETE FROM order_items WHERE order_id = $1`, [tamperRes.body.orderId])
         await query(`DELETE FROM orders WHERE id = $1`, [tamperRes.body.orderId])
+        await query(`UPDATE product_variants SET stock_quantity = stock_quantity + 1 WHERE id = $1`, [v.id])
       }
     })
 

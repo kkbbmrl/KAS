@@ -12,6 +12,8 @@
 *.sqlite-shm
 *.db
 app/server/data/*.sqlite*
+app/server/data/uploads/*
+!app/server/data/uploads/.gitkeep
 
 # Logs & Dumps
 logs
@@ -21,11 +23,29 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Large SQL Database Dumps (eliminates 80.9% PLpgSQL bloat in git)
+*.sql.dump
+*.dump
+*pg_dump.sql
+app/server/data/kas_autoparts_pg_dump.sql
+
+# Binary installers and archives
+*.exe
+*.zip
+*.PDF
+*.pdf
+Etat_Article_tout (1).PDF
+app/ChromeSetup.exe
+app/data_analyst_associate.zip
+app/DAA0011875927483.pdf
+
 # Dependencies & Build artifacts
 node_modules
 app/node_modules
 dist
 app/dist
+dist-server
+app/dist-server
 dist-ssr
 *.local
 

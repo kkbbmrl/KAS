@@ -31,10 +31,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/dist-server ./dist-server
 COPY --from=builder /app/server/db ./server/db
 COPY --from=builder /app/server/data ./server/data
+RUN rm -f ./server/data/*.sql ./server/data/*.dump
 COPY --from=builder /app/Etat_Article_tout_enriched.csv ./Etat_Article_tout_enriched.csv
 
 RUN mkdir -p /app/server/data/uploads
 
 EXPOSE 5000
 
-CMD ["node", "dist-server/index.js"]
+CMD ["node", "--max-old-space-size=384", "dist-server/index.js"]

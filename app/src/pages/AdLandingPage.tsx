@@ -45,16 +45,18 @@ export default function AdLandingPage() {
   const [loading, setLoading] = useState(true)
   const [otherOffers, setOtherOffers] = useState<OfferProduct[]>([])
 
-  // Track visit on mount
+  const variant = searchParams.get('variant') || 'A'
+
+  // Track visit once per unique landing view
   useEffect(() => {
     if (!activeSlug) return
     const utms = getAndPersistUTM()
     trackCampaignVisit(activeSlug, utms)
     trackConversionEvent('landing_view', {
       campaign: activeSlug,
-      variant: searchParams.get('variant') || 'A',
+      variant,
     })
-  }, [activeSlug, searchParams])
+  }, [activeSlug, variant])
 
   /*
    * Campaigns are resolved from the owner's landing_offers table only.

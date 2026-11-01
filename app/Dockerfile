@@ -34,4 +34,4 @@ RUN mkdir -p /app/server/data/uploads
 
 EXPOSE 5000
 
-CMD ["node", "dist-server/index.js"]
+CMD ["node", "--max-old-space-size=384", "dist-server/index.js"]

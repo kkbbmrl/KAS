@@ -11,6 +11,7 @@ router.get('/categories', async (_req, res) => {
        FROM categories
        ORDER BY display_order ASC`
     )
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(result.rows)
   } catch (err: any) {
     console.error('Error fetching categories:', err)
@@ -26,6 +27,7 @@ router.get('/brands', async (_req, res) => {
        FROM brands
        ORDER BY display_order ASC`
     )
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(result.rows)
   } catch (err: any) {
     console.error('Error fetching brands:', err)
@@ -47,6 +49,7 @@ router.get('/vehicles', async (_req, res) => {
       tree[make.nameAr] = makeModels
     }
 
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json({ makes: makes.rows, models: models.rows, tree })
   } catch (err: any) {
     console.error('Error fetching vehicle taxonomy:', err)
@@ -58,6 +61,7 @@ router.get('/vehicles', async (_req, res) => {
 router.get('/vehicle-makes', async (_req, res) => {
   try {
     const makes = await query(`SELECT id, slug, name_ar AS "nameAr", name_fr AS "nameFr" FROM vehicle_makes ORDER BY display_order ASC`)
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(makes.rows)
   } catch (err: any) {
     console.error('Error fetching vehicle makes:', err)
@@ -77,6 +81,7 @@ router.get('/vehicle-models', async (req, res) => {
     }
     sql += ` ORDER BY display_order ASC`
     const models = await query(sql, params)
+    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(models.rows)
   } catch (err: any) {
     console.error('Error fetching vehicle models:', err)
@@ -84,10 +89,14 @@ router.get('/vehicle-models', async (req, res) => {
   }
 })
 
-// GET /api/v1/products (Search & Filtering)
+// GET /api/v1/products (Search & Filtering with Pagination & Caching)
 router.get('/products', async (req, res) => {
   try {
-    const { q, brand, model, cat, in_stock } = req.query as Record<string, string>
+    const { q, brand, model, cat, in_stock, featured, page = '1', limit = '24' } = req.query as Record<string, string>
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const pageLimit = Math.min(60, Math.max(1, parseInt(limit, 10) || 24))
+    const offset = (pageNum - 1) * pageLimit
 
     let sql = `
       SELECT 
@@ -100,7 +109,6 @@ router.get('/products', async (req, res) => {
         b.name AS brand,
         p.badge,
         p.rating,
-        p.description_ar AS description,
         (p.featured_home = 1 OR p.featured_home = TRUE) AS "featuredHome",
         (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, display_order ASC LIMIT 1) AS image
       FROM products p
@@ -109,6 +117,14 @@ router.get('/products', async (req, res) => {
       WHERE (p.is_active = 1 OR p.is_active = TRUE)
     `
     const params: any[] = []
+
+    if (featured === 'true' || featured === '1') {
+      sql += ` AND (p.featured_home = 1 OR p.featured_home = TRUE)`
+    }
+
+    if (in_stock === 'true') {
+      sql += ` AND EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.stock_quantity > 0 AND pv.stock_status != 'out_of_stock')`
+    }
 
     if (cat && cat !== 'الكل') {
       params.push(cat)
@@ -243,7 +259,7 @@ router.get('/products', async (req, res) => {
     }
 
     if (q) {
-      const tokens = String(q).trim().slice(0, 100).split(/\s+/).filter(Boolean).slice(0, 6)
+      const tokens = String(q).trim().slice(0, 80).split(/\s+/).filter(Boolean).slice(0, 4)
       for (const token of tokens) {
         params.push(`%${token}%`)
         const idx = params.length
@@ -252,49 +268,34 @@ router.get('/products', async (req, res) => {
           p.name_fr ILIKE $${idx} OR 
           p.sku ILIKE $${idx} OR 
           p.base_part_number ILIKE $${idx} OR 
-          p.description_ar ILIKE $${idx} OR
-          p.badge ILIKE $${idx} OR
           b.name ILIKE $${idx} OR
           c.name_ar ILIKE $${idx} OR
           c.name_fr ILIKE $${idx} OR
           EXISTS (SELECT 1 FROM product_aliases pa WHERE pa.product_id = p.id AND pa.alias_term ILIKE $${idx}) OR
-          EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.variant_sku ILIKE $${idx} OR pv.part_number ILIKE $${idx} OR pv.label_ar ILIKE $${idx} OR pv.label_fr ILIKE $${idx} OR pv.extra_specs ILIKE $${idx})) OR
-          EXISTS (
-            SELECT 1 FROM part_compatibility pc 
-            JOIN vehicle_makes mk ON mk.id = pc.make_id 
-            JOIN vehicle_models md ON md.id = pc.model_id
-            WHERE pc.product_id = p.id AND (mk.name_ar ILIKE $${idx} OR mk.name_fr ILIKE $${idx} OR mk.slug ILIKE $${idx} OR md.name_ar ILIKE $${idx} OR md.name_fr ILIKE $${idx} OR md.slug ILIKE $${idx})
-          )
+          EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.variant_sku ILIKE $${idx} OR pv.part_number ILIKE $${idx} OR pv.label_ar ILIKE $${idx}))
         )`
       }
     }
 
-    const reqLimit = Math.min(Number(req.query.limit) || 250, 500)
-    sql += ` ORDER BY p.featured_home DESC, p.id ASC LIMIT ${reqLimit}`
+    sql += ` ORDER BY p.featured_home DESC, p.id ASC LIMIT ${pageLimit} OFFSET ${offset}`
 
     const result = await query(sql, params)
     const rawProducts = result.rows
     if (rawProducts.length === 0) {
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
       return res.json([])
     }
 
     const productIds = rawProducts.map((p: any) => p.id)
     const placeholders = productIds.map((_, i) => `$${i + 1}`).join(',')
 
-    // 4 high-speed batch queries for all products at once
-    const [allVariantsRes, allSpecsRes, allCompatRes, allAliasesRes] = await Promise.all([
+    // Fast batch queries for variants and compatibilities (heavy specs/extraSpecs excluded from list responses)
+    const [variantsRes, compatRes] = await Promise.all([
       query(
-        `SELECT product_id, id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs"
+        `SELECT product_id, id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock
          FROM product_variants
          WHERE product_id IN (${placeholders}) AND (is_active = 1 OR is_active = TRUE)
          ORDER BY price ASC`,
-        productIds
-      ),
-      query(
-        `SELECT product_id, label_ar AS label, value_ar AS value
-         FROM product_specs
-         WHERE product_id IN (${placeholders})
-         ORDER BY display_order ASC`,
         productIds
       ),
       query(
@@ -305,29 +306,16 @@ router.get('/products', async (req, res) => {
          WHERE pc.product_id IN (${placeholders})`,
         productIds
       ),
-      query(
-        `SELECT product_id, alias_term AS term 
-         FROM product_aliases 
-         WHERE product_id IN (${placeholders})`,
-        productIds
-      ),
     ])
 
-    // Group relations in memory
     const variantsByProduct: Record<string, any[]> = {}
-    for (const v of allVariantsRes.rows) {
+    for (const v of variantsRes.rows) {
       if (!variantsByProduct[v.product_id]) variantsByProduct[v.product_id] = []
       variantsByProduct[v.product_id].push(v)
     }
 
-    const specsByProduct: Record<string, any[]> = {}
-    for (const s of allSpecsRes.rows) {
-      if (!specsByProduct[s.product_id]) specsByProduct[s.product_id] = []
-      specsByProduct[s.product_id].push({ label: s.label, value: s.value })
-    }
-
     const compatByProduct: Record<string, string[]> = {}
-    for (const c of allCompatRes.rows) {
+    for (const c of compatRes.rows) {
       if (!compatByProduct[c.product_id]) compatByProduct[c.product_id] = []
       const pair = `${c.make} ${c.model}`.trim()
       if (pair && !compatByProduct[c.product_id].includes(pair)) {
@@ -335,17 +323,9 @@ router.get('/products', async (req, res) => {
       }
     }
 
-    const aliasesByProduct: Record<string, string[]> = {}
-    for (const a of allAliasesRes.rows) {
-      if (!aliasesByProduct[a.product_id]) aliasesByProduct[a.product_id] = []
-      aliasesByProduct[a.product_id].push(a.term)
-    }
-
-    // Build enriched product objects in memory with 0 extra queries
+    // Build lean product objects for catalog/search view
     const products = rawProducts.map((prod: any) => {
       const prodVariants = variantsByProduct[prod.id] || []
-      const prodSpecs = specsByProduct[prod.id] || []
-      const prodAliases = aliasesByProduct[prod.id] || []
       let compatList = compatByProduct[prod.id] || []
 
       if (compatList.length === 0) {
@@ -374,39 +354,24 @@ router.get('/products', async (req, res) => {
         oldPrice: primaryVariant?.oldPrice != null ? Number(primaryVariant.oldPrice) : undefined,
         stock: overallStockArabic,
         compat: compatList,
-        aliases: prodAliases,
-        specs: prodSpecs,
-        variants: prodVariants.map((v: any) => {
-          const vQty = Math.max(0, Number(v.stockQuantity ?? 0))
-          const vStockArabic = vQty === 0 || v.stock === 'out_of_stock'
+        specs: [],
+        variants: prodVariants.map((v: any) => ({
+          id: v.id,
+          sku: v.sku,
+          partNumber: v.partNumber,
+          label: v.label,
+          price: Number(v.price ?? 0),
+          oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
+          stock: (Math.max(0, Number(v.stockQuantity ?? 0)) === 0 || v.stock === 'out_of_stock')
             ? 'غير متوفر'
-            : vQty <= 5 || v.stock === 'limited_stock'
+            : (Number(v.stockQuantity ?? 0) <= 5 || v.stock === 'limited_stock')
             ? 'كمية محدودة'
-            : 'متوفر'
-
-          let extraSpecsParsed = []
-          try {
-            extraSpecsParsed = typeof v.extraSpecs === 'string' ? JSON.parse(v.extraSpecs || '[]') : v.extraSpecs || []
-          } catch {}
-
-          return {
-            id: v.id,
-            sku: v.sku,
-            partNumber: v.partNumber,
-            label: v.label,
-            price: Number(v.price ?? 0),
-            oldPrice: v.oldPrice != null ? Number(v.oldPrice) : undefined,
-            stock: vStockArabic,
-            extraSpecs: extraSpecsParsed,
-          }
-        }),
+            : 'متوفر',
+        })),
       }
     })
 
-    if (in_stock === 'true') {
-      return res.json(products.filter((p) => p.stock !== 'غير متوفر'))
-    }
-
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
     res.json(products)
   } catch (err: any) {
     console.error('Error querying products:', err)
@@ -459,6 +424,7 @@ router.get('/products/:id', async (req, res) => {
       !/achat|pri\.achat|d\.gros|gros\b|شراء|جملة|نصف\s*الجملة/i.test(s.label || '')
     )
 
+    res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=300')
     res.json({
       ...prod,
       rating: Number(prod.rating ?? 0),

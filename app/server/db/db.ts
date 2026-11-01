@@ -25,7 +25,7 @@ try {
   console.warn('⚠️ SQLite initialization warning:', err.message)
 }
 
-// 2. If PostgreSQL is configured, initialize pool
+// 2. If PostgreSQL is configured, initialize singleton pool
 if (isPostgres && process.env.DATABASE_URL) {
   try {
     const isLocal = process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1')
@@ -33,13 +33,15 @@ if (isPostgres && process.env.DATABASE_URL) {
       connectionString: process.env.DATABASE_URL,
       ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 10,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 4000,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     })
     pgPool.on('error', (err) => {
       console.warn('⚠️ PostgreSQL pool error:', err.message)
     })
-    console.log('🐘 Initialized PostgreSQL Database Pool')
+    console.log('🐘 Initialized Singleton PostgreSQL Database Pool (max: 10, idleTimeout: 30s, connTimeout: 5s, SSL ready)')
   } catch (err: any) {
     console.warn('⚠️ Could not configure PostgreSQL pool:', err.message)
     isPostgres = false

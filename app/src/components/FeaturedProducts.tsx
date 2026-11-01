@@ -25,7 +25,7 @@ export default function FeaturedProducts() {
     const ac = new AbortController()
     setLoading(true)
 
-    fetchProducts({}, ac.signal)
+    fetchProducts({ featured: true, limit: 24 }, ac.signal)
       .then((list) => {
         setProducts(list)
         setLoading(false)

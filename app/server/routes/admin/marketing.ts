@@ -191,24 +191,34 @@ router.get('/landing-pages', async (_req, res) => {
        ORDER BY l.created_at DESC`
     )
 
-    const landingPages = await Promise.all(
-      result.rows.map(async (row: any) => {
-        const featRes = await query(
-          `SELECT icon_name AS icon, text_ar AS text FROM offer_features WHERE offer_id = $1 ORDER BY display_order ASC`,
-          [row.id]
-        )
-        const orders = Number(row.ordersCount || 0)
-        const views = Number(row.viewsCount || 0)
-        const conversionRate = views > 0 ? Number(((orders / views) * 100).toFixed(1)) : 0
+    const rows = result.rows
+    const offerIds = rows.map((r: any) => r.id)
+    const featuresByOffer: Record<string, any[]> = {}
 
-        return {
-          ...row,
-          isActive: Boolean(row.isActive),
-          conversionRate,
-          features: featRes.rows,
-        }
-      })
-    )
+    if (offerIds.length > 0) {
+      const placeholders = offerIds.map((_, i) => `$${i + 1}`).join(',')
+      const featRes = await query(
+        `SELECT offer_id, icon_name AS icon, text_ar AS text FROM offer_features WHERE offer_id IN (${placeholders}) ORDER BY display_order ASC`,
+        offerIds
+      )
+      for (const f of featRes.rows) {
+        if (!featuresByOffer[f.offer_id]) featuresByOffer[f.offer_id] = []
+        featuresByOffer[f.offer_id].push({ icon: f.icon, text: f.text })
+      }
+    }
+
+    const landingPages = rows.map((row: any) => {
+      const orders = Number(row.ordersCount || 0)
+      const views = Number(row.viewsCount || 0)
+      const conversionRate = views > 0 ? Number(((orders / views) * 100).toFixed(1)) : 0
+
+      return {
+        ...row,
+        isActive: Boolean(row.isActive),
+        conversionRate,
+        features: featuresByOffer[row.id] || [],
+      }
+    })
 
     res.json(landingPages)
   } catch (err: any) {

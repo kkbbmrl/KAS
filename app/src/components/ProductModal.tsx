@@ -14,7 +14,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { formatPrice, type Product, type ProductVariant } from '@/data/products'
-import { fetchProducts } from '@/lib/api'
+import { fetchProducts, fetchProductById } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
 
 const VIEWS = ['الواجهة', 'منظر جانبي', 'لقطة مقرّبة'] as const
@@ -28,6 +28,7 @@ export default function ProductModal() {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [variantOpen, setVariantOpen] = useState(false)
   const [similar, setSimilar] = useState<Product[]>([])
+  const [detailedProduct, setDetailedProduct] = useState<Product | null>(null)
   const imgBox = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -35,33 +36,39 @@ export default function ProductModal() {
     setView(0)
     setSelectedVariant(null)
     setVariantOpen(false)
-  }, [selected])
+    setDetailedProduct(null)
 
-  // Related products come from the live catalogue (same category + complementary recommendations).
+    if (!selected?.id) return
+
+    const ac = new AbortController()
+    fetchProductById(selected.id, ac.signal)
+      .then((full) => {
+        setDetailedProduct(full)
+      })
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          // Graceful fallback to initial list item
+        }
+      })
+
+    return () => ac.abort()
+  }, [selected?.id])
+
+  // Related products come from the live catalogue (same category, bounded to 6 items)
   useEffect(() => {
     if (!selected) {
       setSimilar([])
       return
     }
     const ac = new AbortController()
-    fetchProducts({ cat: selected.category }, ac.signal)
+    fetchProducts({ cat: selected.category, limit: 6 }, ac.signal)
       .then((list) => {
         const filtered = list.filter((x) => String(x.id) !== String(selected.id))
-        if (filtered.length >= 4) {
-          setSimilar(filtered.slice(0, 4))
-        } else {
-          // If category has few items, fetch all products to fill 4 recommendations
-          fetchProducts({}, ac.signal)
-            .then((allList) => {
-              const extra = allList.filter((x) => String(x.id) !== String(selected.id) && !filtered.some((f) => String(f.id) === String(x.id)))
-              setSimilar([...filtered, ...extra].slice(0, 4))
-            })
-            .catch(() => setSimilar(filtered.slice(0, 4)))
-        }
+        setSimilar(filtered.slice(0, 4))
       })
       .catch(() => setSimilar([]))
     return () => ac.abort()
-  }, [selected])
+  }, [selected?.id, selected?.category])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelected(null)
@@ -75,7 +82,7 @@ export default function ProductModal() {
   }, [selected])
 
   if (!selected) return null
-  const p = selected
+  const p = detailedProduct || selected
 
   // Effective values — variant overrides base product
   const effectivePrice = selectedVariant?.price ?? p.price
@@ -84,7 +91,7 @@ export default function ProductModal() {
   const effectiveImage = selectedVariant?.image ?? p.image
   const effectivePartNumber = selectedVariant?.partNumber ?? p.partNumber
   const effectiveSpecs = [
-    ...p.specs,
+    ...(p.specs || []),
     ...(selectedVariant?.extraSpecs ?? []),
   ]
 

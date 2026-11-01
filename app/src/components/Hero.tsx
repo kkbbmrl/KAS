@@ -13,7 +13,7 @@ export default function Hero() {
   // down the chips simply don't render — never fall back to demo stock.
   useEffect(() => {
     const ac = new AbortController()
-    fetchProducts({ in_stock: true }, ac.signal)
+    fetchProducts({ in_stock: true, limit: 4 }, ac.signal)
       .then((list) => setFeatured(list.slice(0, 2)))
       .catch(() => setFeatured([]))
     return () => ac.abort()

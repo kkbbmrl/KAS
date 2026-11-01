@@ -137,6 +137,7 @@ export default function ThemesPage() {
         brand: selectedBrand || undefined,
         model: selectedModel || undefined,
         in_stock: inStockOnly || undefined,
+        limit: 30,
       },
       ac.signal
     )

@@ -1,0 +1,46 @@
+# Git & documentation
+.git
+.gitignore
+README.md
+info.md
+
+# Large SQL Dumps & Datasets (prevents 80.9% PLpgSQL bloat in Docker)
+server/data/kas_autoparts_pg_dump.sql
+*.sql.dump
+*.dump
+
+# Local SQLite databases
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+server/data/*.sqlite*
+
+# Unneeded binary archives and installers
+ChromeSetup.exe
+data_analyst_associate.zip
+DAA0011875927483.pdf
+*.exe
+*.zip
+*.PDF
+*.pdf
+
+# Dependencies and build outputs
+node_modules
+dist
+dist-server
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+*.log
+
+# Editor & OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+

@@ -5,8 +5,8 @@ import { orderPlacementRateLimiter, orderTrackingRateLimiter } from '../middlewa
 
 const router = Router()
 
-const MAX_LINE_QUANTITY = 10
-const MAX_ORDER_UNITS = 30
+const MAX_LINE_QUANTITY = 500
+const MAX_ORDER_UNITS = 1000
 
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 6) return '05*****000'
@@ -94,7 +94,7 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
 
     const cleanPhone = String(phone).replace(/\s+/g, '')
     if (!/^(0[5-7]\d{8}|\+?213[5-7]\d{8}|0[2-4]\d{7})$/.test(cleanPhone)) {
-      return res.status(400).json({ error: 'يرجى إدخال رقم هاتف جزائري صحيح (مثال: 0550123456)' })
+      return res.status(400).json({ error: 'يرجى إدخال رقم هاتف جزائري صحيح' })
     }
 
     // 2. Fetch Wilaya fee & ensure valid wilaya code
@@ -147,7 +147,7 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       const rawQty = item.quantity ?? item.qty
       const numQty = Number(rawQty)
       if (!Number.isInteger(numQty) || numQty < 1 || numQty > MAX_LINE_QUANTITY || isNaN(numQty) || !isFinite(numQty)) {
-        return res.status(400).json({ error: `الكمية المطلوبة لكل صنف يجب أن تكون رقماً صحيحاً بين 1 و ${MAX_LINE_QUANTITY} قطع.` })
+        return res.status(400).json({ error: 'الكمية المطلوبة لكل صنف غير صالحة أو تتجاوز الحد الأقصى المسموح به.' })
       }
       const qty = numQty
 
@@ -272,7 +272,7 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
     // Total Order Quantity Cap
     const totalOrderUnits = Object.values(totalQtyByVariant).reduce((s, v) => s + v.qty, 0)
     if (totalOrderUnits > MAX_ORDER_UNITS) {
-      return res.status(400).json({ error: `إجمالي عدد القطع في الطلب الواحد يتجاوز الحد الأقصى المسموح به (${MAX_ORDER_UNITS} قطعة)` })
+      return res.status(400).json({ error: 'إجمالي عدد القطع في الطلب الواحد يتجاوز الحد الأقصى المسموح به.' })
     }
 
     // 5. Pre-Check Aggregated Stock vs Warehouse Stock
@@ -281,14 +281,14 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       const available = stockCheck.rows.length > 0 ? Math.max(0, Number(stockCheck.rows[0].stock_quantity) || 0) : 0
 
       if (available <= 0) {
-        return res.status(409).json({
-          error: `عذراً، القطعة "${info.name}" غير متوفرة في المخزون حالياً.`
+        return res.status(400).json({
+          error: 'عذراً، القطعة المطلوبة غير متوفرة في المخزون حالياً.'
         })
       }
 
       if (info.qty > available) {
-        return res.status(409).json({
-          error: `الكمية المطلوبة من القطعة "${info.name}" غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية أو التواصل معنا.`
+        return res.status(400).json({
+          error: 'الكمية المطلوبة غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية المطلوبة.'
         })
       }
     }
@@ -449,9 +449,8 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
     } catch {}
   } catch (err: any) {
     if (err.message === 'INSUFFICIENT_STOCK_LOCK') {
-      const pName = err.productName || 'إحدى القطع المطلوبة'
-      return res.status(409).json({
-        error: `الكمية المطلوبة من "${pName}" غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية والمحاولة مرة أخرى.`
+      return res.status(400).json({
+        error: 'الكمية المطلوبة غير متوفرة بالكامل في المخزون حالياً. يرجى تقليل الكمية والمحاولة مرة أخرى.'
       })
     }
     console.error('Error placing order:', err)

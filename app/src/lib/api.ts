@@ -89,6 +89,9 @@ export interface ProductQuery {
   model?: string
   cat?: string
   in_stock?: boolean
+  featured?: boolean
+  page?: number
+  limit?: number
 }
 
 export async function fetchProducts(
@@ -101,6 +104,9 @@ export async function fetchProducts(
   if (params.model) sp.set('model', params.model)
   if (params.cat && params.cat !== 'الكل') sp.set('cat', params.cat)
   if (params.in_stock) sp.set('in_stock', 'true')
+  if (params.featured) sp.set('featured', 'true')
+  if (params.page) sp.set('page', String(params.page))
+  if (params.limit) sp.set('limit', String(params.limit))
 
   const qs = sp.toString()
   const list = await request<Product[]>(`/products${qs ? `?${qs}` : ''}`, { signal })

@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import compression from 'compression'
 import dotenv from 'dotenv'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -38,6 +39,18 @@ const PORT = process.env.PORT || 5000
 
 // Security: Disable X-Powered-By
 app.disable('x-powered-by')
+
+// Enable HTTP Response Compression (Gzip / Brotli) to reduce network egress by up to 80-85%
+app.use(
+  compression({
+    level: 6,
+    threshold: 1024, // Only compress responses > 1 KB
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) return false
+      return compression.filter(req, res)
+    },
+  })
+)
 
 // Security Headers Middleware
 app.use((_req, res, next) => {

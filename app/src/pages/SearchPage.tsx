@@ -77,17 +77,32 @@ export default function SearchPage() {
 
   const models = useMemo(() => (brand ? CAR_BRANDS[brand] ?? [] : []), [brand])
 
-  /** Writes filter state to the URL; results then follow from the URL. */
+  /** Writes filter state to the URL with functional updates for reference stability */
   const patchParams = useCallback(
     (patch: Record<string, string | undefined>) => {
-      const sp = new URLSearchParams(params)
-      for (const [k, v] of Object.entries(patch)) {
-        if (v) sp.set(k, v)
-        else sp.delete(k)
-      }
-      setParams(sp, { replace: true })
+      setParams(
+        (prev) => {
+          const sp = new URLSearchParams(prev)
+          let changed = false
+          for (const [k, v] of Object.entries(patch)) {
+            if (v) {
+              if (sp.get(k) !== v) {
+                sp.set(k, v)
+                changed = true
+              }
+            } else {
+              if (sp.has(k)) {
+                sp.delete(k)
+                changed = true
+              }
+            }
+          }
+          return changed ? sp : prev
+        },
+        { replace: true }
+      )
     },
-    [params, setParams]
+    [setParams]
   )
 
   // Keep the input in sync when the URL changes from outside (back button, pills).
@@ -103,7 +118,7 @@ export default function SearchPage() {
   // Debounced free-text search: one request per pause, not per keystroke.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (draft === query) return
+    if (draft.trim() === query) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => patchParams({ q: draft.trim() || undefined }), 320)
     return () => {
@@ -113,15 +128,14 @@ export default function SearchPage() {
 
   /*
    * Single fetch pipeline for search + every filter. AbortController kills the
-   * race where a slow earlier response lands after a faster later one and
-   * overwrites the results the customer is actually looking at.
+   * race where a slow earlier response lands after a faster later one.
    */
   useEffect(() => {
     const ac = new AbortController()
     setLoading(true)
     setError('')
 
-    fetchProducts({ q: query, brand, model, cat, in_stock: inStockOnly || undefined }, ac.signal)
+    fetchProducts({ q: query, brand, model, cat, in_stock: inStockOnly || undefined, limit: 60 }, ac.signal)
       .then((list) => {
         setProducts(list)
         setLoading(false)

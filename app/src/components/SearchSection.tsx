@@ -83,7 +83,8 @@ export default function SearchSection() {
       // Only send text query to the API; vehicle brand/model are filtered
       // client-side because the backend `brand` param searches product brands
       // (VALEO, BOSCH), not vehicle makes (Toyota, Renault).
-      fetchProducts({ q: query.trim(), brand, model }, ac.signal)
+      // Live preview limited to 10 items to save bandwidth
+      fetchProducts({ q: query.trim(), brand, model, limit: 10 }, ac.signal)
         .then((list) => {
           setPreview(list)
           setPreviewing(false)

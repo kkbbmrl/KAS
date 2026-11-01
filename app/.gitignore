@@ -22,6 +22,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Large SQL Dumps & Datasets
+server/data/kas_autoparts_pg_dump.sql
+*.sql.dump
+*.dump
+*pg_dump.sql
+
+# Binaries and archives
+ChromeSetup.exe
+data_analyst_associate.zip
+DAA0011875927483.pdf
+*.exe
+*.zip
+*.PDF
+*.pdf
+
 node_modules
 dist
 dist-server

@@ -23,24 +23,33 @@ router.get('/', async (_req, res) => {
        WHERE (o.is_active = 1 OR o.is_active = TRUE)`
     )
 
-    const offers = await Promise.all(
-      result.rows.map(async (offer: any) => {
-        const features = await query(
-          `SELECT icon_name AS icon, text_ar AS text
-           FROM offer_features
-           WHERE offer_id = $1
-           ORDER BY display_order ASC`,
-          [offer.id]
-        )
-        return {
-          ...offer,
-          stock: 'متوفر',
-          features: features.rows,
-        }
-      })
-    )
+    const offers = result.rows
+    const offerIds = offers.map((o: any) => o.id)
+    const featuresByOffer: Record<string, any[]> = {}
 
-    res.json(offers)
+    if (offerIds.length > 0) {
+      const placeholders = offerIds.map((_, i) => `$${i + 1}`).join(',')
+      const featRes = await query(
+        `SELECT offer_id, icon_name AS icon, text_ar AS text
+         FROM offer_features
+         WHERE offer_id IN (${placeholders})
+         ORDER BY display_order ASC`,
+        offerIds
+      )
+      for (const f of featRes.rows) {
+        if (!featuresByOffer[f.offer_id]) featuresByOffer[f.offer_id] = []
+        featuresByOffer[f.offer_id].push({ icon: f.icon, text: f.text })
+      }
+    }
+
+    const payload = offers.map((offer: any) => ({
+      ...offer,
+      stock: 'متوفر',
+      features: featuresByOffer[offer.id] || [],
+    }))
+
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
+    res.json(payload)
   } catch (err: any) {
     console.error('Error fetching offers:', err)
     res.status(500).json({ error: 'Failed to fetch offers' })
@@ -82,6 +91,7 @@ router.get('/:slug', async (req, res) => {
       [offer.id]
     )
 
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
     res.json({
       ...offer,
       stock: 'متوفر',

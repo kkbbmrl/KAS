@@ -7,7 +7,8 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 dotenv.config()
 
-let isPostgres = Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('[your-project-ref]'))
+const rawDbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '')
+let isPostgres = Boolean(rawDbUrl && !rawDbUrl.includes('[your-project-ref]'))
 let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
 const pgTransactionStorage = new AsyncLocalStorage<pg.PoolClient>()
@@ -28,11 +29,11 @@ try {
 }
 
 // 2. If PostgreSQL is configured, initialize singleton pool
-if (isPostgres && process.env.DATABASE_URL) {
+if (isPostgres && rawDbUrl) {
   try {
     const isLocal = process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1')
     pgPool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: rawDbUrl,
       ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30000,

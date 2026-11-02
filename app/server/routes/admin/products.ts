@@ -370,6 +370,18 @@ router.post('/', async (req, res) => {
     const cleanNameAr = String(nameAr).trim()
     const cleanNameFr = nameFr ? String(nameFr).trim() : cleanNameAr
 
+    // Check if product with this part number already exists
+    const duplicateCheck = await query(
+      `SELECT id, name_ar, sku FROM products WHERE LOWER(base_part_number) = LOWER($1) LIMIT 1`,
+      [cleanPartNumber]
+    )
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: `رقم القطعة "${cleanPartNumber}" مسجل بالفعل للمنتج "${duplicateCheck.rows[0].name_ar}" (${duplicateCheck.rows[0].sku}). يمكنك البحث عن المنتج وتعديله بدلاً من إضافته مجدداً.`,
+        existingId: duplicateCheck.rows[0].id,
+      })
+    }
+
     // Resolve Foreign Keys
     const finalCategoryId = await resolveCategory(categoryId)
     const finalBrandId = await resolveOrCreateBrand(brandId)
@@ -684,6 +696,18 @@ router.put('/:id', async (req, res) => {
         const primaryId = primaryRes.rows[0]?.id
 
         if (primaryId) {
+          // Safely unlink dependent child records before deleting old secondary variants
+          const oldVariantsRes = await query(
+            `SELECT id FROM product_variants WHERE product_id = $1 AND id != $2`,
+            [id, primaryId]
+          )
+          const oldVariantIds = oldVariantsRes.rows.map((r: any) => r.id)
+          for (const oldVId of oldVariantIds) {
+            await query(`DELETE FROM part_compatibility WHERE variant_id = $1`, [oldVId]).catch(() => {})
+            await query(`DELETE FROM inventory_transactions WHERE variant_id = $1`, [oldVId]).catch(() => {})
+            await query(`DELETE FROM purchase_history WHERE variant_id = $1`, [oldVId]).catch(() => {})
+            await query(`UPDATE import_batch_rows SET matched_variant_id = NULL WHERE matched_variant_id = $1`, [oldVId]).catch(() => {})
+          }
           await query(`DELETE FROM product_variants WHERE product_id = $1 AND id != $2`, [id, primaryId])
         }
 
@@ -818,11 +842,38 @@ router.delete('/:id', async (req, res) => {
 
     const prodName = check.rows[0]?.name_ar || id
 
+    // Protect financial accounting: If product has existing customer orders, prevent hard delete
+    const orderCheck = await query(
+      `SELECT COUNT(*) AS count FROM order_items WHERE product_id = $1`,
+      [id]
+    )
+    if (Number(orderCheck.rows[0]?.count || 0) > 0) {
+      return res.status(400).json({
+        error: 'لا يمكن حذف هذا المنتج لوجود طلبات سابقة مرتبطة به. يرجى إيقاف تفعيله (إخفاؤه) بدلاً من حذفه.',
+      })
+    }
+
     await withTransaction(async () => {
-      await query(`DELETE FROM part_compatibility WHERE product_id = $1`, [id])
-      await query(`DELETE FROM product_specs WHERE product_id = $1`, [id])
-      await query(`DELETE FROM product_aliases WHERE product_id = $1`, [id])
-      await query(`DELETE FROM product_images WHERE product_id = $1`, [id])
+      // 1. Fetch all variants belonging to this product
+      const varRes = await query(`SELECT id FROM product_variants WHERE product_id = $1`, [id])
+      const variantIds = varRes.rows.map((r: any) => r.id)
+
+      for (const vId of variantIds) {
+        await query(`DELETE FROM inventory_transactions WHERE variant_id = $1`, [vId]).catch(() => {})
+        await query(`DELETE FROM purchase_history WHERE variant_id = $1`, [vId]).catch(() => {})
+        await query(`UPDATE import_batch_rows SET matched_variant_id = NULL WHERE matched_variant_id = $1`, [vId]).catch(() => {})
+        await query(`DELETE FROM part_compatibility WHERE variant_id = $1`, [vId]).catch(() => {})
+      }
+
+      // 2. Cascade delete remaining product-level relations
+      await query(`DELETE FROM inventory_transactions WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM purchase_history WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`UPDATE import_batch_rows SET matched_product_id = NULL WHERE matched_product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM landing_offers WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM part_compatibility WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM product_specs WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM product_aliases WHERE product_id = $1`, [id]).catch(() => {})
+      await query(`DELETE FROM product_images WHERE product_id = $1`, [id]).catch(() => {})
       await query(`DELETE FROM product_variants WHERE product_id = $1`, [id])
       await query(`DELETE FROM products WHERE id = $1`, [id])
     })

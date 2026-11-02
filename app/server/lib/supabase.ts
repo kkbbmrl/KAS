@@ -3,9 +3,13 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const rawSupabaseUrl = (process.env.SUPABASE_URL || '').trim()
-const rawServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
-const rawAnonKey = (process.env.SUPABASE_ANON_KEY || '').trim()
+function cleanEnv(val?: string): string {
+  return (val || '').trim().replace(/^["']|["']$/g, '').trim()
+}
+
+const rawSupabaseUrl = cleanEnv(process.env.SUPABASE_URL)
+const rawServiceKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY)
+const rawAnonKey = cleanEnv(process.env.SUPABASE_ANON_KEY)
 
 function isValidSupabaseUrl(urlStr: string): boolean {
   if (!urlStr || urlStr.includes('[your-project-ref]')) return false
@@ -30,8 +34,8 @@ const isConfigured = isValidSupabaseUrl(rawSupabaseUrl)
 export const supabaseAdmin: SupabaseClient | null =
   isConfigured && isValidKey(rawServiceKey)
     ? createClient(rawSupabaseUrl, rawServiceKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      })
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
     : null
 
 /**
@@ -41,6 +45,12 @@ export const supabasePublic: SupabaseClient | null =
   isConfigured && isValidKey(rawAnonKey)
     ? createClient(rawSupabaseUrl, rawAnonKey)
     : null
+
+if (supabaseAdmin) {
+  console.log(`☁️ Initialized Supabase Admin Storage Client (${rawSupabaseUrl})`)
+} else {
+  console.warn(`⚠️ Supabase Storage not initialized. URL configured: ${isConfigured}, Key present: ${Boolean(rawServiceKey)}`)
+}
 
 export function isSupabaseStorageReady(): boolean {
   return Boolean(supabaseAdmin && isConfigured)

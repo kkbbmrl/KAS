@@ -80,6 +80,8 @@ export async function uploadImage(
       .from(BUCKET_NAME)
       .getPublicUrl(data.path)
 
+    console.log(`☁️ Successfully uploaded to Supabase Storage: ${publicData.publicUrl} (${optimizedSize} bytes)`)
+
     return {
       url: publicData.publicUrl,
       key: data.path,
@@ -99,6 +101,8 @@ export async function uploadImage(
   const localFilename = `img_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.${ext}`
   const filePath = path.join(uploadsDir, localFilename)
   fs.writeFileSync(filePath, optimizedBuffer)
+
+  console.warn('⚠️ Supabase Storage not active. Saved image locally to disk:', localFilename)
 
   return {
     url: `/uploads/${localFilename}`,

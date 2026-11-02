@@ -3,12 +3,14 @@ import pg from 'pg'
 import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
+import { AsyncLocalStorage } from 'node:async_hooks'
 
 dotenv.config()
 
-let isPostgres = Boolean(process.env.DATABASE_URL)
+let isPostgres = Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('[your-project-ref]'))
 let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
+const pgTransactionStorage = new AsyncLocalStorage<pg.PoolClient>()
 
 // 1. Initialize SQLite Database always as a zero-latency engine and reliable fallback
 try {
@@ -59,15 +61,26 @@ export interface QueryResult<T = any> {
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
   if (isPostgres && pgPool) {
+    const txClient = pgTransactionStorage.getStore()
+    const runner = txClient || pgPool
+
+    // Normalize cross-dialect boolean vs integer comparisons for PostgreSQL
+    const pgSql = sql
+      .replace(/\(([a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+)\s*=\s*1\s+OR\s+[a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+\s*=\s*(TRUE|true)\)/gi, '$1 = 1')
+      .replace(/\b([a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+)\s*=\s*(TRUE|true)\b/gi, '$1 = 1')
+
     try {
-      const res = await pgPool.query(sql, params)
+      const res = await runner.query(pgSql, params)
       return {
         rows: res.rows,
         rowCount: res.rowCount ?? res.rows.length,
       }
     } catch (err: any) {
+      if (txClient) {
+        // Within transaction, errors must propagate so the transaction rolls back cleanly
+        throw err
+      }
       console.warn(`⚠️ PostgreSQL query failed (${err.message}). Using local database engine...`)
-      // If postgres times out or crashes, temporarily fallback
     }
   }
 
@@ -111,10 +124,15 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
  */
 export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
   if (isPostgres && pgPool) {
+    const existingTx = pgTransactionStorage.getStore()
+    if (existingTx) {
+      return fn()
+    }
+
     const client = await pgPool.connect()
     try {
       await client.query('BEGIN')
-      const result = await fn()
+      const result = await pgTransactionStorage.run(client, fn)
       await client.query('COMMIT')
       return result
     } catch (err) {

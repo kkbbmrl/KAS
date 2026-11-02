@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { query } from '../../db/db.js'
 import { requireSuperAdmin, requireRoles } from '../../middleware/adminAuth.js'
+import { uploadImage } from '../../lib/storage.js'
 
 const router = Router()
 
@@ -81,20 +82,15 @@ router.post('/upload', requireRoles(['admin', 'super_admin']), async (req, res) 
       return res.status(400).json({ error: 'محتوى الصورة غير صالح أو تالف' })
     }
 
-    // Ensure uploads directory exists
-    const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true })
-    }
+    // Upload to Supabase Storage (or fallback to local disk if unconfigured)
+    const { url, isCloud } = await uploadImage(buffer, detectedExt, 'products')
 
-    // Cryptographically random filename with verified extension
-    const finalFilename = `img_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.${detectedExt}`
-    const filePath = path.join(uploadsDir, finalFilename)
-
-    fs.writeFileSync(filePath, buffer)
-
-    const publicUrl = `/uploads/${finalFilename}`
-    res.status(201).json({ success: true, url: publicUrl, message: 'تم رفع الصورة بنجاح' })
+    res.status(201).json({
+      success: true,
+      url,
+      isCloud,
+      message: isCloud ? 'تم رفع الصورة وتخزينها سحابياً بنجاح' : 'تم رفع الصورة بنجاح',
+    })
   } catch (err: any) {
     console.error('Image upload error:', err)
     res.status(500).json({ error: 'فشل حفظ الصورة' })

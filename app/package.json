@@ -14,8 +14,9 @@
     "start": "node --max-old-space-size=384 dist-server/index.js",
     "db:seed": "tsx server/db/seed.ts",
     "db:dump": "python server/scripts/export_sqlite_to_pg_dump.py",
-    "db:push": "tsx server/scripts/sync_to_remote_postgres.ts",
-    "test:security": "tsx server/tests/security.test.ts"
+    "db:push": "tsx server/scripts/sync_to_supabase.ts",
+    "test:security": "tsx server/tests/security.test.ts",
+    "migrate:images": "tsx scripts/migrate-images-to-supabase.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -45,6 +46,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.118.0",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
     "better-sqlite3": "^13.0.3",
@@ -71,6 +73,7 @@
     "react-resizable-panels": "^4.2.2",
     "react-router": "^7.6.1",
     "recharts": "^2.15.4",
+    "sharp": "^0.35.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.19",
@@ -94,6 +97,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@types/sharp": "^0.31.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

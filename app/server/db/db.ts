@@ -35,7 +35,7 @@ try {
 // 2. If PostgreSQL is configured, initialize singleton pool
 if (isPostgres && rawDbUrl) {
   try {
-    const isLocal = process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1')
+    const isLocal = rawDbUrl.includes('localhost') || rawDbUrl.includes('127.0.0.1')
     pgPool = new pg.Pool({
       connectionString: rawDbUrl,
       ssl: isLocal ? false : { rejectUnauthorized: false },
@@ -150,7 +150,7 @@ export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
       await client.query('COMMIT')
       return result
     } catch (err) {
-      await client.query('ROLLBACK').catch(() => {})
+      await client.query('ROLLBACK').catch(() => { })
       throw err
     } finally {
       client.release()
@@ -164,7 +164,7 @@ export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
       await query('COMMIT')
       return result
     } catch (err) {
-      await query('ROLLBACK').catch(() => {})
+      await query('ROLLBACK').catch(() => { })
       throw err
     }
   }

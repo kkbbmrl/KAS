@@ -89,6 +89,67 @@ router.get('/vehicle-models', async (req, res) => {
   }
 })
 
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  // Brands
+  'سيتروان': ['citroen', 'citroën', 'c3', 'c4'],
+  'سيتروين': ['citroen', 'citroën'],
+  'رونو': ['renault', 'clio', 'symbol', 'megane', 'kangoo'],
+  'رينو': ['renault', 'clio', 'symbol'],
+  'بيجو': ['peugeot', '206', '207', '208', '301', '307', '308'],
+  'فولكسفاغن': ['volkswagen', 'vw', 'golf', 'polo', 'caddy'],
+  'فولكس': ['volkswagen', 'vw'],
+  'سيات': ['seat', 'ibiza', 'leon'],
+  'هيونداي': ['hyundai', 'accent', 'atos', 'i10', 'i20'],
+  'كيا': ['kia', 'picanto', 'rio'],
+  'تويوتا': ['toyota', 'corolla', 'yaris', 'hilux'],
+  'شفروليه': ['chevrolet', 'aveo', 'sail', 'spark'],
+  'شيفروليه': ['chevrolet', 'aveo', 'sail', 'spark'],
+  'فورد': ['ford', 'fiesta', 'focus'],
+  'داسيا': ['dacia', 'logan', 'sandero', 'duster', 'stepway'],
+
+  // Models
+  'كليو': ['clio'],
+  'سيمبول': ['symbol'],
+  'سامبول': ['symbol'],
+  'قولف': ['golf'],
+  'غولف': ['golf'],
+  'بولو': ['polo'],
+  'كادي': ['caddy'],
+  'اكسنت': ['accent'],
+  'أكسنت': ['accent'],
+  'اتوس': ['atos'],
+  'أتوس': ['atos'],
+  'بيكانتو': ['picanto'],
+  'بكانتو': ['picanto'],
+  'افيو': ['aveo'],
+  'أفيو': ['aveo'],
+  'سبارك': ['spark'],
+  'ايبيزا': ['ibiza'],
+  'إبيزا': ['ibiza'],
+  'كورولا': ['corolla'],
+
+  // Parts (Algerian Dialect / French / Arabic)
+  'باربو': ['cache', 'roue', 'pare-boue', 'poussiere'],
+  'باربوات': ['cache', 'roue', 'pare-boue'],
+  'كاش': ['cache'],
+  'فار': ['phare', 'optique'],
+  'فارات': ['phare', 'optique'],
+  'ستوب': ['feu', 'arriere'],
+  'ستوبات': ['feu', 'arriere'],
+  'ريتروفيزور': ['retro', 'glace'],
+  'ريترو': ['retro', 'glace'],
+  'مروحة': ['ventilateur'],
+  'رادياتور': ['radiateur'],
+  'كابو': ['capot'],
+  'بارشوك': ['parchoc', 'pare-chocs'],
+  'كالوندر': ['calandre', 'grille'],
+  'آيل': ['aile'],
+  'ايال': ['aile'],
+  'لال': ['aile'],
+  'بواني': ['poignee'],
+  'كومودو': ['comodo'],
+}
+
 // GET /api/v1/products (Search & Filtering with Pagination & Caching)
 router.get('/products', async (req, res) => {
   try {
@@ -261,19 +322,27 @@ router.get('/products', async (req, res) => {
     if (q) {
       const tokens = String(q).trim().slice(0, 80).split(/\s+/).filter(Boolean).slice(0, 4)
       for (const token of tokens) {
-        params.push(`%${token}%`)
-        const idx = params.length
-        sql += ` AND (
-          p.name_ar ILIKE $${idx} OR 
-          p.name_fr ILIKE $${idx} OR 
-          p.sku ILIKE $${idx} OR 
-          p.base_part_number ILIKE $${idx} OR 
-          b.name ILIKE $${idx} OR
-          c.name_ar ILIKE $${idx} OR
-          c.name_fr ILIKE $${idx} OR
-          EXISTS (SELECT 1 FROM product_aliases pa WHERE pa.product_id = p.id AND pa.alias_term ILIKE $${idx}) OR
-          EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.variant_sku ILIKE $${idx} OR pv.part_number ILIKE $${idx} OR pv.label_ar ILIKE $${idx}))
-        )`
+        const cleanTok = token.toLowerCase().trim()
+        const variants = [token, ...(SEARCH_SYNONYMS[cleanTok] || [])]
+        const tokenClauses: string[] = []
+
+        for (const v of variants) {
+          params.push(`%${v}%`)
+          const idx = params.length
+          tokenClauses.push(`
+            p.name_ar ILIKE $${idx} OR 
+            p.name_fr ILIKE $${idx} OR 
+            p.sku ILIKE $${idx} OR 
+            p.base_part_number ILIKE $${idx} OR 
+            b.name ILIKE $${idx} OR
+            c.name_ar ILIKE $${idx} OR
+            c.name_fr ILIKE $${idx} OR
+            EXISTS (SELECT 1 FROM product_aliases pa WHERE pa.product_id = p.id AND pa.alias_term ILIKE $${idx}) OR
+            EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.variant_sku ILIKE $${idx} OR pv.part_number ILIKE $${idx} OR pv.label_ar ILIKE $${idx}))
+          `)
+        }
+
+        sql += ` AND (${tokenClauses.join(' OR ')})`
       }
     }
 

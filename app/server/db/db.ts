@@ -7,7 +7,11 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 dotenv.config()
 
-const rawDbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '')
+// Default authoritative Supabase PostgreSQL connection (Transaction Pooler: Port 6543)
+const DEFAULT_SUPABASE_PG =
+  'postgresql://postgres.gqbwwymexbxdhosjslwz:0662136563bachir@aws-0-eu-west-2.pooler.supabase.com:6543/postgres'
+
+const rawDbUrl = (process.env.DATABASE_URL || DEFAULT_SUPABASE_PG).trim().replace(/^["']|["']$/g, '')
 let isPostgres = Boolean(rawDbUrl && !rawDbUrl.includes('[your-project-ref]'))
 let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
@@ -67,8 +71,10 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
 
     // Normalize cross-dialect boolean vs integer comparisons for PostgreSQL
     const pgSql = sql
-      .replace(/\(([a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+)\s*=\s*1\s+OR\s+[a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+\s*=\s*(TRUE|true)\)/gi, '$1 = 1')
-      .replace(/\b([a-zA-Z0-9_.]*is_[a-zA-Z0-9_]+)\s*=\s*(TRUE|true)\b/gi, '$1 = 1')
+      .replace(/\(([a-zA-Z0-9_.]+)\s*=\s*1\s+OR\s+[a-zA-Z0-9_.]+\s*=\s*(TRUE|true)\)/gi, '($1 = 1)')
+      .replace(/\(([a-zA-Z0-9_.]+)\s*=\s*0\s+OR\s+[a-zA-Z0-9_.]+\s*=\s*(FALSE|false)(\s+OR\s+[a-zA-Z0-9_.]+\s+IS\s+NULL)?\)/gi, '($1 = 0 OR $1 IS NULL)')
+      .replace(/([a-zA-Z0-9_.]+)\s*=\s*(TRUE|true)\b/gi, '$1 = 1')
+      .replace(/([a-zA-Z0-9_.]+)\s*=\s*(FALSE|false)\b/gi, '$1 = 0')
 
     try {
       const res = await runner.query(pgSql, params)
@@ -79,6 +85,13 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
     } catch (err: any) {
       if (txClient) {
         // Within transaction, errors must propagate so the transaction rolls back cleanly
+        throw err
+      }
+      const isMutation = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE)\b/i.test(sql)
+      if (isMutation) {
+        // NEVER divert database writes to local SQLite when PostgreSQL is configured!
+        // All mutations must succeed in Supabase PostgreSQL to protect data integrity.
+        console.error('❌ Supabase PostgreSQL mutation failed:', err.message, 'SQL:', pgSql)
         throw err
       }
       console.warn(`⚠️ PostgreSQL query failed (${err.message}). Using local database engine...`)

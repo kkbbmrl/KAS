@@ -78,23 +78,31 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
 
     try {
       const res = await runner.query(pgSql, params)
+      // When executing multi-statement scripts in pg, runner.query returns an array: [Result, Result, ...]
+      if (Array.isArray(res)) {
+        const lastResult = res[res.length - 1]
+        return {
+          rows: lastResult?.rows || [],
+          rowCount: res.reduce((acc, r) => acc + (r.rowCount || 0), 0),
+        }
+      }
       return {
-        rows: res.rows,
-        rowCount: res.rowCount ?? res.rows.length,
+        rows: res?.rows || [],
+        rowCount: res?.rowCount ?? (res?.rows ? res.rows.length : 0),
       }
     } catch (err: any) {
       if (txClient) {
         // Within transaction, errors must propagate so the transaction rolls back cleanly
         throw err
       }
-      const isMutation = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE)\b/i.test(sql)
-      if (isMutation) {
-        // NEVER divert database writes to local SQLite when PostgreSQL is configured!
-        // All mutations must succeed in Supabase PostgreSQL to protect data integrity.
-        console.error('❌ Supabase PostgreSQL mutation failed:', err.message, 'SQL:', pgSql)
+      const isMutationOrDdl = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE)\b/i.test(sql)
+      if (isMutationOrDdl) {
+        // NEVER divert database writes or schema to local SQLite when PostgreSQL is configured!
+        const sqlSnippet = pgSql.length > 200 ? `${pgSql.slice(0, 200)}... [${pgSql.length} chars]` : pgSql
+        console.error('❌ Supabase PostgreSQL mutation/DDL failed:', err.message, 'Code:', err.code, 'SQL:', sqlSnippet)
         throw err
       }
-      console.warn(`⚠️ PostgreSQL query failed (${err.message}). Using local database engine...`)
+      console.warn(`⚠️ PostgreSQL query notice (${err.message}). Using local fallback engine...`)
     }
   }
 
@@ -149,7 +157,14 @@ export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
       const result = await pgTransactionStorage.run(client, fn)
       await client.query('COMMIT')
       return result
-    } catch (err) {
+    } catch (err: any) {
+      console.error('❌ Database transaction failed:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail,
+        table: err.table,
+        constraint: err.constraint,
+      })
       await client.query('ROLLBACK').catch(() => { })
       throw err
     } finally {

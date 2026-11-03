@@ -5,7 +5,7 @@ import path from 'node:path'
 export async function initDatabase() {
   console.log('🔄 Initializing database schema...')
 
-  if (sqliteDb) {
+  if (!isPostgres && sqliteDb) {
     try {
       sqliteDb.exec(`
       CREATE TABLE IF NOT EXISTS algeria_wilayas (
@@ -482,7 +482,7 @@ export async function initDatabase() {
       }
       console.log('✅ PostgreSQL schema and indexes verified.')
     } catch (err: any) {
-      console.warn('⚠️ PostgreSQL initialization skipped/failed (falling back to SQLite):', err.message)
+      console.error('❌ PostgreSQL schema initialization error:', err.message)
     }
   }
 
@@ -637,7 +637,7 @@ async function migrateLegacyImportSchema() {
     }
 
     // 2. Ensure tables exist in PostgreSQL or SQLite if not initialized by schema.sql
-    if (sqliteDb) {
+    if (!isPostgres && sqliteDb) {
       sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS import_batches (
           id TEXT PRIMARY KEY,

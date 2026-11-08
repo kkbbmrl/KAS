@@ -313,8 +313,8 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
         )
       } else {
         await query(
-          `INSERT INTO customers (id, phone, first_name, last_name, wilaya_code, commune, address, total_orders_count)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 1)`,
+          `INSERT INTO customers (id, phone, first_name, last_name, wilaya_code, commune, address, total_orders_count, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
           [customerId, cleanPhone, cleanFirstName, cleanLastName, finalWilayaCode, cleanCommune, cleanAddress]
         )
       }
@@ -326,8 +326,8 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
           customer_first_name, customer_last_name, customer_phone,
           wilaya_code, commune, delivery_address, customer_notes,
           subtotal, shipping_fee, total_amount, status, payment_status, payment_method, courier_company,
-          idempotency_key, is_stock_restored
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending_confirmation', 'unpaid', 'COD', 'Yalidine', $16, 0)`,
+          idempotency_key, is_stock_restored, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending_confirmation', 'unpaid', 'COD', 'Yalidine', $16, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
           orderId,
           orderRef,
@@ -350,8 +350,8 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
 
       // Insert Order Timeline Event
       await query(
-        `INSERT INTO order_timeline (id, order_id, status, title_ar, note)
-         VALUES ($1, $2, 'pending_confirmation', 'تم إنشاء الطلب', $3)`,
+        `INSERT INTO order_timeline (id, order_id, status, title_ar, note, created_at)
+         VALUES ($1, $2, 'pending_confirmation', 'تم إنشاء الطلب', $3, CURRENT_TIMESTAMP)`,
         [randomUUID(), orderId, `طلب جديد عبر ${source === 'landing_offer' ? 'صفحة الهبوط' : 'المتجر'}`]
       )
 
@@ -397,8 +397,8 @@ router.post('/', orderPlacementRateLimiter, async (req, res) => {
       // Insert Line Items
       for (const it of itemsToInsert) {
         await query(
-          `INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, part_number_snapshot, unit_price, quantity, line_total)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, part_number_snapshot, unit_price, quantity, line_total, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)`,
           [it.itemId, orderId, it.prodId, it.varId || null, it.prodName, it.partNum, it.unitPrice, it.qty, it.lineTotal]
         )
       }

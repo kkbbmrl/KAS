@@ -509,11 +509,11 @@ export default function AdminOrders() {
                       </td>
 
                       <td className="p-4 text-[11px] text-zinc-500 font-normal">
-                        {new Date(o.createdAt).toLocaleDateString('fr-FR', {
+                        {o.createdAt ? new Date(o.createdAt).toLocaleDateString('fr-FR', {
                           day: '2-digit',
                           month: '2-digit',
                           year: 'numeric',
-                        })}
+                        }) : '—'}
                       </td>
 
                       <td className="p-4 text-center">
@@ -586,7 +586,7 @@ export default function AdminOrders() {
                 </div>
                 <p className="mt-0.5 text-xs text-zinc-400">
                   تاريخ الإنشاء:{' '}
-                  {new Date(activeOrder.createdAt).toLocaleString('fr-FR')}
+                  {activeOrder.createdAt ? new Date(activeOrder.createdAt).toLocaleString('fr-FR') : '—'}
                 </p>
               </div>
 

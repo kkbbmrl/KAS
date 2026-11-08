@@ -17,19 +17,42 @@ let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
 const pgTransactionStorage = new AsyncLocalStorage<pg.PoolClient>()
 
-// 1. Initialize SQLite Database always as a zero-latency engine and reliable fallback
-try {
-  const dbDir = path.resolve(process.cwd(), 'server', 'data')
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true })
+// 1. Local SQLite Database: ONLY initialized in offline local dev when PostgreSQL is NOT configured.
+// In production on Railway, Railway is 100% STATELESS — all database records and images live strictly in Supabase.
+if (!isPostgres) {
+  try {
+    const dbDir = path.resolve(process.cwd(), 'server', 'data')
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true })
+    }
+    const dbPath = path.join(dbDir, 'kas_autoparts.sqlite')
+    sqliteDb = new Database(dbPath)
+    sqliteDb.pragma('journal_mode = WAL')
+    sqliteDb.pragma('foreign_keys = ON')
+    console.log(`🗄️ SQLite Database engine ready for local offline dev (${dbPath})`)
+  } catch (err: any) {
+    console.warn('⚠️ SQLite initialization warning:', err.message)
   }
-  const dbPath = path.join(dbDir, 'kas_autoparts.sqlite')
-  sqliteDb = new Database(dbPath)
-  sqliteDb.pragma('journal_mode = WAL')
-  sqliteDb.pragma('foreign_keys = ON')
-  console.log(`🗄️ SQLite Database engine ready (${dbPath})`)
-} catch (err: any) {
-  console.warn('⚠️ SQLite initialization warning:', err.message)
+}
+
+function isTransientConnectionError(err: any): boolean {
+  if (!err) return false
+  const msg = (err.message || '').toLowerCase()
+  const code = String(err.code || '').toUpperCase()
+  return (
+    msg.includes('connection terminated') ||
+    msg.includes('connection timeout') ||
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('socket closed') ||
+    msg.includes('server closed the connection') ||
+    code === '57P01' || // admin_shutdown
+    code === '57P02' || // crash_shutdown
+    code === '57P03' || // cannot_connect_now
+    code === '08006' || // connection_failure
+    code === '08001' || // sqlclient_unable_to_establish_sqlconnection
+    code === '08004'    // sqlserver_rejected_establishment_of_sqlconnection
+  )
 }
 
 // 2. If PostgreSQL is configured, initialize singleton pool
@@ -39,18 +62,23 @@ if (isPostgres && rawDbUrl) {
     pgPool = new pg.Pool({
       connectionString: rawDbUrl,
       ssl: isLocal ? false : { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      max: 20,
+      min: 2,
+      idleTimeoutMillis: 20000,
+      connectionTimeoutMillis: 15000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
+      maxUses: 7500,
     })
     pgPool.on('error', (err) => {
-      console.warn('⚠️ PostgreSQL pool error:', err.message)
+      console.warn('⚠️ PostgreSQL pool background notice:', err.message)
     })
-    console.log('🐘 Initialized Singleton PostgreSQL Database Pool (max: 10, idleTimeout: 30s, connTimeout: 5s, SSL ready)')
+    console.log('🐘 Initialized Singleton PostgreSQL Database Pool (max: 20, min: 2, idleTimeout: 20s, connTimeout: 15s, SSL ready)')
   } catch (err: any) {
-    console.warn('⚠️ Could not configure PostgreSQL pool:', err.message)
+    console.error('❌ Could not configure PostgreSQL pool:', err.message)
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Fatal: PostgreSQL pool failed in production: ${err.message}`)
+    }
     isPostgres = false
   }
 }
@@ -61,8 +89,8 @@ export interface QueryResult<T = any> {
 }
 
 /**
- * Universal query runner that translates parameterized queries ($1, $2)
- * to PostgreSQL or SQLite bindings transparently with resilient fallback.
+ * Universal query runner with automatic transient retry on PostgreSQL.
+ * In production/Postgres mode, executes strictly against Supabase PostgreSQL.
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
   if (isPostgres && pgPool) {
@@ -76,33 +104,36 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
       .replace(/([a-zA-Z0-9_.]+)\s*=\s*(TRUE|true)\b/gi, '$1 = 1')
       .replace(/([a-zA-Z0-9_.]+)\s*=\s*(FALSE|false)\b/gi, '$1 = 0')
 
-    try {
-      const res = await runner.query(pgSql, params)
-      // When executing multi-statement scripts in pg, runner.query returns an array: [Result, Result, ...]
-      if (Array.isArray(res)) {
-        const lastResult = res[res.length - 1]
-        return {
-          rows: lastResult?.rows || [],
-          rowCount: res.reduce((acc, r) => acc + (r.rowCount || 0), 0),
+    const maxAttempts = txClient ? 1 : 3
+    let attempt = 0
+
+    while (attempt < maxAttempts) {
+      attempt++
+      try {
+        const res = await runner.query(pgSql, params)
+        // When executing multi-statement scripts in pg, runner.query returns an array: [Result, Result, ...]
+        if (Array.isArray(res)) {
+          const lastResult = res[res.length - 1]
+          return {
+            rows: lastResult?.rows || [],
+            rowCount: res.reduce((acc, r) => acc + (r.rowCount || 0), 0),
+          }
         }
-      }
-      return {
-        rows: res?.rows || [],
-        rowCount: res?.rowCount ?? (res?.rows ? res.rows.length : 0),
-      }
-    } catch (err: any) {
-      if (txClient) {
-        // Within transaction, errors must propagate so the transaction rolls back cleanly
+        return {
+          rows: res?.rows || [],
+          rowCount: res?.rowCount ?? (res?.rows ? res.rows.length : 0),
+        }
+      } catch (err: any) {
+        if (attempt < maxAttempts && isTransientConnectionError(err)) {
+          const backoff = 150 * attempt
+          await new Promise((resolve) => setTimeout(resolve, backoff))
+          continue
+        }
+
+        const sqlSnippet = pgSql.length > 120 ? `${pgSql.slice(0, 120).replace(/\s+/g, ' ')}...` : pgSql.replace(/\s+/g, ' ')
+        console.error(`❌ PostgreSQL query failed [${err.code || 'TIMEOUT'}]:`, err.message, `| SQL: ${sqlSnippet}`)
         throw err
       }
-      const isMutationOrDdl = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE)\b/i.test(sql)
-      if (isMutationOrDdl) {
-        // NEVER divert database writes or schema to local SQLite when PostgreSQL is configured!
-        const sqlSnippet = pgSql.length > 200 ? `${pgSql.slice(0, 200)}... [${pgSql.length} chars]` : pgSql
-        console.error('❌ Supabase PostgreSQL mutation/DDL failed:', err.message, 'Code:', err.code, 'SQL:', sqlSnippet)
-        throw err
-      }
-      console.warn(`⚠️ PostgreSQL query notice (${err.message}). Using local fallback engine...`)
     }
   }
 
@@ -132,7 +163,8 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<Q
         return { rows: [], rowCount: info.changes }
       }
     } catch (err: any) {
-      console.error('Database query error:', err.message, 'SQL:', sqliteSql)
+      const sqlSnippet = sqliteSql.length > 100 ? `${sqliteSql.slice(0, 100).replace(/\s+/g, ' ')}...` : sqliteSql.replace(/\s+/g, ' ')
+      console.error('SQLite query error:', err.message, '| SQL:', sqlSnippet)
       throw err
     }
   }
@@ -192,6 +224,25 @@ export async function getClient() {
     return pgPool.connect()
   }
   return null
+}
+
+export async function closeDatabase(): Promise<void> {
+  if (pgPool) {
+    try {
+      await pgPool.end()
+      console.log('🐘 PostgreSQL connection pool closed gracefully.')
+    } catch (e: any) {
+      console.warn('⚠️ Notice closing PostgreSQL pool:', e.message)
+    }
+  }
+  if (sqliteDb) {
+    try {
+      sqliteDb.close()
+      console.log('🗄️ SQLite local connection closed.')
+    } catch (e: any) {
+      console.warn('⚠️ Notice closing SQLite connection:', e.message)
+    }
+  }
 }
 
 export { isPostgres, sqliteDb, pgPool }

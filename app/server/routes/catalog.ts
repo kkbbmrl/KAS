@@ -64,7 +64,7 @@ router.get('/vehicle-makes', async (_req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(makes.rows)
   } catch (err: any) {
-    console.error('Error fetching vehicle makes:', err)
+    console.error('Error fetching vehicle makes:', err.message)
     res.status(500).json({ error: 'Failed to fetch vehicle makes' })
   }
 })
@@ -84,7 +84,7 @@ router.get('/vehicle-models', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
     res.json(models.rows)
   } catch (err: any) {
-    console.error('Error fetching vehicle models:', err)
+    console.error('Error fetching vehicle models:', err.message)
     res.status(500).json({ error: 'Failed to fetch vehicle models' })
   }
 })
@@ -443,7 +443,7 @@ router.get('/products', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
     res.json(products)
   } catch (err: any) {
-    console.error('Error querying products:', err)
+    console.error('Error querying products:', err.message)
     res.status(500).json({ error: 'Failed to search products' })
   }
 })
@@ -531,7 +531,7 @@ router.get('/products/:id', async (req, res) => {
       }),
     })
   } catch (err: any) {
-    console.error('Error fetching product details:', err)
+    console.error('Error fetching product details:', err.message)
     res.status(500).json({ error: 'Failed to fetch product' })
   }
 })

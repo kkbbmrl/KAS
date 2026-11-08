@@ -25,7 +25,7 @@ import adminMiscRouter from './routes/admin/misc.js'
 import { initDatabase } from './db/init.js'
 import { seedDatabase } from './db/seed.js'
 import { importFromEnrichedCsv } from './scripts/import_from_enriched_csv.js'
-import { query } from './db/db.js'
+import { query, closeDatabase } from './db/db.js'
 import { ensureAdminAccounts } from './db/ensureAdmins.js'
 import { requireAdmin, requireRoles } from './middleware/adminAuth.js'
 import { apiGlobalRateLimiter } from './middleware/rateLimiter.js'
@@ -117,20 +117,19 @@ app.use(
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true, limit: '2mb' }))
 
-// Static uploads folder with hardened headers (Prevent script execution from uploads)
+// Static uploads folder only if directory already exists (all new uploads go directly to Supabase Storage)
 const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true })
+if (fs.existsSync(uploadsDir)) {
+  app.use(
+    '/uploads',
+    (req, res, next) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Content-Disposition', 'inline')
+      next()
+    },
+    express.static(uploadsDir)
+  )
 }
-app.use(
-  '/uploads',
-  (req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff')
-    res.setHeader('Content-Disposition', 'inline')
-    next()
-  },
-  express.static(uploadsDir)
-)
 
 // Static /img folder for product parts, assets, and branding
 const publicImgDir = path.resolve(process.cwd(), 'public', 'img')
@@ -232,7 +231,8 @@ app.use((req, res, next) => {
 
 // Centralized API Error Handling Middleware (Prevents stack trace / SQL detail leakage)
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Unhandled Application Error:', err)
+  const errMsg = err?.message || String(err || 'Unknown error')
+  console.error('Unhandled Application Error:', errMsg.slice(0, 200))
   if (res.headersSent) return
 
   if (err.type === 'entity.too.large') {
@@ -294,8 +294,9 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
       const prodCount = Number(checkProds.rows[0]?.count || 0)
       console.log(`✅ Current database has ${prodCount} products.`)
 
-      if (prodCount < 500) {
-        console.log('📦 Database has less than 500 products. Auto-populating all 2,237 products from enriched CSV...')
+      // Auto-populate from CSV only if table is completely empty AND explicitly requested or in local dev
+      if (prodCount === 0 && (process.env.AUTO_SEED_CATALOG === 'true' || process.env.NODE_ENV !== 'production')) {
+        console.log('📦 Database has 0 products. Auto-populating catalog from enriched CSV...')
         try {
           await importFromEnrichedCsv()
         } catch (csvErr: any) {
@@ -313,9 +314,14 @@ const server = app.listen(listenPort, '0.0.0.0', () => {
 
 // Graceful shutdown handling for Railway/Docker container termination
 const gracefulShutdown = (signal: string) => {
-  console.log(`Received ${signal}. Shutting down gracefully...`)
-  server.close(() => {
+  console.log(`Received ${signal}. Draining connections and shutting down gracefully...`)
+  server.close(async () => {
     console.log('HTTP server closed.')
+    try {
+      await closeDatabase()
+    } catch (dbErr: any) {
+      console.warn('⚠️ Error during graceful db close:', dbErr.message)
+    }
     process.exit(0)
   })
   setTimeout(() => {

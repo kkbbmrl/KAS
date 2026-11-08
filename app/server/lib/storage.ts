@@ -92,7 +92,11 @@ export async function uploadImage(
     }
   }
 
-  // 2. Graceful Fallback: Local Disk Storage for offline / testing environments
+  // 2. Graceful Fallback: Local Disk Storage for offline / development environments ONLY
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('فشل رفع الصورة: خدمة التخزين السحابي (Supabase Storage) غير مفعلة في بيئة الإنتاج.')
+  }
+
   const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true })

@@ -1,4 +1,6 @@
 import http from 'node:http'
+import fs from 'node:fs'
+import path from 'node:path'
 import { app } from '../index.js'
 import { query } from '../db/db.js'
 import { hashPassword } from '../lib/password.js'
@@ -292,6 +294,11 @@ async function runAllSecurityTests() {
       })
       if (validRes.status !== 201 || !validRes.body?.url) {
         throw new Error(`Valid PNG upload was rejected! Status ${validRes.status}: ${JSON.stringify(validRes.body)}`)
+      }
+      if (validRes.body.provider === 'local') {
+        const filename = path.basename(String(validRes.body.url))
+        const localPath = path.resolve(process.cwd(), 'server', 'data', 'uploads', filename)
+        if (fs.existsSync(localPath)) fs.unlinkSync(localPath)
       }
     })
 

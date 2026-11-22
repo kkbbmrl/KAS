@@ -268,7 +268,12 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 // Start server listening
-const listenPort = Number(process.env.PORT) || 5000
+const configuredPort = process.env.PORT?.trim()
+const parsedPort = Number(configuredPort)
+const listenPort = configuredPort === '0' ||
+  (Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535)
+  ? parsedPort
+  : 5000
 
 const server = app.listen(listenPort, '0.0.0.0', () => {
   console.log(`🚀 KAS Auto Parts API Server listening on http://0.0.0.0:${listenPort}`)

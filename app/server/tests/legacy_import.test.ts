@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/db.js'
 import { initDatabase } from '../db/init.js'
+import { seedDatabase } from '../db/seed.js'
 import {
   extractDataFromPdf,
   validatePdfMagicBytes,
@@ -26,6 +27,10 @@ import path from 'node:path'
 async function runLegacyImportTestSuite() {
   console.log('🧪 Starting Legacy Inventory & Purchase PDF Import Test Suite...')
   await initDatabase()
+  const existingProducts = await query(`SELECT COUNT(*) AS count FROM products`)
+  if (Number(existingProducts.rows[0]?.count || 0) === 0) {
+    await seedDatabase()
+  }
 
   let passed = 0
   let failed = 0

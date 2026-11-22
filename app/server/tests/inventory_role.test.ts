@@ -1,11 +1,27 @@
-import { query } from '../db/db.js'
+import { closeDatabase, query } from '../db/db.js'
+import { initDatabase } from '../db/init.js'
+import { seedDatabase } from '../db/seed.js'
 import { hashPassword } from '../lib/password.js'
 import { randomUUID } from 'node:crypto'
 
 async function testInventoryRole() {
   console.log('🧪 Starting Inventory Manager Role Verification Tests...')
 
-  const baseUrl = 'http://localhost:5000/api/v1/admin'
+  await initDatabase()
+  const existingProducts = await query(`SELECT COUNT(*) AS count FROM products`)
+  if (Number(existingProducts.rows[0]?.count || 0) === 0) {
+    await seedDatabase()
+  }
+  process.env.PORT = '0'
+  const { default: server } = await import('../index.js')
+  if (!server.listening) {
+    await new Promise<void>((resolve) => server.once('listening', resolve))
+  }
+  const address = server.address()
+  if (!address || typeof address === 'string') {
+    throw new Error('Inventory role test server did not bind to a TCP port')
+  }
+  const baseUrl = `http://127.0.0.1:${address.port}/api/v1/admin`
   const testUsername = 'test_inv_manager'
   const testPassword = 'InvSecretPassword2026!#'
   const testEmail = 'inv_test@kas.dz'
@@ -125,6 +141,8 @@ async function testInventoryRole() {
     await query(`DELETE FROM admin_sessions WHERE user_id IN (SELECT id FROM admin_users WHERE username = $1)`, [testUsername])
     await query(`DELETE FROM admin_users WHERE username = $1`, [testUsername])
     console.log('🧹 Cleaned up test user and sessions')
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+    await closeDatabase()
   }
 }
 

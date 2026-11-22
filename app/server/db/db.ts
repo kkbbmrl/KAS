@@ -7,25 +7,29 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 dotenv.config()
 
-// Default authoritative Supabase PostgreSQL connection (Transaction Pooler: Port 6543)
-const DEFAULT_SUPABASE_PG =
-  'postgresql://postgres.gqbwwymexbxdhosjslwz:0662136563bachir@aws-0-eu-west-2.pooler.supabase.com:6543/postgres'
-
-const rawDbUrl = (process.env.DATABASE_URL || DEFAULT_SUPABASE_PG).trim().replace(/^["']|["']$/g, '')
+const rawDbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '')
+if (process.env.NODE_ENV === 'production' && !rawDbUrl) {
+  throw new Error('DATABASE_URL is required in production')
+}
 let isPostgres = Boolean(rawDbUrl && !rawDbUrl.includes('[your-project-ref]'))
 let pgPool: pg.Pool | null = null
 let sqliteDb: any = null
 const pgTransactionStorage = new AsyncLocalStorage<pg.PoolClient>()
 
 // 1. Local SQLite Database: ONLY initialized in offline local dev when PostgreSQL is NOT configured.
-// In production on Railway, Railway is 100% STATELESS — all database records and images live strictly in Supabase.
+// In production on Railway, Railway is 100% stateless and PostgreSQL is configured via DATABASE_URL.
 if (!isPostgres) {
   try {
     const dbDir = path.resolve(process.cwd(), 'server', 'data')
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true })
     }
-    const dbPath = path.join(dbDir, 'kas_autoparts.sqlite')
+    const configuredSqlitePath = (process.env.KAS_SQLITE_DB_PATH || '').trim()
+    const dbPath = configuredSqlitePath
+      ? path.resolve(configuredSqlitePath)
+      : process.env.NODE_TEST_CONTEXT
+        ? ':memory:'
+        : path.join(dbDir, 'kas_autoparts.sqlite')
     sqliteDb = new Database(dbPath)
     sqliteDb.pragma('journal_mode = WAL')
     sqliteDb.pragma('foreign_keys = ON')
@@ -90,7 +94,7 @@ export interface QueryResult<T = any> {
 
 /**
  * Universal query runner with automatic transient retry on PostgreSQL.
- * In production/Postgres mode, executes strictly against Supabase PostgreSQL.
+ * In production/Postgres mode, executes against the PostgreSQL provider configured by DATABASE_URL.
  */
 export async function query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
   if (isPostgres && pgPool) {

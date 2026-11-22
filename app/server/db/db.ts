@@ -63,7 +63,7 @@ if (isPostgres && rawDbUrl) {
       connectionString: rawDbUrl,
       ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 20,
-      min: 2,
+      min: 0,
       idleTimeoutMillis: 20000,
       connectionTimeoutMillis: 15000,
       keepAlive: true,
@@ -73,7 +73,7 @@ if (isPostgres && rawDbUrl) {
     pgPool.on('error', (err) => {
       console.warn('⚠️ PostgreSQL pool background notice:', err.message)
     })
-    console.log('🐘 Initialized Singleton PostgreSQL Database Pool (max: 20, min: 2, idleTimeout: 20s, connTimeout: 15s, SSL ready)')
+    console.log('🐘 Initialized Singleton PostgreSQL Database Pool (max: 20, min: 0, idleTimeout: 20s, connTimeout: 15s, SSL ready)')
   } catch (err: any) {
     console.error('❌ Could not configure PostgreSQL pool:', err.message)
     if (process.env.NODE_ENV === 'production') {

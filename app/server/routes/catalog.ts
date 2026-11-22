@@ -171,7 +171,8 @@ router.get('/products', async (req, res) => {
         p.badge,
         p.rating,
         (p.featured_home = 1 OR p.featured_home = TRUE) AS "featuredHome",
-        (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, display_order ASC LIMIT 1) AS image
+        (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, display_order ASC LIMIT 1) AS image,
+        (SELECT image_variants FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, display_order ASC LIMIT 1) AS "imageVariants"
       FROM products p
       JOIN categories c ON c.id = p.category_id
       JOIN brands b ON b.id = p.brand_id
@@ -469,7 +470,7 @@ router.get('/products/:id', async (req, res) => {
     }
 
     const prod = prodRes.rows[0]
-    const images = await query(`SELECT image_url AS url, is_primary FROM product_images WHERE product_id = $1 ORDER BY display_order ASC`, [prod.id])
+    const images = await query(`SELECT image_url AS url, image_variants AS "imageVariants", is_primary FROM product_images WHERE product_id = $1 ORDER BY display_order ASC, id ASC`, [prod.id])
     const variants = await query(`SELECT id, variant_sku AS sku, part_number AS "partNumber", label_ar AS label, price, old_price AS "oldPrice", stock_quantity AS "stockQuantity", stock_status AS stock, extra_specs AS "extraSpecs" FROM product_variants WHERE product_id = $1`, [prod.id])
     const specs = await query(`SELECT label_ar AS label, value_ar AS value FROM product_specs WHERE product_id = $1 ORDER BY display_order ASC`, [prod.id])
 
@@ -498,6 +499,7 @@ router.get('/products/:id', async (req, res) => {
       ...prod,
       rating: Number(prod.rating ?? 0),
       image: images.rows[0]?.url || '',
+      imageVariants: images.rows[0]?.imageVariants,
       images: images.rows.map((i: any) => i.url),
       price: Number(primary?.price ?? 0),
       oldPrice: primary?.oldPrice != null ? Number(primary.oldPrice) : undefined,

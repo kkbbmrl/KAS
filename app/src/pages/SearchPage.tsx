@@ -26,6 +26,7 @@ import {
 } from '@/data/products'
 import { fetchProducts, fetchCategories } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
+import { listingSources } from '@/lib/imageSources'
 
 const selectCls =
   'w-full appearance-none rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 pe-10 text-sm font-bold text-zinc-800 outline-none transition-all focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10 hover:border-brand-300 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:opacity-50'
@@ -448,7 +449,10 @@ export default function SearchPage() {
                       aria-label={`عرض تفاصيل ${p.name}`}
                     >
                       <img
-                        src={p.image}
+                        {...listingSources(p.image, p.imageVariants)}
+                        sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        width={320}
+                        height={320}
                         alt={p.name}
                         loading="lazy"
                         decoding="async"

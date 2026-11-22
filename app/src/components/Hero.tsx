@@ -111,6 +111,7 @@ export default function Hero() {
               alt="سيارة حديثة بقطع غيار أصلية من Khaled Auto Parts"
               className="img-in relative w-full scale-[1.02] object-contain"
               loading="eager"
+              fetchPriority="high"
             />
             <span className="absolute right-5 top-5 rounded-full bg-zinc-900/85 px-4 py-1.5 text-xs font-bold text-white backdrop-blur">
               معرض <span className="text-brand-400">KAS</span> 2026
@@ -123,7 +124,7 @@ export default function Hero() {
               onClick={() => setSelected(rad)}
               className="animate-floaty group absolute right-2 top-8 hidden items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 min-[480px]:flex sm:right-6"
             >
-              <img src={rad.image} alt={rad.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
+              <img src={rad.image} alt={rad.name} width={56} height={56} loading="lazy" decoding="async" className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
               <span>
                 <span className="block text-xs font-bold text-zinc-800">{rad.brand} — {rad.category}</span>
                 <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(rad.price)}</span>
@@ -137,7 +138,7 @@ export default function Hero() {
               className="animate-floaty-slow group absolute left-2 bottom-16 hidden items-center gap-3 rounded-2xl border border-zinc-100 bg-white/95 p-3 pe-5 text-right shadow-xl shadow-zinc-900/10 backdrop-blur transition-all hover:-translate-y-1 hover:border-brand-200 min-[480px]:flex sm:left-6"
               style={{ animationDelay: '1.2s' }}
             >
-              <img src={lamp.image} alt={lamp.name} className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
+              <img src={lamp.image} alt={lamp.name} width={56} height={56} loading="lazy" decoding="async" className="h-14 w-14 rounded-xl bg-zinc-50 object-cover p-1 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" />
               <span>
                 <span className="block text-xs font-bold text-zinc-800">{lamp.brand} — {lamp.category}</span>
                 <span className="mt-0.5 block font-cairo text-sm font-black text-brand-600">{formatPrice(lamp.price)}</span>

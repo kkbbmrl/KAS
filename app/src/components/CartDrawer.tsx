@@ -20,6 +20,7 @@ import { formatPrice } from '@/data/products'
 import { ALGERIA_WILAYAS } from '@/data/wilayas'
 import { useShop, lineKey, unitPrice, type CheckoutDetails } from '@/context/ShopContext'
 import { useStoreSettings } from '@/context/SettingsContext'
+import { listingSources } from '@/lib/imageSources'
 
 const emptyForm: CheckoutDetails = {
   firstName: '',
@@ -396,7 +397,12 @@ export default function CartDrawer() {
                         className="fade-in flex gap-3 rounded-2xl border border-zinc-200/80 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:gap-4 sm:p-3.5"
                       >
                         <img
-                          src={i.variant?.image ?? i.product.image ?? '/img/parts/calandre-grille.jpg'}
+                          {...listingSources(i.variant?.image ?? i.product.image ?? '/img/parts/calandre-grille.jpg', i.variant?.image ? undefined : i.product.imageVariants)}
+                          sizes="80px"
+                          width={80}
+                          height={80}
+                          loading="lazy"
+                          decoding="async"
                           alt={i.product.name}
                           onError={(e) => {
                             e.currentTarget.src = '/img/parts/calandre-grille.jpg'

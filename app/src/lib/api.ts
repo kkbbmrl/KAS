@@ -59,6 +59,7 @@ function normalizeProduct(p: Product): Product {
   return {
     ...p,
     image: resolveImageUrl(p.image),
+    imageVariants: typeof p.imageVariants === 'string' ? JSON.parse(p.imageVariants) : p.imageVariants,
     variants: p.variants?.map((v) => ({
       ...v,
       image: v.image ? resolveImageUrl(v.image) : undefined,

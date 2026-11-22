@@ -63,6 +63,9 @@ export default function ProductGalleryInteractive({ images, productName, badge, 
         <img
           src={safeImages[activeIdx] || safeImages[0]}
           alt={productName}
+          width={1200}
+          height={1200}
+          sizes="(min-width: 1024px) 50vw, 100vw"
           className={`h-full w-full object-contain transition-transform duration-200 ${
             isZoomed ? 'scale-105 opacity-90' : 'scale-100'
           }`}
@@ -102,6 +105,10 @@ export default function ProductGalleryInteractive({ images, productName, badge, 
               <img
                 src={img}
                 alt={`صورة ${idx + 1}`}
+                width={80}
+                height={80}
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   ;(e.currentTarget as HTMLImageElement).src = PLACEHOLDER_IMAGE
                 }}

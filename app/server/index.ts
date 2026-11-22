@@ -117,7 +117,7 @@ app.use(
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true, limit: '2mb' }))
 
-// Static uploads folder only if directory already exists (all new uploads go directly to Supabase Storage)
+// Serve local uploads when the development upload directory exists.
 const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
 if (fs.existsSync(uploadsDir)) {
   app.use(

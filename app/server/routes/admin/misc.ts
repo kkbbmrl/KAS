@@ -86,7 +86,7 @@ router.post('/upload', requireRoles(['admin', 'super_admin']), async (req, res) 
       return res.status(400).json({ error: 'محتوى الصورة غير صالح أو تالف' })
     }
 
-    // Upload to Supabase Storage (or fallback to local disk if unconfigured)
+    // Upload to R2, or use local disk in development.
     const { url, key, variants, isCloud, provider } = await uploadImage(buffer, detectedExt, 'products')
 
     res.status(201).json({

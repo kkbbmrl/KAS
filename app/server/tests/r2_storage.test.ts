@@ -8,9 +8,11 @@ const env = {
   R2_BUCKET_NAME: 'images', R2_PUBLIC_URL: 'https://images.example.com///',
 }
 
-test('defaults to Supabase without R2 configuration and reports every missing R2 key', () => {
-  assert.equal(storageProvider({}), 'supabase')
-  assert.equal(storageProvider({ STORAGE_PROVIDER: 'supabase' }), 'supabase')
+test('defaults to local development or R2 production and reports every missing R2 key', () => {
+  assert.equal(storageProvider({}), 'local')
+  assert.equal(storageProvider({ NODE_ENV: 'production' }), 'r2')
+  assert.throws(() => storageProvider({ NODE_ENV: 'production', STORAGE_PROVIDER: 'local' }))
+  assert.throws(() => storageProvider({ STORAGE_PROVIDER: 'supabase' }))
   assert.equal(storageProvider({ STORAGE_PROVIDER: 'r2' }), 'r2')
   assert.throws(() => r2Config({}), /R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL/)
 })
@@ -50,12 +52,11 @@ test('uses the stored asset host and explicitly routes cleanup by provider', asy
   assert.match(detailSources(`${r2}/products/1200.webp`, variants).srcSet!, /1200\.webp 1200w$/)
   const calls: string[] = []
   const adapters = {
-    supabase: { async remove(key: string) { calls.push(`supabase:${key}`) } },
     r2: { async remove(key: string) { calls.push(`r2:${key}`) } },
   }
-  await removeStoredImage('supabase', 'a.webp', adapters)
+  assert.equal(await removeStoredImage('supabase', 'a.webp', adapters), false)
   await removeStoredImage('r2', 'b.webp', adapters)
   assert.equal(await removeStoredImage(null, 'a.webp', adapters), false)
-  assert.equal(await removeStoredImage('r2', 'b.webp', { supabase: adapters.supabase }), false)
-  assert.deepEqual(calls, ['supabase:a.webp', 'r2:b.webp'])
+  assert.equal(await removeStoredImage('r2', 'b.webp', {}), false)
+  assert.deepEqual(calls, ['r2:b.webp'])
 })

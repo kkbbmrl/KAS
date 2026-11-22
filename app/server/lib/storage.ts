@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
-import { supabaseAdmin, isSupabaseStorageReady } from './supabase.js'
 import { createHash } from 'node:crypto'
 import { buildImmutableImageKey } from './imageAssets.js'
 import { generateImageVariants } from './imageProcessing.js'
@@ -11,24 +10,17 @@ import { createR2Adapter, r2Config, removeStoredImage, storageProvider } from '.
 const provider = storageProvider(process.env)
 const r2 = provider === 'r2' ? createR2Adapter(r2Config(process.env)) : undefined
 
-const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || 'product-images'
-
 export async function deleteImageObject(provider: string | null, key: string) {
-  const admin = isSupabaseStorageReady() ? supabaseAdmin : undefined
   const r2Adapter = r2 ?? (provider === 'r2' && process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID &&
     process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET_NAME && process.env.R2_PUBLIC_URL
     ? createR2Adapter(r2Config(process.env)) : undefined)
   return removeStoredImage(provider, key, {
     r2: r2Adapter,
-    supabase: admin ? { async remove(objectKey) {
-      const { error } = await admin.storage.from(BUCKET_NAME).remove([objectKey])
-      if (error) throw error
-    } } : undefined,
   })
 }
 
 export interface StorageUploadResult {
-  provider: 'supabase' | 'r2' | 'local'
+  provider: 'r2' | 'local'
   url: string
   key: string
   variants: { key: string; width: number }[]
@@ -66,9 +58,9 @@ export async function optimizeImageToWebp(
 }
 
 /**
- * Uploads an image buffer directly to Supabase Public Storage when configured.
+ * Uploads an image buffer directly to R2 when configured.
  * Automatically compresses the image to WebP with sharp.
- * Gracefully falls back to local disk storage in development if Supabase keys are not set.
+ * Uses local disk storage in development when R2 is not selected.
  */
 export async function uploadImage(
   buffer: Buffer,
@@ -95,41 +87,8 @@ export async function uploadImage(
     return { provider: 'r2', url: r2.publicUrl(masterKey), key: masterKey, variants, isCloud: true, format: ext, originalSize, optimizedSize }
   }
 
-  // 1. If Supabase is configured, upload to Cloud Storage
-  if (isSupabaseStorageReady() && supabaseAdmin) {
-    for (const variant of uploadVariants) {
-      const { error } = await supabaseAdmin.storage.from(BUCKET_NAME).upload(variant.key, variant.buffer, {
-        contentType: 'image/webp',
-        cacheControl: '31536000, immutable',
-        upsert: false,
-      })
-      if (error && !/already exists/i.test(error.message)) {
-        console.error('⚠️ Supabase Storage upload error:', error.message)
-        throw new Error(`فشل رفع الصورة إلى التخزين السحابي: ${error.message}`)
-      }
-    }
-
-    const { data: publicData } = supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(masterKey)
-
-    console.log(`☁️ Successfully uploaded to Supabase Storage: ${publicData.publicUrl} (${optimizedSize} bytes)`)
-
-    return {
-      provider: 'supabase',
-      url: publicData.publicUrl,
-      key: masterKey,
-      variants: uploadVariants.map(({ key, width }) => ({ key, width })),
-      isCloud: true,
-      format: ext,
-      originalSize,
-      optimizedSize,
-    }
-  }
-
-  // 2. Graceful Fallback: Local Disk Storage for offline / development environments ONLY
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('فشل رفع الصورة: خدمة التخزين السحابي (Supabase Storage) غير مفعلة في بيئة الإنتاج.')
+    throw new Error('فشل رفع الصورة: تخزين R2 غير مفعّل في بيئة الإنتاج.')
   }
 
   const uploadsDir = path.resolve(process.cwd(), 'server', 'data', 'uploads')
@@ -141,7 +100,7 @@ export async function uploadImage(
   const filePath = path.join(uploadsDir, localFilename)
   fs.writeFileSync(filePath, optimizedBuffer)
 
-  console.warn('⚠️ Supabase Storage not active. Saved image locally to disk:', localFilename)
+  console.warn('R2 not active. Saved image locally:', localFilename)
 
   return {
     provider: 'local',

@@ -4,8 +4,10 @@ const required = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', '
 type Sender = { send(command: PutObjectCommand | DeleteObjectCommand): Promise<unknown> }
 
 export function storageProvider(env: NodeJS.ProcessEnv) {
-  const provider = env.STORAGE_PROVIDER || 'supabase'
-  if (provider !== 'supabase' && provider !== 'r2') throw new Error('STORAGE_PROVIDER must be supabase or r2')
+  const provider = env.STORAGE_PROVIDER || (env.NODE_ENV === 'production' ? 'r2' : 'local')
+  if (provider !== 'r2' && (provider !== 'local' || env.NODE_ENV === 'production')) {
+    throw new Error('STORAGE_PROVIDER must be r2 in production; local is supported for development')
+  }
   return provider
 }
 
@@ -49,9 +51,9 @@ export function createR2Adapter(config: ReturnType<typeof r2Config>, factory: (c
   }
 }
 
-export async function removeStoredImage(provider: string | null, key: string, adapters: Partial<Record<'supabase' | 'r2', { remove(key: string): Promise<void> }>>) {
-  if (!key || (provider !== 'supabase' && provider !== 'r2')) return false
-  const adapter = adapters[provider]
+export async function removeStoredImage(provider: string | null, key: string, adapters: { r2?: { remove(key: string): Promise<void> } }) {
+  if (!key || provider !== 'r2') return false
+  const adapter = adapters.r2
   if (!adapter) return false
   await adapter.remove(key)
   return true
@@ -61,7 +63,7 @@ export function isAllowedImageUrl(value: string, env: NodeJS.ProcessEnv) {
   try {
     const url = new URL(value)
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return false
-    return [env.SUPABASE_URL, env.IMAGE_CDN_BASE_URL, env.R2_PUBLIC_URL].some((base) => {
+    return [env.IMAGE_CDN_BASE_URL, env.R2_PUBLIC_URL].some((base) => {
       try { return !!base && new URL(base).origin === url.origin } catch { return false }
     })
   } catch { return false }

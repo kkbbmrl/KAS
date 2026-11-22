@@ -138,6 +138,7 @@ export default function AdsCatalogPage() {
                         src={campaign.image || '/img/parts/calandre-grille.jpg'}
                         alt={campaign.title}
                         loading="lazy"
+                        decoding="async"
                         onError={(e) => {
                           e.currentTarget.src = '/img/parts/calandre-grille.jpg'
                         }}

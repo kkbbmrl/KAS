@@ -16,6 +16,7 @@ import {
 import { formatPrice, type Product, type ProductVariant } from '@/data/products'
 import { fetchProducts, fetchProductById } from '@/lib/api'
 import { useShop } from '@/context/ShopContext'
+import { detailSources } from '@/lib/imageSources'
 
 const VIEWS = ['الواجهة', 'منظر جانبي', 'لقطة مقرّبة'] as const
 
@@ -89,6 +90,7 @@ export default function ProductModal() {
   const effectiveOldPrice = selectedVariant?.oldPrice ?? p.oldPrice
   const effectiveStock = selectedVariant?.stock ?? p.stock
   const effectiveImage = selectedVariant?.image ?? p.image
+  const detailImage = detailSources(effectiveImage || '/img/parts/calandre-grille.jpg', selectedVariant?.image ? undefined : p.imageVariants)
   const effectivePartNumber = selectedVariant?.partNumber ?? p.partNumber
   const effectiveSpecs = [
     ...(p.specs || []),
@@ -150,7 +152,10 @@ export default function ProductModal() {
               className="relative cursor-zoom-in overflow-hidden rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 via-white to-red-50/40"
             >
               <img
-                src={effectiveImage || '/img/parts/calandre-grille.jpg'}
+                {...detailImage}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                width={1200}
+                height={1200}
                 alt={p.name}
                 onError={(e) => {
                   e.currentTarget.src = '/img/parts/calandre-grille.jpg'
@@ -177,7 +182,12 @@ export default function ProductModal() {
                     }`}
                 >
                   <img
-                    src={effectiveImage || '/img/parts/calandre-grille.jpg'}
+                    {...detailImage}
+                    sizes="96px"
+                    width={96}
+                    height={96}
+                    loading="lazy"
+                    decoding="async"
                     alt={`${p.name} — ${v}`}
                     onError={(e) => {
                       e.currentTarget.src = '/img/parts/calandre-grille.jpg'
@@ -435,6 +445,8 @@ export default function ProductModal() {
                 >
                   <img
                     src={s.image || '/img/parts/calandre-grille.jpg'}
+                    loading="lazy"
+                    decoding="async"
                     alt={s.name}
                     onError={(e) => {
                       e.currentTarget.src = '/img/parts/calandre-grille.jpg'

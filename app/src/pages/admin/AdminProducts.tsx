@@ -57,6 +57,9 @@ interface VariantItem {
 interface ImageItem {
   url: string
   isPrimary: boolean
+  key?: string
+  provider?: string
+  variants?: { key: string; width: number }[]
 }
 
 const DEFAULT_BRANDS = [
@@ -260,6 +263,9 @@ export default function AdminProducts() {
       const extraVars = p.variants?.slice(1) || []
       const imageList: ImageItem[] = (p.images || []).map((img: any) => ({
         url: typeof img === 'string' ? img : img.url,
+        provider: img.provider,
+        key: img.key,
+        variants: img.variants,
         isPrimary: Boolean(img.isPrimary),
       }))
       const primaryUrl = imageList.find((i) => i.isPrimary)?.url || imageList[0]?.url || p.image || ''
@@ -315,7 +321,7 @@ export default function AdminProducts() {
           const res = await uploadAdminImage({ image: base64Data, filename: file.name })
           const uploadedUrl = res.url
           setForm((prev) => {
-            const updatedImages = [{ url: uploadedUrl, isPrimary: true }, ...prev.images.map((img) => ({ ...img, isPrimary: false }))]
+            const updatedImages = [{ url: uploadedUrl, isPrimary: true, key: res.key, provider: res.provider, variants: res.variants }, ...prev.images.map((img) => ({ ...img, isPrimary: false }))]
             return {
               ...prev,
               imageUrl: uploadedUrl,

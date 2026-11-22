@@ -37,6 +37,7 @@ export interface Product {
   oldPrice?: number
   stock: StockStatus
   image: string
+  imageVariants?: { key: string; width: number }[]
   flip?: boolean
   badge?: string
   rating: number

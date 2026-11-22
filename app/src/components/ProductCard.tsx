@@ -1,6 +1,7 @@
 import { Eye, ShoppingCart, Star } from 'lucide-react'
 import { formatPrice, type Product } from '@/data/products'
 import { useShop } from '@/context/ShopContext'
+import { listingSources } from '@/lib/imageSources'
 
 const stockColors: Record<string, string> = {
   'متوفر': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -24,6 +25,7 @@ export default function ProductCard({
 }) {
   const { addToCart, setSelected } = useShop()
   const out = product.stock === 'غير متوفر'
+  const image = listingSources(product.image || '/img/parts/calandre-grille.jpg', product.imageVariants)
 
   return (
     <article
@@ -39,7 +41,10 @@ export default function ProductCard({
         aria-label={`عرض تفاصيل ${product.name}`}
       >
         <img
-          src={product.image || '/img/parts/calandre-grille.jpg'}
+          {...image}
+          sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+          width={320}
+          height={320}
           alt={product.name}
           loading="lazy"
           decoding="async"

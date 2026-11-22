@@ -305,7 +305,7 @@ router.get('/:id', async (req, res) => {
       [prod.id]
     )
     const images = await query(
-      `SELECT id, image_url AS url, is_primary AS "isPrimary", display_order AS "displayOrder" FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC`,
+      `SELECT id, image_url AS url, storage_provider AS provider, image_key AS key, image_variants AS variants, is_primary AS "isPrimary", display_order AS "displayOrder" FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC`,
       [prod.id]
     )
     const compat = await query(
@@ -410,7 +410,7 @@ router.post('/', async (req, res) => {
       )
 
       // 2. Insert Images (from images array or primary imageUrl)
-      const allImages: { url: string; isPrimary: boolean; order: number }[] = []
+      const allImages: { url: string; isPrimary: boolean; order: number; key?: string; provider?: string; variants?: unknown }[] = []
       if (Array.isArray(images) && images.length > 0) {
         images.forEach((img: any, idx: number) => {
           const url = typeof img === 'string' ? img : img.url
@@ -419,6 +419,9 @@ router.post('/', async (req, res) => {
               url: String(url).trim(),
               isPrimary: idx === 0 || Boolean(img.isPrimary),
               order: idx,
+              key: typeof img === 'object' ? img.key : undefined,
+              provider: typeof img === 'object' ? img.provider : undefined,
+              variants: typeof img === 'object' ? img.variants : undefined,
             })
           }
         })
@@ -432,9 +435,9 @@ router.post('/', async (req, res) => {
 
       for (const img of allImages) {
         await query(
-          `INSERT INTO product_images (id, product_id, image_url, is_primary, display_order)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [randomUUID(), productId, img.url, img.isPrimary ? 1 : 0, img.order]
+          `INSERT INTO product_images (id, product_id, image_url, storage_provider, image_key, image_variants, is_primary, display_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [randomUUID(), productId, img.url, img.provider || null, img.key || null, img.variants ? JSON.stringify(img.variants) : null, img.isPrimary ? 1 : 0, img.order]
         )
       }
 
@@ -653,11 +656,8 @@ router.put('/:id', async (req, res) => {
           const img = images[idx]
           const url = typeof img === 'string' ? img : img.url
           if (url && String(url).trim()) {
-            await query(
-              `INSERT INTO product_images (id, product_id, image_url, is_primary, display_order)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [randomUUID(), id, String(url).trim(), idx === 0 || Boolean(img.isPrimary) ? 1 : 0, idx]
-            )
+            await query(`INSERT INTO product_images (id, product_id, image_url, storage_provider, image_key, image_variants, is_primary, display_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [randomUUID(), id, String(url).trim(), img.provider || null, img.key || null, img.variants ? JSON.stringify(img.variants) : null, idx === 0 || Boolean(img.isPrimary) ? 1 : 0, idx])
           }
         }
       } else if (imageUrl !== undefined) {

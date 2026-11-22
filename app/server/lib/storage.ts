@@ -3,12 +3,35 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { supabaseAdmin, isSupabaseStorageReady } from './supabase.js'
+import { createHash } from 'node:crypto'
+import { buildImmutableImageKey } from './imageAssets.js'
+import { generateImageVariants } from './imageProcessing.js'
+import { createR2Adapter, r2Config, removeStoredImage, storageProvider } from './r2.js'
+
+const provider = storageProvider(process.env)
+const r2 = provider === 'r2' ? createR2Adapter(r2Config(process.env)) : undefined
 
 const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || 'product-images'
 
+export async function deleteImageObject(provider: string | null, key: string) {
+  const admin = isSupabaseStorageReady() ? supabaseAdmin : undefined
+  const r2Adapter = r2 ?? (provider === 'r2' && process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET_NAME && process.env.R2_PUBLIC_URL
+    ? createR2Adapter(r2Config(process.env)) : undefined)
+  return removeStoredImage(provider, key, {
+    r2: r2Adapter,
+    supabase: admin ? { async remove(objectKey) {
+      const { error } = await admin.storage.from(BUCKET_NAME).remove([objectKey])
+      if (error) throw error
+    } } : undefined,
+  })
+}
+
 export interface StorageUploadResult {
+  provider: 'supabase' | 'r2' | 'local'
   url: string
   key: string
+  variants: { key: string; width: number }[]
   isCloud: boolean
   format: string
   originalSize: number
@@ -54,37 +77,49 @@ export async function uploadImage(
 ): Promise<StorageUploadResult> {
   const originalSize = buffer.length
 
-  // Compress and convert to WebP
-  const optimizedBuffer = await optimizeImageToWebp(buffer)
+  const generated = await generateImageVariants(buffer)
+  const master = generated.variants.at(-1)!
+  const optimizedBuffer = master.buffer
   const optimizedSize = optimizedBuffer.length
+  const uploadVariants = generated.variants.map((variant) => ({
+    width: variant.width,
+    buffer: variant.buffer,
+    key: buildImmutableImageKey(folder, createHash('sha256').update(variant.buffer).digest('hex'), variant.width),
+  }))
+  const masterKey = uploadVariants.at(-1)!.key
+  const variants = uploadVariants.map(({ key, width }) => ({ key, width }))
   const ext = 'webp'
 
-  const fileName = `${folder}/${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.${ext}`
+  if (r2) {
+    for (const variant of uploadVariants) await r2.upload(variant.key, variant.buffer)
+    return { provider: 'r2', url: r2.publicUrl(masterKey), key: masterKey, variants, isCloud: true, format: ext, originalSize, optimizedSize }
+  }
 
   // 1. If Supabase is configured, upload to Cloud Storage
   if (isSupabaseStorageReady() && supabaseAdmin) {
-    const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .upload(fileName, optimizedBuffer, {
+    for (const variant of uploadVariants) {
+      const { error } = await supabaseAdmin.storage.from(BUCKET_NAME).upload(variant.key, variant.buffer, {
         contentType: 'image/webp',
-        cacheControl: '31536000, immutable', // 1 year CDN cache
+        cacheControl: '31536000, immutable',
         upsert: false,
       })
-
-    if (error) {
-      console.error('⚠️ Supabase Storage upload error:', error.message)
-      throw new Error(`فشل رفع الصورة إلى التخزين السحابي: ${error.message}`)
+      if (error && !/already exists/i.test(error.message)) {
+        console.error('⚠️ Supabase Storage upload error:', error.message)
+        throw new Error(`فشل رفع الصورة إلى التخزين السحابي: ${error.message}`)
+      }
     }
 
     const { data: publicData } = supabaseAdmin.storage
       .from(BUCKET_NAME)
-      .getPublicUrl(data.path)
+      .getPublicUrl(masterKey)
 
     console.log(`☁️ Successfully uploaded to Supabase Storage: ${publicData.publicUrl} (${optimizedSize} bytes)`)
 
     return {
+      provider: 'supabase',
       url: publicData.publicUrl,
-      key: data.path,
+      key: masterKey,
+      variants: uploadVariants.map(({ key, width }) => ({ key, width })),
       isCloud: true,
       format: ext,
       originalSize,
@@ -102,15 +137,17 @@ export async function uploadImage(
     fs.mkdirSync(uploadsDir, { recursive: true })
   }
 
-  const localFilename = `img_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.${ext}`
+  const localFilename = `img_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 16)}.webp`
   const filePath = path.join(uploadsDir, localFilename)
   fs.writeFileSync(filePath, optimizedBuffer)
 
   console.warn('⚠️ Supabase Storage not active. Saved image locally to disk:', localFilename)
 
   return {
+    provider: 'local',
     url: `/uploads/${localFilename}`,
     key: localFilename,
+    variants: [],
     isCloud: false,
     format: ext,
     originalSize,

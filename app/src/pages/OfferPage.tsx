@@ -233,6 +233,10 @@ export default function OfferPage() {
                   <img
                     src={offer.image}
                     alt={offer.title}
+                     width={1200}
+                     height={1200}
+                     loading="eager"
+                     fetchPriority="high"
                     className="relative z-10 h-72 w-full max-w-sm object-contain drop-shadow-2xl sm:h-80"
                   />
                 </div>
@@ -369,7 +373,7 @@ export default function OfferPage() {
               >
                 {/* Product preview at top of form */}
                 <div className="flex items-center gap-4 border-b border-zinc-100 bg-zinc-50/70 px-6 py-4">
-                  <img src={offer.image} alt={offer.title} className="h-16 w-16 object-contain" />
+                  <img src={offer.image} alt={offer.title} width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 object-contain" />
                   <div>
                     <p className="font-cairo text-sm font-black text-zinc-900">{offer.title}</p>
                     <p className="text-xs font-bold text-zinc-500" dir="ltr">{offer.nameFr} — {offer.brand}</p>

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { query } from '../../db/db.js'
 import { requireSuperAdmin, requireRoles } from '../../middleware/adminAuth.js'
 import { uploadImage } from '../../lib/storage.js'
+import { isAllowedImageUrl } from '../../lib/r2.js'
 
 const router = Router()
 
@@ -57,8 +58,11 @@ router.post('/upload', requireRoles(['admin', 'super_admin']), async (req, res) 
       return res.status(400).json({ error: 'لم يتم إرسال أي صورة' })
     }
 
-    // If it's already an existing HTTP/HTTPS URL, return it safely
+    // Explicit legacy exception: never silently persist arbitrary third-party URLs.
     if (/^https?:\/\//i.test(String(rawData))) {
+      if (!isAllowedImageUrl(String(rawData), process.env)) {
+        return res.status(400).json({ error: 'الروابط الخارجية غير مسموحة. ارفع الصورة ليتم تحسينها وتخزينها بأمان.' })
+      }
       return res.json({ success: true, url: rawData })
     }
 
@@ -83,11 +87,14 @@ router.post('/upload', requireRoles(['admin', 'super_admin']), async (req, res) 
     }
 
     // Upload to Supabase Storage (or fallback to local disk if unconfigured)
-    const { url, isCloud } = await uploadImage(buffer, detectedExt, 'products')
+    const { url, key, variants, isCloud, provider } = await uploadImage(buffer, detectedExt, 'products')
 
     res.status(201).json({
       success: true,
       url,
+      key,
+      variants,
+      provider,
       isCloud,
       message: isCloud ? 'تم رفع الصورة وتخزينها سحابياً بنجاح' : 'تم رفع الصورة بنجاح',
     })
